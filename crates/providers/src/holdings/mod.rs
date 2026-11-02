@@ -35,6 +35,12 @@ pub trait HoldingsProvider {
     fn locate(&self, symbol: &str) -> Result<Option<FundRef>, ProviderError>;
     /// Download and parse. `fallback_as_of` dates a file that carries no date.
     fn fetch(&self, fund: &FundRef, fallback_as_of: NaiveDate) -> Result<FundHoldings, ProviderError>;
+    /// Is this symbol a fund in the provider's own product list? The firm signal for
+    /// following a fund into the funds it holds: no guessing from names. A lookup
+    /// failure counts as "don't know".
+    fn knows(&self, symbol: &str) -> bool {
+        matches!(self.locate(symbol), Ok(Some(_)))
+    }
 }
 
 /// Fixed answers for tests and for offline runs.

@@ -251,8 +251,13 @@ impl HoldingsStore {
             };
             if let Some(h) = snapshot {
                 if depth + 1 < MAX_DEPTH {
+                    // A row is followed as a child fund when the issuer's product list
+                    // knows its ticker (the firm test), or when the row itself reads as a
+                    // fund (so a Vanguard fund inside an iShares file is at least reported).
                     for row in &h.rows {
-                        if let Some(c) = child_symbol(row).filter(|_| holdings::is_fundish(row)) {
+                        if let Some(c) =
+                            child_symbol(row).filter(|c| provider.knows(c) || holdings::is_fundish(row))
+                        {
                             queue.push_back((c, depth + 1));
                         }
                     }
@@ -317,6 +322,8 @@ mod tests {
                 vec![
                     ("XUS", "ISHARES CORE S&P 500 INDEX ETF", "Canada"),
                     ("XIC", "ISHARES S&P/TSX ETF", "Canada"),
+                    // Nothing in the name says fund; the provider's product list does.
+                    ("XGRO", "GROWTH PORTFOLIO UNITS", "Canada"),
                 ],
             ),
         );
@@ -328,9 +335,13 @@ mod tests {
                 vec![("AAPL", "APPLE INC", "United States"), ("MSFT", "MICROSOFT CORP", "United States")],
             ),
         );
+        p.funds.insert(
+            "XGRO.TO".into(),
+            fund("XGRO.TO", d, vec![("AAPL", "APPLE INC", "United States"), ("RY", "ROYAL BANK", "Canada")]),
+        );
         let mut s = HoldingsStore::load(dir.path());
         let r = s.refresh(&p, &["XEQT.TO".into(), "SHOP.TO".into()], d, Utc::now(), false);
-        assert_eq!(r.fetched, vec!["XEQT.TO".to_string(), "XUS.TO".to_string()]);
+        assert_eq!(r.fetched, vec!["XEQT.TO".to_string(), "XUS.TO".to_string(), "XGRO.TO".to_string()]);
         assert_eq!(r.not_funds, vec!["SHOP.TO".to_string()]);
         // XIC.TO was listed by its parent as a fund but has no source: that is an error
         // worth showing, unlike SHOP.TO, which may simply be a stock.
@@ -345,16 +356,19 @@ mod tests {
         let before = std::fs::read_to_string(dir.path().join("XEQT.TO/2026-10-30.json")).unwrap();
         let r2 = s.refresh(&p, &["XEQT.TO".into()], d + chrono::Days::new(3), Utc::now(), false);
         assert!(r2.fetched.is_empty());
-        assert_eq!(r2.skipped_fresh, vec!["XEQT.TO".to_string(), "XUS.TO".to_string()]);
+        assert_eq!(
+            r2.skipped_fresh,
+            vec!["XEQT.TO".to_string(), "XUS.TO".to_string(), "XGRO.TO".to_string()]
+        );
         p.funds.get_mut("XEQT.TO").unwrap().rows.pop();
         let r3 = s.refresh(&p, &["XEQT.TO".into()], d, Utc::now(), true);
-        assert_eq!(r3.fetched.len(), 2);
+        assert_eq!(r3.fetched.len(), 3);
         assert_eq!(std::fs::read_to_string(dir.path().join("XEQT.TO/2026-10-30.json")).unwrap(), before);
-        assert_eq!(s.latest["XEQT.TO"].rows.len(), 2, "latest in memory stays what disk has for that date");
+        assert_eq!(s.latest["XEQT.TO"].rows.len(), 3, "latest in memory stays what disk has for that date");
 
         // Reload from disk sees the same snapshots.
         let again = HoldingsStore::load(dir.path());
-        assert_eq!(again.latest["XEQT.TO"].rows.len(), 2);
+        assert_eq!(again.latest["XEQT.TO"].rows.len(), 3);
         assert_eq!(again.dates["XUS.TO"], vec![d]);
         assert!(again.fetched_at.is_some());
     }

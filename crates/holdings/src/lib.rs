@@ -142,14 +142,12 @@ pub fn parse_any(
     csv::parse_csv(symbol, t, fallback_as_of)
 }
 
-/// Does this constituent look like a fund rather than a stock? Used to decide which
-/// children to follow (store) and which missing children to report (look-through), so
-/// both sides agree. Two signals have to agree: the name says fund ("ISHARES CORE ...",
-/// "Vanguard ...", "... ETF", "... Index Fund") and the row carries no stock sector.
-/// iShares files leave the sector blank ("-") on fund-of-fund lines while every stock
-/// has a GICS sector, which keeps a stock that happens to be called "VANGUARD
-/// INTERNATIONAL SEMICONDUCTOR" (sector Information Technology, numeric Taiwan
-/// ticker) out. Numeric tickers are never funds we can look up.
+/// Does this constituent read as a fund rather than a stock? The store's firm test is
+/// the issuer's product list (`HoldingsProvider::knows`); this is the secondary one,
+/// used to follow funds no list covers and, in the look-through, to report a child
+/// fund with no snapshot. A row qualifies on its name ("ISHARES ...", "Vanguard ...",
+/// "... ETF", "... Index Fund") or a sector of "Funds"; a numeric ticker (Asian stocks
+/// such as 5347 VANGUARD INTERNATIONAL SEMICONDUCTOR) or a cash line never does.
 pub fn is_fundish(c: &Constituent) -> bool {
     let n = c.name.to_ascii_lowercase();
     let named_like_a_fund = n.contains("ishares")
@@ -157,13 +155,13 @@ pub fn is_fundish(c: &Constituent) -> bool {
         || n.contains(" etf")
         || n.starts_with("etf ")
         || n.contains("index fund");
-    let sector_says_fund = match c.sector.as_deref().map(str::trim) {
-        None | Some("") | Some("-") => true,
-        Some(s) => s.eq_ignore_ascii_case("funds") || s.eq_ignore_ascii_case("fund"),
-    };
+    let sector_says_fund = c
+        .sector
+        .as_deref()
+        .is_some_and(|s| s.eq_ignore_ascii_case("funds") || s.eq_ignore_ascii_case("fund"));
     let numeric_ticker =
         c.ticker.as_deref().is_some_and(|t| !t.is_empty() && t.chars().all(|ch| ch.is_ascii_digit()));
-    named_like_a_fund && sector_says_fund && !numeric_ticker && c.asset_class != AssetClass::Cash
+    (named_like_a_fund || sector_says_fund) && !numeric_ticker && c.asset_class != AssetClass::Cash
 }
 
 /// Ledger-style symbol for a constituent that is itself a listed fund, from the
@@ -248,17 +246,21 @@ mod tests {
             currency: None,
             exchange: None,
         };
+        // Whatever the sector column says on a fund-of-fund line (iShares files vary).
         assert!(is_fundish(&row("ISHARES CORE S&P TOTAL U.S. STOCK", None)));
         assert!(is_fundish(&row("ISHARES CORE S&P TOTAL U.S. STOCK", Some("-"))));
+        assert!(is_fundish(&row("ISHARES CORE S&P TOTAL US STOCK MARKET ETF", Some("Equity"))));
         assert!(is_fundish(&row("Vanguard FTSE Canada All Cap", None)));
-        assert!(is_fundish(&row("Some Bond ETF", Some("Funds"))));
-        assert!(!is_fundish(&row("Whatever", Some("Funds"))), "a sector alone is not enough");
+        assert!(is_fundish(&row("Some Bond ETF", None)));
+        assert!(is_fundish(&row("Whatever", Some("Funds"))));
         assert!(!is_fundish(&row("APPLE INC", Some("Information Technology"))));
-        // A Taiwanese stock in XEF's file: named after Vanguard, but it has a GICS sector.
-        assert!(!is_fundish(&row("VANGUARD INTERNATIONAL SEMICONDUCT", Some("Information Technology"))));
-        let mut tw = row("VANGUARD INTERNATIONAL SEMICONDUCT", None);
+        // A Taiwanese stock in XEF's file, named after Vanguard: its ticker is numeric.
+        let mut tw = row("VANGUARD INTERNATIONAL SEMICONDUCT", Some("Information Technology"));
         tw.ticker = Some("5347".into());
         assert!(!is_fundish(&tw), "numeric tickers are never looked up as funds");
+        let mut cash = row("ISHARES CASH", None);
+        cash.asset_class = AssetClass::Cash;
+        assert!(!is_fundish(&cash));
     }
 
     #[test]
