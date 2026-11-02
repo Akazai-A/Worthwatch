@@ -2,7 +2,7 @@
 
 Self-hosted net worth and portfolio tracker. One Rust binary, your data in one folder, no bank connections.
 
-Status: **Stage 1**: hand-edited or typed-in balances, monthly check-in, net worth dashboard with history. Positions are valued from manually entered prices; price fetching comes in Stage 2. See `docs/` and the design doc for the plan.
+Status: **Stage 2**: hand-edited or typed-in balances, monthly check-in, net worth dashboard with history, positions valued from fetched prices (Yahoo Finance or Stooq) and Bank of Canada FX with manual fallbacks, a Portfolio screen, and pasting a Wealthsimple/Questrade holdings export into Check-in. See `docs/` and the design doc for the plan.
 
 ## Run (dev)
 
@@ -29,6 +29,18 @@ docker compose -f deploy/docker-compose.yml up -d --build
 
 The container binds to localhost on the host by default. `WORTHWATCH_HOST=0.0.0.0 docker compose ... up -d` exposes it on your network, `WORTHWATCH_PORT=8080` changes the host port.
 
+## Prices and FX
+
+Public market data is the only thing the app fetches. On startup and once a day it asks Yahoo Finance for a close per held symbol (a year of history the first time a symbol appears) and the Bank of Canada for the daily rate of each currency you hold. Results go to `quotes.json` beside the ledger; delete it to start over. A price or rate you type on Check-in or in `settings.fx` always wins for its date and is the fallback when nothing was fetched. Turn sources off or switch them in the ledger:
+
+```yaml
+settings:
+  base_currency: CAD
+  providers: { prices: yahoo, fx: bank_of_canada }   # prices: yahoo | stooq | off · fx: bank_of_canada | off
+```
+
+`WORTHWATCH_OFFLINE=1` never touches the network; the app then runs on typed and previously fetched data and says so. Symbols use Yahoo spelling (`XEQT.TO`, `VTI`); the Stooq provider maps them. Bank of Canada rates are CAD-based, so with another base currency set `fx: off` and type rates.
+
 ## Security
 
 Worthwatch holds your finances and, for now, has **no login**. Anyone who can reach the port sees everything.
@@ -42,18 +54,20 @@ Worthwatch holds your finances and, for now, has **no login**. Anyone who can re
 ## Layout
 
 ```
-crates/ledger   your data: schema, validation, Mutation + apply, atomic YAML write
-crates/derive   pure functions: valuation, net worth series, staleness
+crates/ledger     your data: schema, validation, Mutation + apply, atomic YAML write
+crates/derive     pure functions: valuation, net worth series, portfolio, market merge
+crates/providers  Yahoo / Stooq / Bank of Canada behind traits, fixture-tested parsers, quotes.json
+crates/importers  pasted broker holdings -> mutations
 server/         the binary: axum API + embedded UI
 ui/             Svelte 5 + Vite + TypeScript
 deploy/         Dockerfile, compose
-data/           ledger.yaml (yours, gitignored) and ledger.example.yaml
+data/             ledger.yaml and quotes.json (yours, gitignored), ledger.example.yaml
 ```
 
 ## Tests
 
 ```sh
-cargo test --workspace            # validator rules, derive invariants, server state
-pnpm --dir ui test                # vitest: parsing, formatting, check-in diffing
+cargo test --workspace            # validator rules, derive invariants, provider parsers on fixtures, paste parser, server state
+pnpm --dir ui test                # vitest: parsing, formatting, check-in diffing, market status line
 pnpm --dir ui build && cargo build && pnpm --dir ui e2e   # Playwright smoke flow against the real binary
 ```

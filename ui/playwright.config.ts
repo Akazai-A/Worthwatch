@@ -3,7 +3,8 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-// Smoke flow against the real binary: a fresh data dir per run, the built UI embedded.
+// Smoke flow against the real binary: a fresh data dir per run, the built UI embedded,
+// network fetching off (WORTHWATCH_OFFLINE) so no test ever touches a provider.
 // Build first: pnpm build && cargo build --bin worthwatch (CI does both).
 const dataDir = process.env.WW_E2E_DATA ?? mkdtempSync(join(tmpdir(), "ww-e2e-"));
 process.env.WW_E2E_DATA = dataDir; // workers read it from the environment
@@ -22,7 +23,7 @@ export default defineConfig({
     command: `../target/debug/worthwatch`,
     url: `http://127.0.0.1:${port}/api/health`,
     reuseExistingServer: false,
-    env: { WORTHWATCH_DATA: dataDir, WORTHWATCH_BIND: `127.0.0.1:${port}`, WW_E2E_DATA: dataDir },
+    env: { WORTHWATCH_DATA: dataDir, WORTHWATCH_BIND: `127.0.0.1:${port}`, WW_E2E_DATA: dataDir, WORTHWATCH_OFFLINE: "1" },
   },
   metadata: { dataDir },
 });

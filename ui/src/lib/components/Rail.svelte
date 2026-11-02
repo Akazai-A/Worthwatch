@@ -9,7 +9,7 @@
   <a class="brand" href="#/">worthwatch</a>
   <a class="nav" class:on={name === "home" || name === "account"} href="#/"><span class="dot"></span>Home</a>
   <a class="nav" class:on={name === "checkin"} href="#/check-in"><span class="dot"></span>Check-in</a>
-  <span class="nav later" aria-disabled="true"><span class="dot"></span>Portfolio<span class="tag">soon</span></span>
+  <a class="nav" class:on={name === "portfolio"} href="#/portfolio"><span class="dot"></span>Portfolio</a>
   <div class="spacer"></div>
   <button class="foot" type="button" onclick={() => prefs.toggleBlur()} title="Blur amounts (⌘⇧H)">
     {prefs.blur ? "Unblur" : "Blur"} amounts <kbd>⌘⇧H</kbd>
@@ -25,8 +25,6 @@
   .nav.on { background: var(--accent-soft); color: var(--text); }
   .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-3); }
   .nav.on .dot { background: var(--accent); }
-  .later { color: var(--text-3); cursor: default; }
-  .tag { margin-left: auto; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; }
   .spacer { flex: 1; }
   .foot { font-size: 11px; color: var(--text-3); padding: 6px 10px; background: none; border: 0; text-align: left; font: inherit; font-size: 11px; cursor: pointer; border-radius: 6px; }
   .foot:hover { color: var(--text-2); background: var(--surface); }
@@ -36,6 +34,6 @@
     .rail { width: auto; flex-direction: row; border-right: 0; border-bottom: 1px solid var(--border); padding: 8px 12px; overflow-x: auto; align-items: center; }
     .brand { padding: 6px 10px; }
     .nav { white-space: nowrap; }
-    .spacer, .tag, kbd { display: none; }
+    .spacer, kbd { display: none; }
   }
 </style>

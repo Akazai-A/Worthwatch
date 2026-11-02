@@ -104,12 +104,4 @@ impl Market {
         }
         self.manual_fx.get(currency).map(|r| Rate { date: None, rate: *r, source: Source::Manual })
     }
-
-    /// Most recent date any fetched price was quoted for, across all symbols.
-    pub fn latest_fetched_price_date(&self) -> Option<NaiveDate> {
-        self.prices
-            .values()
-            .flat_map(|m| m.iter().filter(|(_, (_, s))| *s == Source::Fetched).map(|(d, _)| *d))
-            .max()
-    }
 }

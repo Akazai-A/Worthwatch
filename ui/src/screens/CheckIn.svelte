@@ -5,8 +5,10 @@
   import { view as viewStore } from "../lib/stores/view.svelte";
   import { route } from "../lib/stores/route.svelte";
   import Money from "../lib/components/Money.svelte";
+  import PastePanel from "../lib/components/PastePanel.svelte";
 
   let { view }: { view: LedgerView } = $props();
+  let pasting = $state<string | null>(null);
   const STALE_DAYS = 45;
 
   let date = $state(todayIso());
@@ -132,13 +134,16 @@
             <span class="r num muted">{a.missing_price ? "—" : formatPlain(a.native_value)}</span>
             <span class="r upd" class:warn={stale}>{a.days_stale == null ? "never" : `${a.days_stale}d`}</span>
             <span class="r faint">from holdings</span>
-            <span></span>
+            <span class="r"><button type="button" class="link" id="paste-{a.id}-open" onclick={() => (pasting = pasting === a.id ? null : a.id)} disabled={locked}>{pasting === a.id ? "Close paste" : "Paste holdings"}</button></span>
           </div>
+          {#if pasting === a.id}
+            <PastePanel account={a} {date} {locked} onclose={() => (pasting = null)} />
+          {/if}
           {#each a.holdings as h}
             <div class="ci pos">
               <span class="name">{h.symbol}<span class="faint inst">units · price in {a.currency}</span></span>
               <span class="r num muted">{formatPlain(h.units, 4)}</span>
-              <span class="r upd faint">{h.price == null ? "no price" : `${formatPlain(h.price)} ${h.price_date ? formatDate(h.price_date) : ""}`}</span>
+              <span class="r upd faint" title={h.price_source === "fetched" ? "fetched price; typing one overrides it for this date" : h.price_source === "manual" ? "typed on a check-in" : ""}>{h.price == null ? "no price" : `${formatPlain(h.price)} ${h.price_date ? formatDate(h.price_date) : ""}`}</span>
               <span class="pair">
                 <input type="text" id="in-{a.id}-{h.symbol}-units" inputmode="decimal" placeholder={formatPlain(h.units, 4)} value={entries[a.id]?.units?.[h.symbol] ?? ""} oninput={(e) => setUnits(a.id, h.symbol, e.currentTarget.value)} class:bad={result.invalid.includes(`${a.id}:${h.symbol}:units`)} disabled={locked} aria-label="{h.symbol} units" />
                 <input type="text" id="in-{a.id}-{h.symbol}-price" inputmode="decimal" placeholder={h.price == null ? "price" : formatPlain(h.price)} value={entries[a.id]?.prices?.[h.symbol] ?? ""} oninput={(e) => setPrice(a.id, h.symbol, e.currentTarget.value)} class:bad={result.invalid.includes(`${a.id}:${h.symbol}:price`)} disabled={locked} aria-label="{h.symbol} price" />
@@ -147,7 +152,7 @@
             </div>
           {/each}
           {#if a.holdings.length === 0}
-            <div class="ci pos"><span class="faint">No holdings yet. Add symbols under <code>positions</code> in the ledger file.</span></div>
+            <div class="ci pos"><span class="faint">No holdings yet. Use <em>Paste holdings</em>, or add symbols under <code>positions</code> in the ledger file.</span></div>
           {/if}
         {/if}
       {/each}

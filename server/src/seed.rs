@@ -89,7 +89,10 @@ pub fn seed_ledger(today: NaiveDate) -> Ledger {
         day.insert("td-visa".to_string(), (d(140000) + d(90000) * w).abs().round_dp(2));
         l.snapshots.insert(date, day);
 
-        // Prices drift up with noise.
+        // Month-end prices typed by hand, drifting up with noise; today's comes from quotes.
+        if date == today {
+            continue;
+        }
         let g = Decimal::ONE + Decimal::new(i64i * 12, 3);
         l.prices.entry("XEQT.TO".into()).or_default().insert(date, (d(2980) * g + d(60) * w).round_dp(2));
         l.prices.entry("VFV.TO".into()).or_default().insert(date, (d(12650) * g + d(200) * w).round_dp(2));
@@ -117,7 +120,8 @@ pub fn seed_ledger(today: NaiveDate) -> Ledger {
 }
 
 /// Daily closes for the last ~90 weekdays for every seeded symbol, and a USD rate,
-/// as if a refresh had run every day. Starts from the ledger's manual month-end prices.
+/// as if a refresh had run every day. Each day interpolates between the ledger's
+/// manual month-end prices with a little noise, so the two sources agree.
 pub fn seed_quotes(l: &Ledger, today: NaiveDate) -> QuoteCache {
     let mut q = QuoteCache::default();
     let start = today - chrono::Days::new(90);
@@ -126,12 +130,24 @@ pub fn seed_quotes(l: &Ledger, today: NaiveDate) -> QuoteCache {
     while day <= today {
         if !matches!(day.weekday(), Weekday::Sat | Weekday::Sun) {
             let w = wobble(i.wrapping_mul(7919));
-            let drift = Decimal::ONE + Decimal::new(i as i64 * 4, 4);
-            for (sym, base) in [("XEQT.TO", d(3180)), ("VFV.TO", d(13500)), ("VTI", d(25700))] {
-                let px = (base * drift + base * Decimal::new(12, 3) * w).round_dp(2);
-                q.prices.entry(sym.into()).or_default().insert(day, px);
+            for (sym, manual) in &l.prices {
+                let before = manual.range(..=day).next_back();
+                let after = manual.range(day..).next();
+                let px = match (before, after) {
+                    (Some((d0, p0)), Some((d1, p1))) if d1 > d0 => {
+                        let span = Decimal::from((*d1 - *d0).num_days());
+                        let t = Decimal::from((day - *d0).num_days()) / span;
+                        *p0 + (*p1 - *p0) * t
+                    }
+                    (Some((_, p)), _) | (None, Some((_, p))) => *p,
+                    (None, None) => continue,
+                };
+                let px = (px * (Decimal::ONE + Decimal::new(4, 3) * w)).round_dp(2);
+                q.prices.entry(sym.clone()).or_default().insert(day, px);
             }
-            q.fx.entry("USD".into()).or_default().insert(day, (d(13880) + d(30) * w).round_dp(4));
+            q.fx.entry("USD".into())
+                .or_default()
+                .insert(day, (Decimal::new(13880, 4) + Decimal::new(30, 4) * w).round_dp(4));
             i += 1;
         }
         day = day.succ_opt().unwrap_or(day);
@@ -143,7 +159,6 @@ pub fn seed_quotes(l: &Ledger, today: NaiveDate) -> QuoteCache {
     // Quotes are "as of" the last weekday, fetched that evening.
     let last = q.latest_price_date().unwrap_or(today);
     q.fetched_at = last.and_hms_opt(21, 5, 0).map(|t| t.and_utc());
-    let _ = l;
     q
 }
 
@@ -186,7 +201,7 @@ mod tests {
         let p = derive::portfolio(&l, &m, today);
         assert!(p.unpriced.is_empty());
         assert!(p.day_change.is_some());
-        assert!((today - m.latest_fetched_price_date().unwrap()).num_days() <= 3);
+        assert!((today - q.latest_price_date().unwrap()).num_days() <= 3);
         assert_eq!(m.rate_at("CAD", "USD", today).unwrap().source, derive::Source::Fetched);
         // Round-trips through YAML.
         let again = ledger::io::parse(&ledger::io::to_yaml(&l).unwrap()).unwrap();

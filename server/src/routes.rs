@@ -161,7 +161,7 @@ pub fn build_view(snap: &Snapshot, path: &str, today: NaiveDate, offline: bool) 
         .and_then(|p| derive::delta_since(&series, p.date));
     let jan1 = NaiveDate::from_ymd_opt(today.year(), 1, 1).unwrap_or(today);
     let year_ago = today.with_year(today.year() - 1).unwrap_or_else(|| today - chrono::Days::new(365));
-    let prices_as_of = m.latest_fetched_price_date();
+    let prices_as_of = snap.quotes.latest_price_date();
     let market = MarketView {
         price_provider: format!("{:?}", l.settings.providers.prices).to_lowercase(),
         fx_provider: format!("{:?}", l.settings.providers.fx)
