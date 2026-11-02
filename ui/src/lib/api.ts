@@ -125,6 +125,88 @@ export interface LedgerView {
   portfolio: Portfolio;
 }
 
+// ---- Look-through (Portfolio › Look-through / Exposure / Overlap), from GET /api/lookthrough ----
+export type AssetClass = "equity" | "fixed_income" | "cash" | "other";
+export interface Via { path: string[]; weight_pct: string; value: string }
+export interface Company {
+  key: string;
+  name: string;
+  ticker?: string;
+  sector: string;
+  /** Colour slot: tech | financials | health | industrials | consumer | resources | communication | other | fixed */
+  slot: string;
+  country?: string;
+  region: string;
+  asset_class: AssetClass;
+  currency?: string;
+  value: string;
+  pct: string;
+  undisclosed: boolean;
+  via: Via[];
+}
+export interface Bucket { label: string; slot?: string; value: string; pct: string }
+export interface FundStatus {
+  symbol: string;
+  name?: string;
+  value: string;
+  resolved: boolean;
+  as_of?: string;
+  source?: string;
+  constituents: number;
+  children: string[];
+  unresolved_children: string[];
+  coverage_pct?: string;
+  effective_holdings?: string;
+}
+export interface LookThrough {
+  depth: number;
+  total: string;
+  as_of?: string;
+  funds: FundStatus[];
+  companies: Company[];
+  company_count: number;
+  undisclosed: string;
+  unresolved: string;
+  by_sector: Bucket[];
+  by_region: Bucket[];
+  by_country: Bucket[];
+  by_asset_class: Bucket[];
+  by_currency: Bucket[];
+  top10_pct: string;
+  effective_holdings?: string;
+}
+export interface SharedName { name: string; a_pct: string; b_pct: string }
+export interface OverlapCell { pct: string; shared_value: string; shared: SharedName[] }
+export interface Overlap { symbols: string[]; cells: (OverlapCell | null)[][]; effective_holdings: (string | null)[] }
+export interface SnapshotInfo { symbol: string; name: string | null; as_of: string; source: string; constituents: number; dates: number }
+export interface LookThroughView {
+  version: number;
+  as_of: string;
+  base_currency: string;
+  holdings_dir: string;
+  offline: boolean;
+  fetched_at: string | null;
+  holdings: { symbol: string; value: string; currency: string | null }[];
+  lookthrough: LookThrough;
+  as_held: LookThrough;
+  overlap: Overlap;
+  errors: Record<string, string>;
+  snapshots: SnapshotInfo[];
+}
+
+export async function getLookthrough(): Promise<LookThroughView> {
+  const r = await fetch("/api/lookthrough");
+  if (!r.ok) await fail(r);
+  return r.json();
+}
+
+/** Re-read data/holdings and fetch issuer files for every held fund now. Never fails on a bad fund; see `errors`. */
+export async function refreshHoldings(): Promise<LookThroughView> {
+  const r = await fetch("/api/refresh-holdings", { method: "POST" });
+  if (!r.ok) await fail(r);
+  return r.json();
+}
+
 export type Mutation =
   | { op: "upsert_account"; account: Account }
   | { op: "remove_account"; id: string }

@@ -1,0 +1,12 @@
+{
+  "fundName": "Vanguard All-Equity ETF Portfolio",
+  "portId": "9586",
+  "asOfDate": "2026-09-30",
+  "holdings": [
+    { "longName": "Vanguard US Total Market Index ETF", "ticker": "VUN", "percentWeight": "44.90", "sector": "", "countryName": "Canada", "assetClass": "Equity", "currency": "CAD" },
+    { "longName": "Vanguard FTSE Canada All Cap Index ETF", "ticker": "VCN", "percentWeight": "29.80", "sector": "", "countryName": "Canada", "assetClass": "Equity", "currency": "CAD" },
+    { "longName": "Vanguard FTSE Developed All Cap ex North America Index ETF", "ticker": "VIU", "percentWeight": "18.30", "sector": "", "countryName": "Canada", "assetClass": "Equity", "currency": "CAD" },
+    { "longName": "Vanguard FTSE Emerging Markets All Cap Index ETF", "ticker": "VEE", "percentWeight": "6.90", "sector": "", "countryName": "Canada", "assetClass": "Equity", "currency": "CAD" },
+    { "longName": "Cash", "ticker": "", "percentWeight": "0.00", "sector": "", "countryName": "Canada", "assetClass": "Cash", "currency": "CAD" }
+  ]
+}

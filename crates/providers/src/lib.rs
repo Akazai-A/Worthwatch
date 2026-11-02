@@ -4,6 +4,7 @@
 
 pub mod boc;
 pub mod cache;
+pub mod holdings;
 pub mod stooq;
 pub mod yahoo;
 
@@ -14,6 +15,7 @@ use rust_decimal::Decimal;
 use thiserror::Error;
 
 pub use cache::QuoteCache;
+pub use holdings::{FundRef, HoldingsProvider, HoldingsStore, Issuers, ManualHoldings};
 
 #[derive(Debug, Error)]
 pub enum ProviderError {
@@ -27,6 +29,8 @@ pub enum ProviderError {
     Io(#[from] std::io::Error),
     #[error("json: {0}")]
     Json(#[from] serde_json::Error),
+    #[error("{0}")]
+    Holdings(#[from] ::holdings::ParseError),
 }
 
 /// Dated closes for one symbol, in the currency the provider quotes it in.

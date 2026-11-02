@@ -1,0 +1,8 @@
+{"data":{"tableData":{"columns":[{"name":"fundName"},{"name":"localExchangeTicker"},{"name":"productPageUrl"},{"name":"aladdinAssetClass"}],"data":[
+["iShares Core Equity ETF Portfolio",{"d":"XEQT","r":"XEQT"},"/ca/investors/en/products/309480/ishares-core-equity-etf-portfolio",{"d":"Equity","r":"Equity"}],
+["iShares Core S&P 500 Index ETF","XUS","/ca/investors/en/products/251422/ishares-core-sp-500-index-etf","Equity"],
+["iShares Core S&P/TSX Capped Composite Index ETF","XIC","/ca/investors/en/products/239837/ishares-sptsx-capped-composite-index-etf","Equity"],
+["iShares Core MSCI EAFE IMI Index ETF","XEF","/ca/investors/en/products/251421/ishares-msci-eafe-imi-index-etf","Equity"],
+["iShares Core Canadian Universe Bond Index ETF","XBB","/ca/investors/en/products/239493/ishares-canadian-universe-bond-index-etf","Fixed Income"],
+["iShares something delisted",null,"/ca/investors/en/products/0/x","Equity"]
+]}}}

@@ -159,6 +159,11 @@ pub fn write_seed(data_dir: &Path, today: NaiveDate, force: bool) -> Result<std:
     seed_quotes(&l, today)
         .save(&data_dir.join("quotes.json"))
         .map_err(|e| LedgerError::Io(std::io::Error::other(e.to_string())))?;
+    let mut store = providers::HoldingsStore::load(&data_dir.join("holdings"));
+    let holdings_as_of = seed_quotes(&l, today).latest_price_date().unwrap_or(today);
+    for f in crate::seed_holdings::seed_holdings(holdings_as_of) {
+        store.save(f).map_err(|e| LedgerError::Io(std::io::Error::other(e.to_string())))?;
+    }
     Ok(path)
 }
 
@@ -189,5 +194,39 @@ mod tests {
         // Round-trips through YAML.
         let again = ledger::io::parse(&ledger::io::to_yaml(&l).unwrap()).unwrap();
         assert_eq!(l, again);
+    }
+
+    #[test]
+    fn seed_holdings_resolve_every_position_two_levels_deep() {
+        let today = NaiveDate::from_ymd_opt(2026, 11, 2).unwrap();
+        let l = seed_ledger(today);
+        let q = seed_quotes(&l, today);
+        let m = derive::Market::merge(&l, &q.prices, &q.fx, &q.currencies);
+        let p = derive::portfolio(&l, &m, today);
+        let snaps: std::collections::BTreeMap<String, holdings::FundHoldings> =
+            crate::seed_holdings::seed_holdings(today).into_iter().map(|f| (f.symbol.clone(), f)).collect();
+        let hs: Vec<holdings::Holding> = p
+            .securities
+            .iter()
+            .map(|r| holdings::Holding {
+                symbol: r.symbol.clone(),
+                name: None,
+                value: r.value.unwrap(),
+                currency: None,
+            })
+            .collect();
+        let lt = holdings::lookthrough(&hs, &snaps, &Default::default(), 3);
+        assert!(lt.funds.iter().all(|f| f.resolved), "{:?}", lt.funds);
+        let xeqt = lt.funds.iter().find(|f| f.symbol == "XEQT.TO").unwrap();
+        assert_eq!(xeqt.children.len(), 5);
+        assert_eq!(lt.undisclosed, Decimal::ZERO);
+        let sum: Decimal = lt.companies.iter().map(|c| c.value).sum();
+        assert!((sum - lt.total).abs() < lt.total * Decimal::new(5, 3), "{sum} vs {}", lt.total);
+        let apple = lt.companies.iter().find(|c| c.key == "AAPL").unwrap();
+        assert!(apple.via.len() >= 3, "Apple reached via VFV, VTI and XEQT→XUS/ITOT: {:?}", apple.via);
+        let o = holdings::overlap(&hs, &snaps, 3, 5);
+        for i in 0..o.symbols.len() {
+            assert_eq!(o.cells[i][i].as_ref().unwrap().pct, Decimal::new(1000, 1));
+        }
     }
 }

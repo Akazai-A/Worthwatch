@@ -416,6 +416,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
 
 [[package]]
+name = "holdings"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "rust_decimal",
+ "rust_decimal_macros",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "http"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -895,6 +907,7 @@ name = "providers"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "holdings",
  "rust_decimal",
  "rust_decimal_macros",
  "serde",
@@ -1998,6 +2011,7 @@ dependencies = [
  "chrono",
  "derive",
  "futures-util",
+ "holdings",
  "importers",
  "ledger",
  "mime_guess",

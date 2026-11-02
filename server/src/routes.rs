@@ -208,6 +208,143 @@ pub fn build_view(snap: &Snapshot, path: &str, today: NaiveDate, offline: bool) 
     }
 }
 
+/// Everything the Portfolio › Look-through, Exposure and Overlap tabs need. Its own
+/// view because the company list is big; fetched when those tabs open.
+#[derive(Serialize)]
+pub struct LookThroughView {
+    pub version: u64,
+    pub as_of: NaiveDate,
+    pub base_currency: String,
+    /// `data/holdings`, where a downloaded issuer file can be dropped.
+    pub holdings_dir: String,
+    pub offline: bool,
+    pub fetched_at: Option<DateTime<Utc>>,
+    /// Positions as valued on the Portfolio screen (base currency), in the same order
+    /// as `overlap.symbols`.
+    pub holdings: Vec<HoldingInput>,
+    /// Resolved through funds, up to three levels; companies capped to the top 300.
+    pub lookthrough: holdings::LookThrough,
+    /// Every position as its own leaf.
+    pub as_held: holdings::LookThrough,
+    pub overlap: holdings::Overlap,
+    /// symbol or file -> what went wrong last refresh or load.
+    pub errors: BTreeMap<String, String>,
+    pub snapshots: Vec<SnapshotInfo>,
+}
+
+#[derive(Serialize)]
+pub struct HoldingInput {
+    pub symbol: String,
+    pub value: Decimal,
+    pub currency: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct SnapshotInfo {
+    pub symbol: String,
+    pub name: Option<String>,
+    pub as_of: NaiveDate,
+    pub source: String,
+    pub constituents: usize,
+    /// How many dated snapshots are on disk for it.
+    pub dates: usize,
+}
+
+const COMPANY_CAP: usize = 300;
+const DEPTH: u8 = 3;
+
+pub fn build_lookthrough(
+    snap: &Snapshot,
+    holdings_dir: &str,
+    today: NaiveDate,
+    offline: bool,
+) -> LookThroughView {
+    let l = &snap.ledger;
+    let m = snap.market();
+    let p = derive::portfolio(l, &m, today);
+    let inputs: Vec<holdings::Holding> = p
+        .securities
+        .iter()
+        .filter_map(|r| {
+            Some(holdings::Holding {
+                symbol: r.symbol.clone(),
+                name: None,
+                value: r.value?,
+                currency: snap.quotes.currencies.get(&r.symbol).cloned().or_else(|| Some(r.currency.clone())),
+            })
+        })
+        .collect();
+    let meta: BTreeMap<String, holdings::SecurityMeta> = l
+        .securities
+        .iter()
+        .map(|(sym, sec)| {
+            (
+                sym.clone(),
+                holdings::SecurityMeta {
+                    name: sec.name.clone(),
+                    sector: sec.sector.clone(),
+                    country: sec.country.clone(),
+                    asset_class: sec.asset_class.as_deref().map(holdings::AssetClass::parse),
+                    currency: sec.currency.clone(),
+                },
+            )
+        })
+        .collect();
+    let snaps = &snap.holdings.latest;
+    LookThroughView {
+        version: snap.version,
+        as_of: today,
+        base_currency: l.settings.base_currency.clone(),
+        holdings_dir: holdings_dir.to_string(),
+        offline,
+        fetched_at: snap.holdings.fetched_at,
+        holdings: inputs
+            .iter()
+            .map(|h| HoldingInput { symbol: h.symbol.clone(), value: h.value, currency: h.currency.clone() })
+            .collect(),
+        lookthrough: holdings::lookthrough(&inputs, snaps, &meta, DEPTH).cap(COMPANY_CAP),
+        as_held: holdings::lookthrough(&inputs, snaps, &meta, 0),
+        overlap: holdings::overlap(&inputs, snaps, DEPTH, 12),
+        errors: snap.holdings.errors.clone(),
+        snapshots: snap
+            .holdings
+            .latest
+            .values()
+            .map(|h| SnapshotInfo {
+                symbol: h.symbol.clone(),
+                name: h.name.clone(),
+                as_of: h.as_of,
+                source: h.source.clone(),
+                constituents: h.rows.len(),
+                dates: snap.holdings.dates.get(&h.symbol).map_or(1, Vec::len),
+            })
+            .collect(),
+    }
+}
+
+fn lookthrough_of(s: &AppState) -> LookThroughView {
+    build_lookthrough(
+        &s.snapshot(),
+        &s.holdings_dir.display().to_string(),
+        Local::now().date_naive(),
+        s.offline,
+    )
+}
+
+async fn get_lookthrough(State(s): State<AppState>) -> Json<LookThroughView> {
+    Json(lookthrough_of(&s))
+}
+
+/// Re-read `holdings/` and fetch issuer files for every held fund now (forced, so a
+/// fresh file is fetched too). Always answers with the view; failures are in `errors`.
+async fn refresh_holdings(State(s): State<AppState>) -> Json<LookThroughView> {
+    let st = s.clone();
+    if let Err(e) = tokio::task::spawn_blocking(move || st.refresh_holdings(true)).await {
+        tracing::warn!("holdings refresh task failed: {e}");
+    }
+    Json(lookthrough_of(&s))
+}
+
 async fn health() -> &'static str {
     "ok"
 }
@@ -309,6 +446,8 @@ pub fn router(state: AppState) -> Router {
         .route("/api/apply", post(apply))
         .route("/api/refresh", post(refresh))
         .route("/api/parse-holdings", post(parse_holdings))
+        .route("/api/lookthrough", get(get_lookthrough))
+        .route("/api/refresh-holdings", post(refresh_holdings))
         .route("/api/events", get(events))
         .with_state(state)
 }
@@ -326,7 +465,13 @@ mod tests {
     #[test]
     fn example_view_has_deltas_history_and_portfolio() {
         let l = ledger::io::parse(include_str!("../../data/ledger.example.yaml")).unwrap();
-        let snap = Snapshot { ledger: l, problem: None, quotes: QuoteCache::default(), version: 1 };
+        let snap = Snapshot {
+            ledger: l,
+            problem: None,
+            quotes: QuoteCache::default(),
+            holdings: Default::default(),
+            version: 1,
+        };
         let v = build_view(&snap, "x", ymd(2026, 11, 2), true);
         assert_eq!(v.series.len(), 3);
         let prev = v.deltas.previous.unwrap();
@@ -369,7 +514,7 @@ mod tests {
             tags: vec![],
             positions: None,
         });
-        let snap = Snapshot { ledger: l, problem: None, quotes, version: 1 };
+        let snap = Snapshot { ledger: l, problem: None, quotes, holdings: Default::default(), version: 1 };
         let v = build_view(&snap, "x", ymd(2026, 11, 2), false);
         assert_eq!(v.market.prices_as_of, Some(ymd(2026, 11, 1)));
         assert_eq!(v.market.prices_age_days, Some(1));

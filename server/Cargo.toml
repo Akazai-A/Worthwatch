@@ -13,6 +13,7 @@ path = "src/main.rs"
 ledger = { path = "../crates/ledger" }
 derive = { path = "../crates/derive" }
 providers = { path = "../crates/providers" }
+holdings = { path = "../crates/holdings" }
 importers = { path = "../crates/importers" }
 serde.workspace = true
 serde_json.workspace = true

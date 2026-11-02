@@ -4,13 +4,26 @@
   import { providerLabel } from "../lib/market";
   import Money from "../lib/components/Money.svelte";
   import MarketLine from "../lib/components/MarketLine.svelte";
+  import HoldingsLine from "../lib/components/HoldingsLine.svelte";
+  import PortfolioTabs from "../lib/components/PortfolioTabs.svelte";
+  import LookThrough from "./LookThrough.svelte";
+  import Exposure from "./Exposure.svelte";
+  import Overlap from "./Overlap.svelte";
+  import { lookthrough } from "../lib/stores/lookthrough.svelte";
+  import type { PortfolioTab } from "../lib/stores/route.svelte";
 
-  let { view }: { view: LedgerView } = $props();
+  let { view, tab = "positions" }: { view: LedgerView; tab?: PortfolioTab } = $props();
+  // The look-through view is its own call; keep it in step with the ledger version while a tab needs it.
+  $effect(() => {
+    if (tab !== "positions") void lookthrough.ensure(view.version);
+  });
+  const lt = $derived(lookthrough.current);
   const cur = $derived(view.base_currency);
   const p = $derived(view.portfolio);
   const STALE_DAYS = 4;
   let open = $state<Record<string, boolean>>({});
-  const PALETTE = ["--g-investments", "--g-cash", "--g-property", "--g-debt", "--accent", "--text-3"];
+  // Allocation slices step down in tone; the text line beside them names each slice.
+  const sliceFill = (i: number) => `color-mix(in oklab, var(--text) ${Math.max(50 - i * 11, 12)}%, var(--surface-2))`;
 
   function toggle(sym: string) {
     open[sym] = !open[sym];
@@ -25,9 +38,25 @@
 </script>
 
 <div class="portfolio">
-  <div class="top faint"><span>as of {formatDate(view.as_of, "long")}</span><MarketLine {view} /></div>
+  <div class="top faint">
+    <span>as of {formatDate(view.as_of, "long")}</span>
+    {#if tab === "positions" || !lt}<MarketLine {view} />{:else}<HoldingsLine {lt} />{/if}
+  </div>
+  <PortfolioTabs {tab} />
 
-  {#if p.securities.length === 0}
+  {#if tab !== "positions"}
+    {#if lookthrough.error && !lt}
+      <p class="error">Could not load look-through: {lookthrough.error}</p>
+    {:else if !lt}
+      <p class="faint">Loading…</p>
+    {:else if tab === "lookthrough"}
+      <LookThrough {lt} />
+    {:else if tab === "exposure"}
+      <Exposure {lt} />
+    {:else}
+      <Overlap {lt} />
+    {/if}
+  {:else if p.securities.length === 0}
     <section class="card empty">
       <h2>No positions yet</h2>
       {#if positionAccounts() === 0}
@@ -59,7 +88,7 @@
           <div class="lab"><span>{group.title}</span><span class="muted">{group.slices.map((s) => `${s.label} ${Math.round(Number(s.pct))}%`).join(" · ")}</span></div>
           <div class="track">
             {#each group.slices as s, i}
-              {#if Number(s.pct) > 0}<i style="width:{s.pct}%;background:var({PALETTE[i % PALETTE.length]})" title="{s.label} {s.pct}%"></i>{/if}
+              {#if Number(s.pct) > 0}<i style="width:{s.pct}%;background:{sliceFill(i)}" title="{s.label} {s.pct}%"></i>{/if}
             {/each}
           </div>
         </div>
@@ -121,6 +150,7 @@
 
 <style>
   .portfolio { display: flex; flex-direction: column; gap: 20px; }
+  .error { color: var(--negative); }
   .top { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 12px; flex-wrap: wrap; }
   .empty { padding: 28px 24px; display: flex; flex-direction: column; gap: 10px; }
   .empty h2 { margin: 0; font-size: 20px; font-weight: 600; }
@@ -144,7 +174,7 @@
   .multi:hover .sym { color: var(--accent); }
   .tw { font-size: 10px; }
   .wt { display: inline-block; width: 64px; height: 6px; background: var(--surface-2); border-radius: 3px; vertical-align: middle; margin-right: 8px; overflow: hidden; }
-  .wt i { display: block; height: 100%; background: var(--g-investments); }
+  .wt i { display: block; height: 100%; background: var(--fill); }
   .acct td { padding: 6px 0 6px 18px; font-size: 12px; color: var(--text-2); border-top: 1px dashed var(--border); }
   .acct a { color: inherit; text-decoration: none; }
   .acct a:hover { color: var(--accent); }

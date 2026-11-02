@@ -41,7 +41,7 @@
       {:else if route.current.name === "checkin"}
         <CheckIn view={view.current} />
       {:else if route.current.name === "portfolio"}
-        <Portfolio view={view.current} />
+        <Portfolio view={view.current} tab={route.current.tab} />
       {:else if route.current.name === "account"}
         <AccountDetail view={view.current} id={route.current.id} />
       {:else}

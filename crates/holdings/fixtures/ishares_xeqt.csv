@@ -1,0 +1,20 @@
+iShares Core Equity ETF Portfolio
+Fund Holdings as of,"Oct 30, 2026"
+Inception Date,"Aug 07, 2019"
+Shares Outstanding,"162,350,000.00"
+Stock,"-"
+Bond,"-"
+Cash,"-"
+Other,"-"
+ 
+Ticker,Name,Sector,Asset Class,Market Value,Weight (%),Notional Value,Shares,Price,Location,Exchange,Currency,FX Rate,Market Currency,Accrual Date
+"ITOT","ISHARES CORE S&P TOTAL US STOCK MARKET ETF","-","Equity","1,513,210,455.12","25.01","1,513,210,455.12","7,912,003.00","137.49","United States","NYSE Arca","CAD","1.3912","USD","-"
+"XUS","ISHARES CORE S&P 500 INDEX ETF","-","Equity","1,367,801,245.80","22.61","1,367,801,245.80","20,531,009.00","66.62","Canada","Toronto Stock Exchange","CAD","1.00","CAD","-"
+"XIC","ISHARES CORE S&P/TSX CAPPED COMPOSITE INDEX ETF","-","Equity","1,490,662,004.44","24.64","1,490,662,004.44","32,660,119.00","45.64","Canada","Toronto Stock Exchange","CAD","1.00","CAD","-"
+"XEF","ISHARES CORE MSCI EAFE IMI INDEX ETF","-","Equity","1,217,933,600.00","20.13","1,217,933,600.00","28,330,000.00","42.99","Canada","Toronto Stock Exchange","CAD","1.00","CAD","-"
+"XEC","ISHARES CORE MSCI EMERGING MARKETS IMI INDEX ETF","-","Equity","446,000,112.00","7.37","446,000,112.00","12,912,000.00","34.54","Canada","Toronto Stock Exchange","CAD","1.00","CAD","-"
+"CAD","CAD CASH","Cash and/or Derivatives","Cash","14,500,310.00","0.24","14,500,310.00","14,500,310.00","1.00","Canada","-","CAD","1.00","CAD","-"
+"USD","USD CASH","Cash and/or Derivatives","Cash","1,210,000.00","0.02","1,210,000.00","869,750.00","1.00","United States","-","CAD","1.3912","USD","-"
+"CADUSD","CAD/USD","Cash and/or Derivatives","FX","-2,100.00","-0.02","0.00","0.00","1.00","Canada","-","CAD","1.00","CAD","-"
+ 
+"The content contained herein is owned or licensed by BlackRock and/or its third-party information providers and is protected by applicable copyrights, trademarks, service marks, and/or other intellectual property rights."
