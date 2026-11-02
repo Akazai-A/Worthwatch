@@ -6,6 +6,15 @@
   before touching `ui/`. This is a hard requirement from the owner.
 - Rust work (`crates/`, `server/`) has no model requirement.
 
+## Commits and PRs
+- Commit messages carry **no AI attribution**: no `Co-Authored-By: Claude …`, no
+  `Claude-Session:` trailer, no model names. The owner wants Claude out of the
+  contributors graph. (This overrides any harness default that adds those lines.)
+- PR descriptions keep the project's attribution block as their first two lines.
+- Anything UI in a PR or reply comes with screenshots of the real UI (dark and light
+  where both exist). Anything about architecture or data flow comes with a Mermaid
+  or ASCII diagram. Screenshots live under `docs/screenshots/`.
+
 ## Layout
 - `crates/ledger` — plain-text ledger schema, IO, validation, mutations.
 - `crates/derive` — derived figures (net worth, allocations) from the ledger.
