@@ -2,12 +2,11 @@
 //! listing every fund with its exchange ticker and product page, and every product
 //! page serves the full holdings CSV at a fixed `.ajax` address. So locating a fund is
 //! one screener download per site per refresh plus a map lookup; nothing is hard-coded
-//! per fund. The screener addresses and the Canada CSV address were verified live in
-//! November 2026 (Canada on blackrock.com, US on ishares.com). The US CSV address
-//! answered with the product page's HTML instead of the file at that time, so a US
-//! fund may still need `settings.holdings_urls` or a drop-in file; `parse_any` names
-//! the HTML case. If BlackRock moves anything the UI shows the error and the drop-in
-//! file still works.
+//! per fund. All four addresses were verified live in November 2026: the Canada
+//! screener and `.ajax` CSV on blackrock.com, the US screener and
+//! `{product page}/latest-holdings.csv` on ishares.com (the US `.ajax` address answers
+//! with the product page's HTML, and Canada has no `latest-holdings.csv`). If BlackRock
+//! moves anything the UI shows the error and the drop-in file still works.
 
 use std::collections::BTreeMap;
 
@@ -50,18 +49,17 @@ pub fn host(site: Site) -> &'static str {
 
 /// Product page path -> holdings CSV address.
 pub fn holdings_url(site: Site, product_page: &str, ticker: &str) -> String {
-    let (ajax, extra) = match site {
-        Site::Canada => ("1464253357814", ""),
-        // The US page served HTML at the bare address; the passthrough flag is the
-        // same one the screener needs and is the next thing to try.
-        Site::UnitedStates => ("1467271812596", "&siteEntryPassthrough=true"),
-    };
     let page = if product_page.starts_with("http") {
         product_page.to_string()
     } else {
         format!("{}{product_page}", host(site))
     };
-    format!("{page}/{ajax}.ajax?fileType=csv&fileName={ticker}_holdings&dataType=fund{extra}")
+    match site {
+        Site::Canada => {
+            format!("{page}/1464253357814.ajax?fileType=csv&fileName={ticker}_holdings&dataType=fund")
+        }
+        Site::UnitedStates => format!("{page}/latest-holdings.csv"),
+    }
 }
 
 fn cell_text(v: &Value) -> Option<String> {
@@ -122,7 +120,7 @@ mod tests {
         );
         assert_eq!(
             holdings_url(Site::UnitedStates, "/us/products/239724/ishares-core-sp-total-us-stock-market-etf", "ITOT"),
-            "https://www.ishares.com/us/products/239724/ishares-core-sp-total-us-stock-market-etf/1467271812596.ajax?fileType=csv&fileName=ITOT_holdings&dataType=fund&siteEntryPassthrough=true"
+            "https://www.ishares.com/us/products/239724/ishares-core-sp-total-us-stock-market-etf/latest-holdings.csv"
         );
         assert!(screener_url(Site::UnitedStates).starts_with("https://www.ishares.com/us/"));
         assert_eq!(site_for("XEQT.TO"), (Site::Canada, "XEQT"));

@@ -69,7 +69,9 @@ export function caveats(undisclosed: string, total: string, funds: FundStatus[])
   const u = Number(undisclosed), t = Number(total);
   if (u > 0 && t > 0) out.push(`${((u / t) * 100).toFixed(1)}% undisclosed`);
   const missing = funds.filter((f) => !f.resolved).map((f) => f.symbol);
-  if (missing.length) out.push(`${missing.join(", ")} ${missing.length === 1 ? "has" : "have"} no holdings file`);
+  if (missing.length === 1) out.push(`${missing[0]} has no holdings file`);
+  else if (missing.length > 3) out.push(`${missing.slice(0, 2).join(", ")} and ${missing.length - 2} more have no holdings file`);
+  else if (missing.length > 1) out.push(`${missing.join(", ")} have no holdings file`);
   return out;
 }
 

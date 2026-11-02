@@ -22,16 +22,17 @@
   type Block = { name: string; x: number; y: number; w: number; h: number; pct: number; hue: string };
   type Node = { name?: string; children?: Node[]; c?: Company };
   const HEAD = 18;
+  const TAIL = "Smaller names";
   const layout = $derived.by<{ cells: Cell[]; blocks: Block[] }>(() => {
     if (width < 10 || companies.length === 0) return { cells: [], blocks: [] };
     const groups = new Map<string, Company[]>();
     for (const c of companies) {
-      const fam = c.undisclosed || c.key === "__other__" ? "Other" : familyOf(c.slot);
+      const fam = c.key === "__other__" ? TAIL : c.undisclosed ? "Other" : familyOf(c.slot);
       (groups.get(fam) ?? groups.set(fam, []).get(fam)!).push(c);
     }
     const order = new Map(FAMILY_ORDER.map((f, i) => [f, i]));
     const children: Node[] = [...groups.entries()]
-      .sort((a, b) => (order.get(a[0] as never) ?? 99) - (order.get(b[0] as never) ?? 99))
+      .sort((a, b) => (a[0] === TAIL ? 100 : (order.get(a[0] as never) ?? 99)) - (b[0] === TAIL ? 100 : (order.get(b[0] as never) ?? 99)))
       .map(([name, cs]) => ({ name, children: cs.map((c) => ({ c })) }));
     const root = hierarchy<Node>({ children })
       .sum((d) => (d.c ? Number(d.c.value) : 0))

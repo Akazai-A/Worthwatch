@@ -1,0 +1,25 @@
+iShares Core S&P Total U.S. Stock Market ETF
+Fund Holdings as of,"Oct 31, 2026"
+Inception Date,"Jan 20, 2004"
+Shares Outstanding,"490,350,000.00"
+Stock,"99.71"
+Bond,"0.00"
+Cash,"0.27"
+Other,"0.02"
+ 
+Ticker,Name,Sector,Asset Class,Market Value,Weight (%),Notional Value,Quantity,Price,Location,Exchange,Currency,FX Rate,Market Currency,Accrual Date
+"AAPL","APPLE INC","Information Technology","Equity","4,860,112,300.10","6.85","4,860,112,300.10","18,100,200.00","268.51","United States","NASDAQ","USD","1.00","USD","-"
+"NVDA","NVIDIA CORP","Information Technology","Equity","4,789,002,110.00","6.75","4,789,002,110.00","23,500,000.00","203.79","United States","NASDAQ","USD","1.00","USD","-"
+"MSFT","MICROSOFT CORP","Information Technology","Equity","4,120,500,000.00","5.81","4,120,500,000.00","8,900,000.00","462.98","United States","NASDAQ","USD","1.00","USD","-"
+"AMZN","AMAZON COM INC","Consumer Discretionary","Equity","2,560,000,000.00","3.61","2,560,000,000.00","11,200,000.00","228.57","United States","NASDAQ","USD","1.00","USD","-"
+"AVGO","BROADCOM INC","Information Technology","Equity","1,890,000,000.00","2.66","1,890,000,000.00","5,100,000.00","370.59","United States","NASDAQ","USD","1.00","USD","-"
+"META","META PLATFORMS INC CLASS A","Communication","Equity","1,810,000,000.00","2.55","1,810,000,000.00","2,500,000.00","724.00","United States","NASDAQ","USD","1.00","USD","-"
+"GOOGL","ALPHABET INC CLASS A","Communication","Equity","1,620,000,000.00","2.28","1,620,000,000.00","6,000,000.00","270.00","United States","NASDAQ","USD","1.00","USD","-"
+"BRKB","BERKSHIRE HATHAWAY INC CLASS B","Financials","Equity","1,190,000,000.00","1.68","1,190,000,000.00","2,400,000.00","495.83","United States","New York Stock Exchange Inc.","USD","1.00","USD","-"
+"TSLA","TESLA INC","Consumer Discretionary","Equity","1,150,000,000.00","1.62","1,150,000,000.00","2,600,000.00","442.31","United States","NASDAQ","USD","1.00","USD","-"
+"JPM","JPMORGAN CHASE & CO","Financials","Equity","1,090,000,000.00","1.54","1,090,000,000.00","3,600,000.00","302.78","United States","New York Stock Exchange Inc.","USD","1.00","USD","-"
+"ESZ6","S&P500 EMINI DEC 26","Cash and/or Derivatives","Futures","0.00","0.00","181,000,000.00","530.00","6,830.00","United States","Chicago Mercantile Exchange","USD","1.00","USD","-"
+"XTSLA","BLK CSH FND TREASURY SL AGENCY","Cash and/or Derivatives","Money Market","190,000,000.00","0.27","190,000,000.00","190,000,000.00","1.00","United States","-","USD","1.00","USD","-"
+"USD","USD CASH","Cash and/or Derivatives","Cash","14,200,000.00","0.02","14,200,000.00","14,200,000.00","1.00","United States","-","USD","1.00","USD","-"
+ 
+"The content contained herein is owned or licensed by BlackRock and/or its third-party information providers and is protected by applicable copyrights, trademarks, service marks, and/or other intellectual property rights."

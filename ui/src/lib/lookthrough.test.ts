@@ -46,3 +46,12 @@ describe("shortPath", () => {
     expect(shortPath("/tmp/claude-0/x/y/seed/holdings")).toBe("…/seed/holdings");
   });
 });
+
+describe("caveats", () => {
+  it("names up to three funds without a file and counts the rest", () => {
+    const f = (symbol: string, resolved: boolean) => ({ symbol, resolved }) as FundStatus;
+    expect(caveats("0", "100", [f("A", false)])).toEqual(["A has no holdings file"]);
+    expect(caveats("0", "100", [f("A", false), f("B", false), f("C", true)])).toEqual(["A, B have no holdings file"]);
+    expect(caveats("0", "100", ["A", "B", "C", "D", "E"].map((s) => f(s, false)))).toEqual(["A, B and 3 more have no holdings file"]);
+  });
+});

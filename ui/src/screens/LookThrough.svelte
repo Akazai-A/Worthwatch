@@ -42,7 +42,7 @@
     <h2>No holdings files yet</h2>
     <p class="muted">
       Look-through needs each fund's holdings file. {#if lt.offline}Offline, so nothing is fetched:{:else}Press <em>Update holdings</em> above to fetch them from the issuer, or{/if}
-      download the holdings CSV from the fund's page and save it as <code>{lt.holdings_dir}/&lt;SYMBOL&gt;.csv</code> (for example <code>XEQT.TO.csv</code>), then press <em>{lt.offline ? "Re-read folder" : "Update holdings"}</em>.
+      download the holdings CSV from the fund's page and save it as <code title={lt.holdings_dir}>{shortPath(lt.holdings_dir)}/&lt;SYMBOL&gt;.csv</code> (for example <code>XEQT.TO.csv</code>), then press <em>{lt.offline ? "Re-read folder" : "Update holdings"}</em>.
     </p>
     {#if broken.length}
       <ul class="errs">{#each broken as [k, v]}<li><b>{k}</b> <span class="warn">{v}</span></li>{/each}</ul>
@@ -99,7 +99,7 @@
       {/if}
     </section>
     <section class="card funds">
-      <h2 class="label">Funds</h2>
+      <h2 class="label">Holdings</h2>
       <table>
         <thead><tr><th>Holding</th><th class="r">Value</th><th class="r">File</th><th class="r">Names</th></tr></thead>
         <tbody>
@@ -107,7 +107,7 @@
             <tr>
               <td>
                 <span class="sym">{f.symbol}</span>
-                <span class="sub2">{#if f.name}{f.name} · {/if}{#if f.children.length}holds {f.children.join(", ")}{:else if f.resolved}stocks directly{:else}treated as one security{/if}{#if f.unresolved_children.length}&nbsp;<span class="warn">· no file for {f.unresolved_children.join(", ")}</span>{/if}</span>
+                <span class="sub2">{#if f.name}{f.name} · {/if}{#if f.children.length}holds {f.children.join(", ")}{:else if f.resolved}stocks directly{:else}no file, counted as one name{/if}{#if f.unresolved_children.length}&nbsp;<span class="warn">· no file for {f.unresolved_children.join(", ")}</span>{/if}</span>
               </td>
               <td class="r"><Money value={f.value} currency={cur} /></td>
               <td class="r">

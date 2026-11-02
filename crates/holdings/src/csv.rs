@@ -249,6 +249,27 @@ mod tests {
     }
 
     #[test]
+    fn ishares_us_latest_holdings_file() {
+        // ishares.com/{product page}/latest-holdings.csv: no BOM, metadata lines with
+        // Stock/Bond/Cash/Other percentages, Quantity instead of Shares, trailing
+        // futures and money-market lines.
+        let h = parse_csv("ITOT", include_str!("../fixtures/ishares_itot_us.csv"), None).unwrap();
+        assert_eq!(h.name.as_deref(), Some("iShares Core S&P Total U.S. Stock Market ETF"));
+        assert_eq!(h.as_of, NaiveDate::from_ymd_opt(2026, 10, 31).unwrap());
+        let aapl = h.rows.iter().find(|r| r.ticker.as_deref() == Some("AAPL")).unwrap();
+        assert_eq!(aapl.weight, dec!(6.85));
+        assert_eq!(aapl.sector.as_deref(), Some("Information Technology"));
+        assert_eq!(aapl.exchange.as_deref(), Some("NASDAQ"));
+        assert!(h.rows.iter().all(|r| r.weight > dec!(0)), "zero-weight futures line is dropped");
+        assert!(
+            h.rows.iter().all(|r| !crate::is_fundish(r)),
+            "no row of a plain equity fund is a child fund"
+        );
+        let mm = h.rows.iter().find(|r| r.ticker.as_deref() == Some("XTSLA")).unwrap();
+        assert_eq!(mm.asset_class, AssetClass::Cash);
+    }
+
+    #[test]
     fn ishares_equity_file_has_sectors_and_locations() {
         let h = parse_csv("XIC.TO", include_str!("../fixtures/ishares_xic.csv"), None).unwrap();
         assert_eq!(h.as_of, NaiveDate::from_ymd_opt(2026, 10, 30).unwrap());

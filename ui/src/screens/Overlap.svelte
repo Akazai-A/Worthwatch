@@ -8,13 +8,18 @@
   let { lt }: { lt: LookThroughView } = $props();
   const cur = $derived(lt.base_currency);
   const o = $derived(lt.overlap);
-  const n = $derived(o.symbols.length);
+  // Only funds with a file make a row; a stock or a fund without one has nothing to share.
+  const idx = $derived(o.symbols.map((_, i) => i).filter((i) => o.cells[i][i] != null));
+  const leftOut = $derived(o.symbols.length - idx.length);
+  const n = $derived(idx.length);
+  const compact = $derived(n > 8);
   let pick = $state<[number, number] | null>(null);
   // Default to the highest off-diagonal pair.
   const best = $derived.by<[number, number] | null>(() => {
     let b: [number, number] | null = null;
     let top = -1;
-    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+    for (const i of idx) for (const j of idx) {
+      if (j <= i) continue;
       const c = o.cells[i][j];
       if (c && Number(c.pct) > top) { top = Number(c.pct); b = [i, j]; }
     }
@@ -22,7 +27,7 @@
   });
   const sel = $derived(pick ?? best);
   const cell = $derived(sel ? o.cells[sel[0]][sel[1]] : null);
-  const resolvedCount = $derived(o.effective_holdings.filter((e) => e != null).length);
+  const resolvedCount = $derived(n);
   function shade(pct: string): string {
     const a = Math.round(6 + 44 * (Number(pct) / 100));
     return `color-mix(in oklab, var(--text) ${a}%, var(--surface-2))`;
@@ -41,22 +46,24 @@
 {:else}
   <div class="two">
     <section class="card grid">
-      <table class="matrix" aria-label="Overlap between funds">
-        <thead><tr><th></th>{#each o.symbols as s}<th>{s}</th>{/each}</tr></thead>
+      <table class="matrix" class:compact aria-label="Overlap between funds">
+        <thead><tr><th></th>{#each idx as j (j)}<th>{o.symbols[j]}</th>{/each}</tr></thead>
         <tbody>
-          {#each o.symbols as a, i}
+          {#each idx as i (i)}
+            {@const a = o.symbols[i]}
             <tr>
               <th class="rh">{a}</th>
-              {#each o.symbols as b, j}
+              {#each idx as j (j)}
+                {@const b = o.symbols[j]}
                 {@const c = o.cells[i][j]}
                 {#if !c}
-                  <td class="none" title="no holdings file for {o.cells[i][i] ? b : a}"><span>—</span><small>no file</small></td>
+                  <td class="none"><span>—</span></td>
                 {:else if i === j}
-                  <td class="diag" style="background:{shade('100')}" title="{a}: effective number of holdings {o.effective_holdings[i] ?? '—'}"><span class="num">100%</span><small>~{o.effective_holdings[i] ?? "—"} eff.</small></td>
+                  <td class="diag" style="background:{shade('100')}" title="{a}: effective number of holdings {o.effective_holdings[i] ?? '—'}"><span class="num">100%</span>{#if !compact}<small>~{o.effective_holdings[i] ?? "—"} eff.</small>{/if}</td>
                 {:else}
                   <td>
-                    <button type="button" class:on={sel?.[0] === i && sel?.[1] === j} style="background:{shade(c.pct)}" onclick={() => (pick = [i, j])} aria-label="{a} and {b}: {c.pct} percent shared, {formatMoney(c.shared_value, cur)}">
-                      <span class="num">{Number(c.pct).toFixed(0)}%</span><small class="money">{compactMoney(c.shared_value)} shared</small>
+                    <button type="button" class:on={sel?.[0] === i && sel?.[1] === j} style="background:{shade(c.pct)}" onclick={() => (pick = [i, j])} title="{a} × {b}: {compactMoney(c.shared_value)} shared" aria-label="{a} and {b}: {c.pct} percent shared, {formatMoney(c.shared_value, cur)}">
+                      <span class="num">{Number(c.pct).toFixed(0)}%</span>{#if !compact}<small class="money">{compactMoney(c.shared_value)} shared</small>{/if}
                     </button>
                   </td>
                 {/if}
@@ -65,7 +72,7 @@
           {/each}
         </tbody>
       </table>
-      <p class="faint note">Shared weight = Σ min(weight in A, weight in B) over every underlying name, through funds of funds. The diagonal shows each fund's effective number of holdings.</p>
+      <p class="faint note">Shared weight = Σ min(weight in A, weight in B) over every underlying name, through funds of funds. The diagonal shows each fund's effective number of holdings.{#if leftOut}&nbsp;{leftOut} {leftOut === 1 ? "holding" : "holdings"} without a file {leftOut === 1 ? "is" : "are"} left out.{/if}</p>
     </section>
 
     <section class="card detail" aria-live="polite">
@@ -92,8 +99,8 @@
 <style>
   .lead { font-size: 13px; margin-top: 2px; }
   .empty p { margin: 0; }
-  .two { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 20px; align-items: start; }
-  .grid { padding: 12px 14px; overflow-x: auto; max-width: 100%; }
+  .two { display: grid; grid-template-columns: minmax(0, max-content) minmax(300px, 1fr); gap: 20px; align-items: start; }
+  .grid { padding: 12px 14px; overflow-x: auto; max-width: 100%; min-width: 0; }
   .grid .note { max-width: 44ch; }
   .matrix { border-collapse: separate; border-spacing: 3px; font-size: 12px; }
   .matrix th { text-align: center; padding: 4px; font-size: 11px; font-weight: 500; color: var(--text-2); }
@@ -107,7 +114,9 @@
   .matrix td.diag { padding: 0 6px; }
   .matrix td.none { background: var(--surface-2); color: var(--text-3); }
   .matrix small { display: block; font-size: 10px; color: var(--text-2); font-family: var(--font); }
-  .matrix td.none small { color: var(--text-3); }
+  .matrix.compact td, .matrix.compact td button { width: 44px; height: 32px; font-size: 11px; }
+  .matrix.compact th { font-size: 10px; padding: 2px; }
+  .matrix.compact th.rh { padding-right: 6px; }
   .detail h3 { margin: 2px 0 0; font-size: 20px; font-weight: 600; }
   .sub2 { font-size: 12px; color: var(--text-3); margin-top: 2px; }
   .shared { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; }
