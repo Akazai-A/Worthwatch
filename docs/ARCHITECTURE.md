@@ -1,4 +1,4 @@
-# Architecture (Stage 3)
+# Architecture (Stage 4)
 
 Read the design doc for the full picture. The rules that matter in code:
 
@@ -126,6 +126,36 @@ Rules on top of the Stage 2 ones:
 - **Look-through weights, never prices.** A company's dollars are your value in the fund × the disclosed weight, through every level. The undisclosed remainder of a fund (>0.5%) is a leaf of its own, never spread over the others. Overlap normalises each fund's leaf weights by its disclosed coverage so `overlap(A, A) = 100%`.
 - **Fetch URLs are at the boundary.** Issuer URL patterns live in `providers::holdings::ishares` and are overridable per symbol under `settings.holdings_urls`; the parser never sees a URL.
 
+## Stage 4 data flow: changes between two dates
+
+```mermaid
+flowchart LR
+  subgraph disk [WORTHWATCH_DATA]
+    L[ledger.yaml]
+    Q[quotes.json]
+    H[holdings/&lt;SYM&gt;/&lt;date&gt;.json<br/>append-only, one per disclosure date]
+  end
+  L & Q --> M[derive::Market]
+  M --> C[derive::changes from, to<br/>per account: balance / market / trades / fx<br/>per holding: units, price, value then and now]
+  H -->|HoldingsStore::at from, to<br/>file in effect on each date| S0[snapshots at from] & S1[snapshots at to]
+  M -->|portfolio at from / at to| P0[positions at from] & P1[positions at to]
+  P0 & S0 --> LT0[lookthrough]
+  P1 & S1 --> LT1[lookthrough]
+  LT0 & LT1 --> DR[holdings::drift<br/>percentage points per bucket]
+  P1 & S1 --> FD[holdings::fund_dollars<br/>your money in each fund, every level]
+  S0 & S1 & FD --> FF[holdings::diff_fund threshold<br/>added / removed / reweighted, in your dollars]
+  C & DR & FF --> V[/GET /api/changes?from&to&threshold<br/>ChangesView/]
+  V --> UI[Changes screen: bridge, accounts,<br/>holdings, drift, fund feed]
+```
+
+Rules on top of the Stage 3 ones:
+
+- **The parts add up.** For a position, `change = market + trades + fx` exactly, with `trades = Δunits × end price × end rate`, `market = start units × Δprice × end rate` and `fx = start units × start price × Δrate`; a balance account splits into `balance` and `fx` the same way. What cannot be split (a holding priced at only one end, a missing rate) lands in `residual`, never in a wrong bucket. The net worth figures at both ends are the series' own values.
+- **Sold positions still count.** `derive::symbols_ever` lists an account's current positions plus every symbol in its trade log, so a position sold to zero is valued on the dates it was held (series, portfolio and diff all use it).
+- **Two dates, two file sets.** `HoldingsStore::at(symbol, date)` serves the newest snapshot dated on or before `date`, from disk; the look-through runs once per end with the files in effect then. As-held drift classifies both ends with the newest files (as held never expands a fund). The fund feed compares, for every fund reached at `to`, the file in effect at `from` with the one at `to`; funds with the same file at both ends are listed as such, funds with no file old enough as such.
+- **Threshold is a query, not a setting.** `threshold` (percentage points, default 0.5) filters the feed; moves under it are counted, not shown. Every list is capped (`FEED_CAP` constituents per fund; the UI folds accounts into the bridge and shows the top holdings), so the screen is one page whatever the portfolio size.
+- **The default period is the last check-in.** Without `from`, the server picks the latest ledger snapshot date before `to` (else the first known date). The UI's presets (1M, 3M, YTD, 1Y) are computed in the browser and clamped to `first_date`; custom dates are typed.
+
 ## Server routes
 
 | Route | What |
@@ -135,13 +165,14 @@ Rules on top of the Stage 2 ones:
 | `POST /api/refresh` | fetch prices and FX for every held symbol and used currency now; always answers with the view, per-symbol failures in `market.errors` |
 | `POST /api/parse-holdings` | `{ account, date, text }` → parsed rows, skipped lines, untouched positions and the proposed `mutations`; writes nothing |
 | `GET /api/lookthrough` | `LookThroughView`: look-through (depth 3, top 300 companies) and as-held (depth 0) breakdowns by sector/region/country/asset class/currency, per-fund status, fund × fund overlap (top 12), snapshot list, per-symbol errors |
+| `GET /api/changes?from&to&threshold` | `ChangesView` for one period: net worth, every account and holding then/now with the market / trades / FX split, exposure drift (through funds and as held), and per-fund file diffs above the threshold; `from` defaults to the last check-in before `to`, `to` to today, `threshold` to 0.5 pt; 422 on a backwards range |
 | `POST /api/refresh-holdings` | fetch holdings files for every held fund and the funds inside them now (offline: re-read `data/holdings/`); answers with the `LookThroughView` |
 | `GET /api/events` | SSE, one `change` event per ledger version |
-| `worthwatch seed [--force]` | writes a 14-month sample ledger and a `quotes.json` with daily closes for the same span to `WORTHWATCH_DATA` (no typed prices: what a fetching user's file looks like), plus sample holdings snapshots for the seeded funds under `holdings/` |
+| `worthwatch seed [--force]` | writes a 14-month sample ledger and a `quotes.json` with daily closes for the same span to `WORTHWATCH_DATA` (no typed prices: what a fetching user's file looks like), plus two dated holdings snapshots per seeded fund under `holdings/` (a month apart, a few sleeves reweighted) so the Changes feed has something to show |
 
 ## UI
 
-Hash routes `#/`, `#/check-in`, `#/portfolio[/look-through|/exposure|/overlap]`, `#/accounts/<id>`. Global state is four stores under `ui/src/lib/stores`: `view` (the `LedgerView` plus the SSE subscription), `lookthrough` (the `LookThroughView`, fetched once per ledger version when a Portfolio sub-tab needs it), `route`, `prefs` (blur, theme). Screens under `ui/src/screens` render the view; the only browser-side arithmetic is the live preview on Check-in (`lib/checkin.ts`, unit-tested), and the saved numbers always come back from the server. Charts live in `lib/charts` (uPlot for time series, d3-hierarchy for the look-through treemap). Colours are CSS tokens in `tokens.css`; components never use colour literals.
+Hash routes `#/`, `#/check-in`, `#/portfolio[/look-through|/exposure|/overlap]`, `#/changes`, `#/accounts/<id>`. Global state is five stores under `ui/src/lib/stores`: `view` (the `LedgerView` plus the SSE subscription), `lookthrough` (the `LookThroughView`, fetched once per ledger version when a Portfolio sub-tab needs it), `changes` (the `ChangesView` for the chosen period and threshold, refetched when either or the ledger version moves), `route`, `prefs` (blur, theme). Screens under `ui/src/screens` render the view; the only browser-side arithmetic is the live preview on Check-in (`lib/checkin.ts`, unit-tested), and the saved numbers always come back from the server. Charts live in `lib/charts` (uPlot for time series, d3-hierarchy for the look-through treemap, plain SVG for the net worth bridge). The Changes screen encodes before it writes: a stacked strip for the split of a change (`SplitStrip`), a diverging bar per row (`DeltaBar`), a before/after weight bar per constituent (`WeightMove`); the words sit in hover titles. The screen is one window on a desktop: a 2×3 board (headline and bridge, then accounts beside holdings, then exposure drift beside fund changes) whose four panels scroll inside themselves, so the page never grows with the portfolio; under 1100px it stacks and each panel keeps a capped height. `lib/changes.ts` (tested) does the period presets and the wording. Colours are CSS tokens in `tokens.css`; components never use colour literals.
 
 Playwright smoke flow: `ui/e2e/smoke.spec.ts` runs the real binary on a temp data dir.
 

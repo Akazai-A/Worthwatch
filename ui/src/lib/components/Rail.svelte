@@ -10,6 +10,7 @@
   <a class="nav" class:on={name === "home" || name === "account"} href="#/"><span class="dot"></span>Home</a>
   <a class="nav" class:on={name === "checkin"} href="#/check-in"><span class="dot"></span>Check-in</a>
   <a class="nav" class:on={name === "portfolio"} href="#/portfolio"><span class="dot"></span>Portfolio</a>
+  <a class="nav" class:on={name === "changes"} href="#/changes"><span class="dot"></span>Changes</a>
   <div class="spacer"></div>
   <button class="foot" type="button" onclick={() => prefs.toggleBlur()} title="Blur amounts (⌘⇧H)">
     {prefs.blur ? "Unblur" : "Blur"} amounts <kbd>⌘⇧H</kbd>

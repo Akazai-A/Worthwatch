@@ -161,7 +161,11 @@ pub fn write_seed(data_dir: &Path, today: NaiveDate, force: bool) -> Result<std:
         .map_err(|e| LedgerError::Io(std::io::Error::other(e.to_string())))?;
     let mut store = providers::HoldingsStore::load(&data_dir.join("holdings"));
     let holdings_as_of = seed_quotes(&l, today).latest_price_date().unwrap_or(today);
-    for f in crate::seed_holdings::seed_holdings(holdings_as_of) {
+    let earlier = holdings_as_of.checked_sub_months(Months::new(1)).unwrap_or(holdings_as_of);
+    for f in crate::seed_holdings::seed_holdings_earlier(earlier)
+        .into_iter()
+        .chain(crate::seed_holdings::seed_holdings(holdings_as_of))
+    {
         store.save(f).map_err(|e| LedgerError::Io(std::io::Error::other(e.to_string())))?;
     }
     Ok(path)

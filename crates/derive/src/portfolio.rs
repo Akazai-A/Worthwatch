@@ -8,7 +8,7 @@ use ledger::{Ledger, Symbol};
 use rust_decimal::Decimal;
 use serde::Serialize;
 
-use crate::{units_at, Market, Source};
+use crate::{symbols_ever, units_at, Market, Source};
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct AccountSlice {
@@ -94,14 +94,18 @@ pub fn portfolio(l: &Ledger, m: &Market, today: NaiveDate) -> Portfolio {
     for a in &l.accounts {
         let Some(positions) = &a.positions else { continue };
         let rate = m.rate_at(base, &a.currency, today);
-        for p in positions {
-            let units = units_at(l, a, &p.symbol, today);
+        // Positions held on `today`, including ones since sold to zero (history asks for
+        // a past date); a position with no units then is skipped.
+        for symbol in symbols_ever(l, a) {
+            let units = units_at(l, a, &symbol, today);
             if units.is_zero() {
                 continue;
             }
-            let px = m.price_at(&p.symbol, today);
-            let row = rows.entry(p.symbol.clone()).or_insert_with(|| SecurityRow {
-                symbol: p.symbol.clone(),
+            let p = positions.iter().find(|p| p.symbol == symbol);
+            let book_cost = p.and_then(|p| p.book_cost);
+            let px = m.price_at(&symbol, today);
+            let row = rows.entry(symbol.clone()).or_insert_with(|| SecurityRow {
+                symbol: symbol.clone(),
                 currency: a.currency.clone(),
                 units: Decimal::ZERO,
                 price: px.map(|x| x.price),
@@ -121,13 +125,13 @@ pub fn portfolio(l: &Ledger, m: &Market, today: NaiveDate) -> Portfolio {
                 (Some(n), Some(r)) => Some(n * r.rate),
                 _ => None,
             };
-            if px.is_none() && !unpriced.contains(&p.symbol) {
-                unpriced.push(p.symbol.clone());
+            if px.is_none() && !unpriced.contains(&symbol) {
+                unpriced.push(symbol.clone());
             }
             if px.is_some() && rate.is_none() {
                 row.missing_fx = true;
             }
-            let gain = match (native, p.book_cost, rate) {
+            let gain = match (native, book_cost, rate) {
                 (Some(n), Some(b), Some(r)) => Some((n - b) * r.rate),
                 _ => None,
             };
@@ -140,14 +144,12 @@ pub fn portfolio(l: &Ledger, m: &Market, today: NaiveDate) -> Portfolio {
                 e.1 += v;
                 let e = by_account.entry(a.id.clone()).or_insert_with(|| (a.name.clone(), Decimal::ZERO));
                 e.1 += v;
-                if let (Some(b), Some(r)) = (p.book_cost, rate) {
+                if let (Some(b), Some(r)) = (book_cost, rate) {
                     book_total = Some(book_total.unwrap_or_default() + b * r.rate);
                 }
-                if let (Some(prev), Some(cur), Some(r)) = (
-                    m.previous_fetched_price(&p.symbol, today),
-                    m.latest_fetched_price(&p.symbol, today),
-                    rate,
-                ) {
+                if let (Some(prev), Some(cur), Some(r)) =
+                    (m.previous_fetched_price(&symbol, today), m.latest_fetched_price(&symbol, today), rate)
+                {
                     let d = units * (cur.price - prev.price) * r.rate;
                     day_change = Some(day_change.unwrap_or_default() + d);
                     row.day_change = Some(row.day_change.unwrap_or_default() + d);
@@ -161,7 +163,7 @@ pub fn portfolio(l: &Ledger, m: &Market, today: NaiveDate) -> Portfolio {
                 name: a.name.clone(),
                 units,
                 value,
-                book_cost: p.book_cost,
+                book_cost,
                 gain,
             });
         }

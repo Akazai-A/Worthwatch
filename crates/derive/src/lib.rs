@@ -1,16 +1,18 @@
 //! Everything here is a pure function of a [`Ledger`], a [`Market`] and a date.
 //! No IO, no clock.
 
+pub mod diff;
 pub mod market;
 pub mod portfolio;
 
 use std::collections::BTreeMap;
 
 use chrono::NaiveDate;
-use ledger::{Account, Group, Ledger};
+use ledger::{Account, Group, Ledger, Symbol};
 use rust_decimal::Decimal;
 use serde::Serialize;
 
+pub use diff::{changes, AccountDiff, Changes, HoldingDiff};
 pub use market::{Market, Price, Rate, Source};
 pub use portfolio::{portfolio, AccountSlice, Portfolio, SecurityRow, Slice};
 
@@ -52,6 +54,16 @@ pub fn units_at(l: &Ledger, a: &Account, symbol: &str, date: NaiveDate) -> Decim
     now - later
 }
 
+/// Every symbol the account holds now or ever traded, sorted. A position sold to zero
+/// leaves the account's list but still counts on dates it was held.
+pub fn symbols_ever(l: &Ledger, a: &Account) -> Vec<Symbol> {
+    let mut v: Vec<Symbol> = a.positions.as_deref().unwrap_or(&[]).iter().map(|p| p.symbol.clone()).collect();
+    v.extend(l.position_changes.iter().filter(|c| c.account == a.id).map(|c| c.symbol.clone()));
+    v.sort();
+    v.dedup();
+    v
+}
+
 /// Native-currency value of a position account on `date`: sum of units x latest price.
 /// Returns (total, oldest price date, any holding without a price).
 pub fn positions_native(
@@ -63,12 +75,12 @@ pub fn positions_native(
     let mut total = Decimal::ZERO;
     let mut oldest: Option<NaiveDate> = None;
     let mut missing = false;
-    for p in a.positions.as_deref().unwrap_or(&[]) {
-        let units = units_at(l, a, &p.symbol, date);
+    for symbol in symbols_ever(l, a) {
+        let units = units_at(l, a, &symbol, date);
         if units.is_zero() {
             continue;
         }
-        match m.price_at(&p.symbol, date) {
+        match m.price_at(&symbol, date) {
             Some(px) => {
                 total += units * px.price;
                 oldest = Some(oldest.map_or(px.date, |o| o.min(px.date)));

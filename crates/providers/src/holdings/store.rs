@@ -177,6 +177,24 @@ impl HoldingsStore {
         }
     }
 
+    /// The snapshot of `symbol` in effect on `date`: the newest one dated on or before
+    /// it, read from disk (the newest of all is served from memory). `None` when the
+    /// fund has no snapshot that old.
+    pub fn at(&self, symbol: &str, date: NaiveDate) -> Option<FundHoldings> {
+        let dates = self.dates.get(symbol)?;
+        let d = *dates.iter().rev().find(|d| **d <= date)?;
+        if let Some(latest) = self.latest.get(symbol).filter(|h| h.as_of == d) {
+            return Some(latest.clone());
+        }
+        let text = std::fs::read_to_string(snapshot_path(&self.dir, symbol, d)).ok()?;
+        serde_json::from_str(&text).ok()
+    }
+
+    /// Every fund's snapshot in effect on `date`, keyed by symbol.
+    pub fn snapshots_at(&self, date: NaiveDate) -> BTreeMap<String, FundHoldings> {
+        self.dates.keys().filter_map(|s| self.at(s, date).map(|h| (s.clone(), h))).collect()
+    }
+
     /// Symbols among `held` with no snapshot or one older than [`STALE_DAYS`].
     pub fn stale(&self, held: &[String], today: NaiveDate) -> Vec<String> {
         held.iter()
@@ -393,6 +411,25 @@ mod tests {
         assert_eq!(again.latest["XEQT.TO"].rows.len(), 3);
         assert_eq!(again.dates["XUS.TO"], vec![d]);
         assert!(again.fetched_at.is_some());
+    }
+
+    #[test]
+    fn snapshot_in_effect_on_a_date_comes_from_disk_and_latest_from_memory() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut s = HoldingsStore::load(dir.path());
+        s.save(fund("XIC.TO", ymd(2026, 8, 31), vec![("RY", "ROYAL BANK", "Canada")])).unwrap();
+        s.save(fund("XIC.TO", ymd(2026, 10, 30), vec![("TD", "TD BANK", "Canada")])).unwrap();
+        assert_eq!(s.at("XIC.TO", ymd(2026, 8, 1)), None);
+        assert_eq!(s.at("XIC.TO", ymd(2026, 9, 15)).unwrap().as_of, ymd(2026, 8, 31));
+        assert_eq!(s.at("XIC.TO", ymd(2026, 9, 15)).unwrap().rows[0].ticker.as_deref(), Some("RY"));
+        assert_eq!(s.at("XIC.TO", ymd(2026, 12, 1)).unwrap().as_of, ymd(2026, 10, 30));
+        assert_eq!(s.at("NOPE", ymd(2026, 12, 1)), None);
+        // A fresh load sees the same dates and serves old ones from disk.
+        let again = HoldingsStore::load(dir.path());
+        let then = again.snapshots_at(ymd(2026, 9, 1));
+        assert_eq!(then["XIC.TO"].as_of, ymd(2026, 8, 31));
+        assert_eq!(again.snapshots_at(ymd(2026, 11, 1))["XIC.TO"].as_of, ymd(2026, 10, 30));
+        assert!(again.snapshots_at(ymd(2026, 1, 1)).is_empty());
     }
 
     #[test]

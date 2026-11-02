@@ -163,7 +163,7 @@ fn pct(part: Decimal, whole: Decimal, dp: u32) -> Decimal {
 }
 
 /// "APPLE INC" -> "Apple Inc"; names that already have lowercase letters are kept.
-fn pretty_name(s: &str) -> String {
+pub(crate) fn pretty_name(s: &str) -> String {
     if s.chars().any(|c| c.is_ascii_lowercase()) {
         return s.trim().to_string();
     }
@@ -187,7 +187,7 @@ fn pretty_name(s: &str) -> String {
         .join(" ")
 }
 
-fn leaf_key(ticker: Option<&str>, name: &str) -> String {
+pub(crate) fn leaf_key(ticker: Option<&str>, name: &str) -> String {
     match ticker.map(str::trim).filter(|t| !t.is_empty() && *t != "-") {
         Some(t) => t.to_uppercase(),
         None => name.to_lowercase().chars().filter(|c| c.is_alphanumeric()).collect(),

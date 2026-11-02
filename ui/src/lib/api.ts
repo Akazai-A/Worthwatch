@@ -207,6 +207,134 @@ export async function refreshHoldings(): Promise<LookThroughView> {
   return r.json();
 }
 
+// ---- Changes (GET /api/changes?from&to&threshold) ----
+export interface AccountDiff {
+  account: string;
+  name: string;
+  group: Group;
+  liability: boolean;
+  currency: string;
+  from_value: string | null;
+  to_value: string | null;
+  /** Signed contribution to net worth: paying down debt is positive. */
+  change: string;
+  pct: string | null;
+  balance?: string;
+  market?: string;
+  trades?: string;
+  fx?: string;
+  residual: string;
+  missing_price: boolean;
+  missing_fx: boolean;
+}
+export interface HoldingDiff {
+  symbol: string;
+  currency: string;
+  accounts: string[];
+  from_units: string;
+  to_units: string;
+  from_price: string | null;
+  to_price: string | null;
+  from_price_date: string | null;
+  to_price_date: string | null;
+  from_value: string | null;
+  to_value: string | null;
+  trade_count: number;
+  market: string | null;
+  trades: string | null;
+  fx: string | null;
+  change: string | null;
+}
+export interface Changes {
+  from: string;
+  to: string;
+  days: number;
+  from_net_worth: string;
+  to_net_worth: string;
+  change: string;
+  pct: string | null;
+  market: string;
+  trades: string;
+  fx: string;
+  balances: string;
+  debt: string;
+  residual: string;
+  accounts: AccountDiff[];
+  holdings: HoldingDiff[];
+  unpriced: string[];
+}
+export interface BucketDelta { label: string; slot?: string; from_pct: string; to_pct: string; delta: string; from_value: string; to_value: string }
+export interface Drift {
+  from_total: string;
+  to_total: string;
+  from_as_of?: string;
+  to_as_of?: string;
+  by_sector: BucketDelta[];
+  by_region: BucketDelta[];
+  by_country: BucketDelta[];
+  by_asset_class: BucketDelta[];
+  by_currency: BucketDelta[];
+}
+export type ChangeKind = "added" | "removed" | "reweighted";
+export interface ConstituentChange {
+  kind: ChangeKind;
+  key: string;
+  name: string;
+  ticker?: string;
+  from_weight: string;
+  to_weight: string;
+  /** Percentage points, signed. */
+  delta: string;
+  your_value?: string;
+}
+export interface FundFeed {
+  symbol: string;
+  name?: string;
+  from: string;
+  to: string;
+  from_constituents: number;
+  to_constituents: number;
+  threshold: string;
+  changes: ConstituentChange[];
+  minor_added: number;
+  minor_removed: number;
+  minor_reweighted: number;
+  turnover_pct: string;
+  your_value?: string;
+  held: boolean;
+  hidden: number;
+}
+export interface ChangesView {
+  version: number;
+  as_of: string;
+  base_currency: string;
+  from: string;
+  to: string;
+  checkins: string[];
+  first_date: string | null;
+  threshold: string;
+  changes: Changes;
+  drift: Drift;
+  as_held_drift: Drift;
+  funds_resolved_from: number;
+  funds_resolved_to: number;
+  funds: FundFeed[];
+  same_file: string[];
+  no_earlier_file: string[];
+  errors: Record<string, string>;
+}
+export interface ChangesParams { from?: string; to?: string; threshold?: string }
+
+export async function getChanges(p: ChangesParams = {}): Promise<ChangesView> {
+  const q = new URLSearchParams();
+  if (p.from) q.set("from", p.from);
+  if (p.to) q.set("to", p.to);
+  if (p.threshold != null) q.set("threshold", p.threshold);
+  const r = await fetch(`/api/changes${q.size ? `?${q}` : ""}`);
+  if (!r.ok) await fail(r);
+  return r.json();
+}
+
 export type Mutation =
   | { op: "upsert_account"; account: Account }
   | { op: "remove_account"; id: string }

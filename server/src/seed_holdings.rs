@@ -375,6 +375,33 @@ pub fn seed_holdings(as_of: NaiveDate) -> Vec<FundHoldings> {
     ]
 }
 
+/// The same funds a month earlier, with a few sleeves at different weights and one
+/// tail name missing, so the Changes feed has something to report on seed data.
+pub fn seed_holdings_earlier(as_of: NaiveDate) -> Vec<FundHoldings> {
+    let tweaks: &[(&str, &[(&str, i64)])] = &[
+        ("XEQT.TO", &[("XEC", -60), ("XEF", 60)]),
+        ("XUS.TO", &[("NVDA", -70), ("AAPL", 45), ("MSFT", 25)]),
+        ("VFV.TO", &[("NVDA", -70), ("AAPL", 45), ("MSFT", 25)]),
+        ("XIC.TO", &[("SHOP", -80), ("RY", 80)]),
+    ];
+    let mut out = seed_holdings(as_of);
+    for f in &mut out {
+        if let Some((_, deltas)) = tweaks.iter().find(|(s, _)| *s == f.symbol) {
+            for (t, bp) in *deltas {
+                if let Some(r) = f.rows.iter_mut().find(|r| r.ticker.as_deref() == Some(t)) {
+                    r.weight += Decimal::new(*bp, 2);
+                }
+            }
+        }
+        // The last (smallest) name was not in the fund yet; its weight sat in the first.
+        if matches!(f.symbol.as_str(), "XIC.TO" | "ITOT" | "VTI") && f.rows.len() > 2 {
+            let gone = f.rows.remove(f.rows.len() - 2);
+            f.rows[0].weight += gone.weight;
+        }
+    }
+    out
+}
+
 fn fund_row(ticker: &str, name: &str, bp: u32, country: &str, exchange: &str, currency: &str) -> Constituent {
     Constituent {
         ticker: Some(ticker.into()),
@@ -395,7 +422,8 @@ mod tests {
 
     #[test]
     fn every_seed_fund_sums_to_100() {
-        for f in seed_holdings(NaiveDate::from_ymd_opt(2026, 10, 30).unwrap()) {
+        let d = NaiveDate::from_ymd_opt(2026, 10, 30).unwrap();
+        for f in seed_holdings(d).into_iter().chain(seed_holdings_earlier(d)) {
             let c = f.coverage();
             assert!((c - dec!(100)).abs() <= dec!(0.5), "{} sums to {c}", f.symbol);
             assert!(f.rows.iter().all(|r| r.weight > Decimal::ZERO), "{}", f.symbol);

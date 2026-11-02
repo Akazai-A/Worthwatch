@@ -133,3 +133,33 @@ test("a holdings file dropped into data/holdings shows up in Look-through, Expos
   await page.goto("/#/portfolio/overlap");
   await expect(page.locator(".empty")).toContainText("at least two funds");
 });
+
+test("Changes compares the last check-in with today: bridge, accounts, holdings, and the fund feed", async ({ page }) => {
+  await page.goto("/#/changes");
+  // Check-ins so far: Jan 31 (4,000) and today (5,102.10 in TD Chequing), plus the pasted TFSA.
+  await expect(page.locator(".changes .hero .money.xl")).toContainText("+$");
+  await expect(page.locator(".range .dates")).toContainText("Jan 31 →");
+  const chq = page.locator(".changes table").first().locator("tr", { hasText: "TD Chequing" });
+  await expect(chq).toContainText("$4,000");
+  await expect(chq).toContainText("+$1,102");
+  await expect(page.locator(".bridge")).toBeVisible();
+  await expect(page.locator(".bridge text.lab", { hasText: "TD Chequing" })).toBeVisible();
+  // The pasted positions count as trades (the account did not exist on Jan 31).
+  const xeqt = page.locator(".hold tr", { hasText: "XEQT.TO" });
+  await expect(xeqt).toContainText("426.5");
+  await expect(xeqt).toContainText("+$14,552");
+  await expect(page.locator(".hero .split")).toContainText("contributions & trades");
+  // One holdings file per fund so far: nothing to compare yet.
+  await expect(page.locator(".changes .empty-line").last()).toContainText("Only one holdings file per fund");
+
+  // A custom range that starts before any data is clamped to the first known date.
+  await page.getByRole("radio", { name: "1Y" }).click();
+  await expect(page.locator(".range .dates")).toContainText("Jan 31 →");
+  await page.getByRole("radio", { name: "Custom" }).click();
+  await page.getByRole("textbox", { name: "From" }).fill("2026-01-31");
+  await page.getByRole("textbox", { name: "To" }).fill("2026-02-15");
+  await page.getByRole("textbox", { name: "To" }).dispatchEvent("change");
+  await expect(page.getByRole("heading", { name: "One check-in so far" })).toBeHidden();
+  await expect(page.locator(".range .dates")).toContainText("Feb 15, 2026 · 15 days");
+  await expect(page.locator(".changes .hero .money.xl")).toHaveText("$0");
+});
