@@ -1,7 +1,7 @@
 # Stage 1: build the UI
 FROM node:22-alpine AS ui
 WORKDIR /ui
-COPY ui/package.json ui/pnpm-lock.yaml* ./
+COPY ui/package.json ui/pnpm-lock.yaml* ui/pnpm-workspace.yaml ./
 RUN corepack enable && pnpm install --frozen-lockfile || pnpm install
 COPY ui/ .
 RUN pnpm build
