@@ -164,6 +164,31 @@ pub fn is_fundish(c: &Constituent) -> bool {
     (named_like_a_fund || sector_says_fund) && !numeric_ticker && c.asset_class != AssetClass::Cash
 }
 
+/// Is this row listed where iShares and Vanguard list their North American funds
+/// (NYSE Arca, Cboe BZX, Nasdaq, Toronto, Cboe Canada)? A product-list hit on a bare
+/// ticker only counts when the row trades there: Corbion (CRBN, Euronext Amsterdam)
+/// shares its ticker with an iShares US ETF and must not be followed as one. With no
+/// exchange column, the country stands in.
+pub fn trades_on_north_american_fund_venue(c: &Constituent) -> bool {
+    match c.exchange.as_deref().map(|e| e.trim().to_ascii_lowercase()) {
+        Some(e) if !e.is_empty() && e != "-" => {
+            e.contains("arca")
+                || e.contains("cboe")
+                || e.contains("bzx")
+                || e.contains("bats")
+                || e.contains("nasdaq")
+                || e.contains("toronto")
+                || e.contains("tsx")
+                || e.contains("neo")
+                || e.contains("new york stock exchange")
+        }
+        _ => c
+            .country
+            .as_deref()
+            .is_some_and(|l| l.eq_ignore_ascii_case("united states") || l.eq_ignore_ascii_case("canada")),
+    }
+}
+
 /// Ledger-style symbol for a constituent that is itself a listed fund, from the
 /// issuer's bare ticker plus where it trades. `XIC` in Canada -> `XIC.TO`; `ITOT` in
 /// the United States -> `ITOT`. Returns `None` for lines without a ticker.
@@ -261,6 +286,33 @@ mod tests {
         let mut cash = row("ISHARES CASH", None);
         cash.asset_class = AssetClass::Cash;
         assert!(!is_fundish(&cash));
+    }
+
+    #[test]
+    fn venue_gate_keeps_north_american_listings_only() {
+        let mk = |exchange: Option<&str>, country: Option<&str>| Constituent {
+            ticker: Some("CRBN".into()),
+            name: "X".into(),
+            weight: rust_decimal::Decimal::ONE,
+            sector: None,
+            country: country.map(Into::into),
+            asset_class: AssetClass::Equity,
+            currency: None,
+            exchange: exchange.map(Into::into),
+        };
+        assert!(trades_on_north_american_fund_venue(&mk(Some("NYSE Arca"), Some("United States"))));
+        assert!(trades_on_north_american_fund_venue(&mk(Some("Cboe BZX"), Some("United States"))));
+        assert!(trades_on_north_american_fund_venue(&mk(Some("Toronto Stock Exchange"), Some("Canada"))));
+        assert!(!trades_on_north_american_fund_venue(&mk(Some("Euronext Amsterdam"), Some("Netherlands"))));
+        assert!(!trades_on_north_american_fund_venue(&mk(
+            Some("London Stock Exchange"),
+            Some("United Kingdom")
+        )));
+        assert!(
+            trades_on_north_american_fund_venue(&mk(None, Some("United States"))),
+            "no exchange column: country decides"
+        );
+        assert!(!trades_on_north_american_fund_venue(&mk(Some("-"), Some("Malaysia"))));
     }
 
     #[test]

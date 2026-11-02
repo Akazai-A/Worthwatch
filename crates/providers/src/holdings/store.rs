@@ -252,11 +252,14 @@ impl HoldingsStore {
             if let Some(h) = snapshot {
                 if depth + 1 < MAX_DEPTH {
                     // A row is followed as a child fund when the issuer's product list
-                    // knows its ticker (the firm test), or when the row itself reads as a
-                    // fund (so a Vanguard fund inside an iShares file is at least reported).
+                    // knows its ticker and the row trades where that issuer lists funds
+                    // (a bare ticker like CRBN is Corbion on Euronext and an iShares ETF on
+                    // NYSE Arca), or when the row itself reads as a fund (so a Vanguard
+                    // fund inside an iShares file is at least reported).
                     for row in &h.rows {
-                        if let Some(c) =
-                            child_symbol(row).filter(|c| provider.knows(c) || holdings::is_fundish(row))
+                        let venue_ok = holdings::trades_on_north_american_fund_venue(row);
+                        if let Some(c) = child_symbol(row)
+                            .filter(|c| (venue_ok && provider.knows(c)) || holdings::is_fundish(row))
                         {
                             queue.push_back((c, depth + 1));
                         }
@@ -339,9 +342,28 @@ mod tests {
             "XGRO.TO".into(),
             fund("XGRO.TO", d, vec![("AAPL", "APPLE INC", "United States"), ("RY", "ROYAL BANK", "Canada")]),
         );
+        // Corbion NV trades on Euronext under CRBN, which is also an iShares US ETF the
+        // provider knows. The venue gate keeps it a stock.
+        let mut corbion = fund("CRBN", d, vec![("AAPL", "APPLE INC", "United States")]);
+        corbion.rows.clear();
+        p.funds.insert("CRBN".into(), corbion);
+        {
+            let xus = p.funds.get_mut("XUS.TO").unwrap();
+            xus.rows.push(Constituent {
+                ticker: Some("CRBN".into()),
+                name: "CORBION NV".into(),
+                weight: dec!(1),
+                sector: Some("Materials".into()),
+                country: Some("Netherlands".into()),
+                asset_class: AssetClass::Equity,
+                currency: Some("EUR".into()),
+                exchange: Some("Euronext Amsterdam".into()),
+            });
+        }
         let mut s = HoldingsStore::load(dir.path());
         let r = s.refresh(&p, &["XEQT.TO".into(), "SHOP.TO".into()], d, Utc::now(), false);
         assert_eq!(r.fetched, vec!["XEQT.TO".to_string(), "XUS.TO".to_string(), "XGRO.TO".to_string()]);
+        assert!(!dir.path().join("CRBN").exists(), "a foreign stock sharing an ETF's ticker is not followed");
         assert_eq!(r.not_funds, vec!["SHOP.TO".to_string()]);
         // XIC.TO was listed by its parent as a fund but has no source: that is an error
         // worth showing, unlike SHOP.TO, which may simply be a stock.
