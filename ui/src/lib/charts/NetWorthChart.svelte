@@ -66,12 +66,12 @@
       scales: { x: { time: true }, y: { range: (_u, min, max) => pad(min, max) } },
       axes: [
         {
-          stroke: text, grid: { show: false }, ticks: { show: false }, font: "11px " + css("--font"), gap: 8,
+          stroke: text, grid: { show: false }, ticks: { show: false }, font: "11px " + css("--figures"), gap: 8,
           values: (_u, vals) => vals.map((v) => fmtTick(v)),
         },
         {
-          side: 1, stroke: text, grid: { stroke: grid, width: 1 }, ticks: { show: false }, font: "11px " + css("--font"),
-          size: 56, gap: 8, values: (_u, vals) => vals.map((v) => (blur ? "•••" : formatCompact(v))),
+          side: 1, stroke: text, grid: { stroke: grid, width: 1 }, ticks: { show: false }, font: "11px " + css("--figures"),
+          size: 60, gap: 8, values: (_u, vals) => vals.map((v) => (blur ? "•••" : formatCompact(v))),
         },
       ],
       series: [{}],
