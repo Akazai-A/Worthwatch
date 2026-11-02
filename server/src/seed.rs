@@ -1,6 +1,7 @@
 //! `worthwatch seed`: write a realistic 14-month ledger, plus a `quotes.json` that
-//! looks like three months of fetched daily closes and FX, so every screen can be
-//! designed against real-looking data. Deterministic (no randomness crate).
+//! looks like 14 months of fetched daily closes and FX, so every screen can be
+//! designed against real-looking data. The ledger carries no typed prices: that is
+//! what a fetching user's file looks like. Deterministic (no randomness crate).
 
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -88,15 +89,6 @@ pub fn seed_ledger(today: NaiveDate) -> Ledger {
         day.insert("td-mortgage".to_string(), d(44600000) - d(80000) * Decimal::from(i64i));
         day.insert("td-visa".to_string(), (d(140000) + d(90000) * w).abs().round_dp(2));
         l.snapshots.insert(date, day);
-
-        // Month-end prices typed by hand, drifting up with noise; today's comes from quotes.
-        if date == today {
-            continue;
-        }
-        let g = Decimal::ONE + Decimal::new(i64i * 12, 3);
-        l.prices.entry("XEQT.TO".into()).or_default().insert(date, (d(2980) * g + d(60) * w).round_dp(2));
-        l.prices.entry("VFV.TO".into()).or_default().insert(date, (d(12650) * g + d(200) * w).round_dp(2));
-        l.prices.entry("VTI".into()).or_default().insert(date, (d(24100) * g + d(300) * w).round_dp(2));
     }
     // Monthly buys of XEQT in the TFSA (14 units each, mid-month).
     for date in months.iter().skip(1).take(13) {
@@ -119,31 +111,22 @@ pub fn seed_ledger(today: NaiveDate) -> Ledger {
     l
 }
 
-/// Daily closes for the last ~90 weekdays for every seeded symbol, and a USD rate,
-/// as if a refresh had run every day. Each day interpolates between the ledger's
-/// manual month-end prices with a little noise, so the two sources agree.
+/// Daily closes for every weekday of the seeded history for each symbol, and a USD
+/// rate, as if a refresh had run every day. Prices drift up with a little noise.
 pub fn seed_quotes(l: &Ledger, today: NaiveDate) -> QuoteCache {
     let mut q = QuoteCache::default();
-    let start = today - chrono::Days::new(90);
+    let start = l.snapshots.keys().next().copied().unwrap_or(today);
+    let total_days = Decimal::from((today - start).num_days().max(1));
     let mut i = 0u64;
     let mut day = start;
     while day <= today {
         if !matches!(day.weekday(), Weekday::Sat | Weekday::Sun) {
             let w = wobble(i.wrapping_mul(7919));
-            for (sym, manual) in &l.prices {
-                let before = manual.range(..=day).next_back();
-                let after = manual.range(day..).next();
-                let px = match (before, after) {
-                    (Some((d0, p0)), Some((d1, p1))) if d1 > d0 => {
-                        let span = Decimal::from((*d1 - *d0).num_days());
-                        let t = Decimal::from((day - *d0).num_days()) / span;
-                        *p0 + (*p1 - *p0) * t
-                    }
-                    (Some((_, p)), _) | (None, Some((_, p))) => *p,
-                    (None, None) => continue,
-                };
-                let px = (px * (Decimal::ONE + Decimal::new(4, 3) * w)).round_dp(2);
-                q.prices.entry(sym.clone()).or_default().insert(day, px);
+            let t = Decimal::from((day - start).num_days()) / total_days;
+            // Growth of ~17% over the span, plus daily noise of up to 0.4%.
+            let g = (Decimal::ONE + Decimal::new(17, 2) * t) * (Decimal::ONE + Decimal::new(4, 3) * w);
+            for (sym, base) in [("XEQT.TO", d(2980)), ("VFV.TO", d(12650)), ("VTI", d(24100))] {
+                q.prices.entry(sym.into()).or_default().insert(day, (base * g).round_dp(2));
             }
             q.fx.entry("USD".into())
                 .or_default()
@@ -188,16 +171,16 @@ mod tests {
         let today = NaiveDate::from_ymd_opt(2026, 11, 2).unwrap();
         let l = seed_ledger(today);
         ledger::validate::validate(&l).unwrap();
-        let m = derive::Market::from_ledger(&l);
+        assert!(l.prices.is_empty(), "the seed must not plant typed prices; quotes.json carries them");
+        // With the seeded quotes, every position is priced within a few days and has a day change.
+        let q = seed_quotes(&l, today);
+        let m = derive::Market::merge(&l, &q.prices, &q.fx, &q.currencies);
         let s = derive::net_worth_series(&l, &m);
         assert!(s.len() >= 15);
         assert!(s.first().unwrap().date < today - chrono::Days::new(365));
         let t = derive::totals(&l, &m, today);
         assert!(t.net_worth > Decimal::ZERO);
         assert!(l.accounts.iter().all(|a| !derive::value_account(&l, &m, a, today).missing_fx));
-        // With the seeded quotes, every position is priced within a few days and has a day change.
-        let q = seed_quotes(&l, today);
-        let m = derive::Market::merge(&l, &q.prices, &q.fx, &q.currencies);
         let p = derive::portfolio(&l, &m, today);
         assert!(p.unpriced.is_empty());
         assert!(p.day_change.is_some());

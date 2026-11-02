@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { apply, ApiError, GROUPS, GROUP_LABEL, KIND_LABEL, type Account, type AccountKind, type AccountView, type LedgerView, type Mutation } from "../lib/api";
+  import { apply, ApiError, GROUPS, GROUP_LABEL, KIND_LABEL, ratesInUse, type Account, type AccountKind, type AccountView, type LedgerView, type Mutation } from "../lib/api";
   import { balanceDelta, buildCheckin, slugify, summarize, type Entry } from "../lib/checkin";
   import { formatDate, formatPlain, parseNumber, todayIso } from "../lib/money";
   import { view as viewStore } from "../lib/stores/view.svelte";
@@ -18,13 +18,15 @@
   let adding = $state(false);
   let draft = $state({ name: "", kind: "chequing" as AccountKind, currency: "", institution: "", symbols: "", fx: "" });
   const draftCurrency = $derived((draft.currency.trim() || view.base_currency).toUpperCase());
-  const needsFx = $derived(draftCurrency !== view.base_currency && !view.fx[draftCurrency]);
+  const rates = $derived(ratesInUse(view));
+  const fxFetchable = $derived(!view.market.offline && view.market.fx_provider !== "off" && view.base_currency === "CAD");
+  const needsFx = $derived(draftCurrency !== view.base_currency && !rates[draftCurrency] && !fxFetchable);
   let draftError = $state<string | null>(null);
 
   const cur = $derived(view.base_currency);
   const locked = $derived(view.problem != null);
   const byGroup = $derived(GROUPS.map((g) => ({ g, rows: view.accounts.filter((a) => a.group === g) })).filter((x) => x.rows.length));
-  const result = $derived(buildCheckin(date, view.accounts, entries, view.fx, cur));
+  const result = $derived(buildCheckin(date, view.accounts, entries, rates, cur));
   const after = $derived(Number(view.totals.net_worth) + result.net_change);
 
   function entry(id: string): Entry {
@@ -170,6 +172,8 @@
         <label>Institution <input type="text" id="add-institution" bind:value={draft.institution} placeholder="optional" /></label>
         {#if needsFx}
           <label>1 {draftCurrency} in {cur} <input type="text" id="add-fx" bind:value={draft.fx} placeholder="e.g. 1.38" inputmode="decimal" /></label>
+        {:else if draftCurrency !== cur && !rates[draftCurrency]}
+          <span class="faint fxnote">The {draftCurrency}/{cur} rate will be fetched from the Bank of Canada on the next refresh.</span>
         {/if}
         {#if ["tfsa", "rrsp", "fhsa", "resp", "non_registered", "crypto"].includes(draft.kind)}
           <label class="wide">Holdings <input type="text" id="add-symbols" bind:value={draft.symbols} placeholder="symbols, e.g. XEQT.TO VFV.TO (leave empty to track a balance)" /></label>
@@ -231,6 +235,7 @@
   .add { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; padding: 12px 0 4px; border-top: 1px solid var(--border); margin-top: 8px; }
   .add label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-2); }
   .add .wide, .add .actions { grid-column: 1 / -1; }
+  .fxnote { font-size: 12px; align-self: end; padding-bottom: 8px; }
   .actions { display: flex; gap: 14px; align-items: center; }
   .btn { background: var(--accent); color: var(--bg); border: 0; border-radius: 8px; padding: 9px 16px; font: inherit; font-weight: 600; cursor: pointer; }
   .btn:disabled { opacity: 0.45; cursor: default; }

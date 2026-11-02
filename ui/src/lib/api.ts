@@ -118,7 +118,8 @@ export interface LedgerView {
   series: Point[];
   deltas: { previous: Delta | null; ytd: Delta | null; one_year: Delta | null };
   accounts: AccountView[];
-  fx: Record<string, string>;
+  /** Rates typed in the ledger (settings.fx): the fallback. `market.rates` is what is applied. */
+  manual_fx: Record<string, string>;
   events: { date: string; note: string }[];
   market: MarketView;
   portfolio: Portfolio;
@@ -179,6 +180,13 @@ export async function apply(mutations: Mutation[]): Promise<LedgerView> {
   });
   if (!r.ok) await fail(r);
   return r.json();
+}
+
+/** currency -> rate in effect (fetched if any, else typed), for browser-side estimates only. */
+export function ratesInUse(v: LedgerView): Record<string, string> {
+  const out: Record<string, string> = { ...v.manual_fx };
+  for (const r of v.market.rates) if (r.rate != null) out[r.currency] = r.rate;
+  return out;
 }
 
 /** Fetch prices and FX now. Never fails on a bad symbol; see `market.errors` in the view. */

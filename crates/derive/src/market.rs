@@ -86,11 +86,24 @@ impl Market {
         })
     }
 
-    /// The price before the latest one on or before `date`; for day change.
-    pub fn previous_price(&self, symbol: &str, date: NaiveDate) -> Option<Price> {
-        let mut it = self.prices.get(symbol)?.range(..=date).rev();
+    /// The fetched close before the latest fetched close on or before `date`; for day
+    /// change. Typed prices are ignored here so a month-end you entered by hand never
+    /// counts as "yesterday".
+    pub fn previous_fetched_price(&self, symbol: &str, date: NaiveDate) -> Option<Price> {
+        let mut it =
+            self.prices.get(symbol)?.range(..=date).rev().filter(|(_, (_, s))| *s == Source::Fetched);
         it.next()?;
         it.next().map(|(d, (p, s))| Price { date: *d, price: *p, source: *s })
+    }
+
+    /// Latest fetched close on or before `date`, ignoring typed prices.
+    pub fn latest_fetched_price(&self, symbol: &str, date: NaiveDate) -> Option<Price> {
+        self.prices
+            .get(symbol)?
+            .range(..=date)
+            .rev()
+            .find(|(_, (_, s))| *s == Source::Fetched)
+            .map(|(d, (p, s))| Price { date: *d, price: *p, source: *s })
     }
 
     /// Rate to convert `currency` into base on `date`: fetched on or before the date,

@@ -105,7 +105,7 @@ Reading it: fetching only ever writes `quotes.json`; the ledger is still written
 | `POST /api/refresh` | fetch prices and FX for every held symbol and used currency now; always answers with the view, per-symbol failures in `market.errors` |
 | `POST /api/parse-holdings` | `{ account, date, text }` → parsed rows, skipped lines, untouched positions and the proposed `mutations`; writes nothing |
 | `GET /api/events` | SSE, one `change` event per ledger version |
-| `worthwatch seed [--force]` | writes a 14-month sample ledger and a `quotes.json` with three months of daily closes to `WORTHWATCH_DATA` |
+| `worthwatch seed [--force]` | writes a 14-month sample ledger and a `quotes.json` with daily closes for the same span to `WORTHWATCH_DATA` (no typed prices: what a fetching user's file looks like) |
 
 ## UI
 

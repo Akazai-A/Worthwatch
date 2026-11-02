@@ -38,7 +38,8 @@ pub struct SecurityRow {
     pub weight_pct: Option<Decimal>,
     pub gain: Option<Decimal>,
     pub gain_pct: Option<Decimal>,
-    /// Base currency: units x (latest price - previous price).
+    /// Base currency: units x (latest fetched close - previous fetched close). `None`
+    /// until two fetched closes exist; typed prices never feed it.
     pub day_change: Option<Decimal>,
     pub missing_fx: bool,
     pub accounts: Vec<AccountSlice>,
@@ -142,7 +143,11 @@ pub fn portfolio(l: &Ledger, m: &Market, today: NaiveDate) -> Portfolio {
                 if let (Some(b), Some(r)) = (p.book_cost, rate) {
                     book_total = Some(book_total.unwrap_or_default() + b * r.rate);
                 }
-                if let (Some(prev), Some(cur), Some(r)) = (m.previous_price(&p.symbol, today), px, rate) {
+                if let (Some(prev), Some(cur), Some(r)) = (
+                    m.previous_fetched_price(&p.symbol, today),
+                    m.latest_fetched_price(&p.symbol, today),
+                    rate,
+                ) {
                     let d = units * (cur.price - prev.price) * r.rate;
                     day_change = Some(day_change.unwrap_or_default() + d);
                     row.day_change = Some(row.day_change.unwrap_or_default() + d);
@@ -260,6 +265,25 @@ mod tests {
         assert_eq!(p.by_currency[1].pct, dec!(40.7));
         assert_eq!(p.by_account.len(), 3);
         assert_eq!(p.gain, Some(dec!(8600) - (dec!(4700) + dec!(2800))));
+    }
+
+    #[test]
+    fn day_change_ignores_typed_prices() {
+        let mut l = Ledger::starter("CAD");
+        l.accounts = vec![acct("tfsa", "CAD", vec![pos("XEQT.TO", dec!(100), None)])];
+        // Fetched: 33 on Jan 1, 34 on Jan 2. Typed month-end between them, way off.
+        l.prices.insert("XEQT.TO".into(), BTreeMap::from([(ymd(2026, 1, 1), dec!(20))]));
+        let fetched = BTreeMap::from([(
+            "XEQT.TO".to_string(),
+            BTreeMap::from([(ymd(2025, 12, 31), dec!(33)), (ymd(2026, 1, 2), dec!(34))]),
+        )]);
+        let m = Market::merge(&l, &fetched, &BTreeMap::new(), &BTreeMap::new());
+        let p = portfolio(&l, &m, ymd(2026, 1, 2));
+        assert_eq!(p.securities[0].day_change, Some(dec!(100)));
+        // A typed price as the latest point: no day change rather than a wrong one.
+        let p = portfolio(&l, &m, ymd(2026, 1, 1));
+        assert_eq!(p.securities[0].price, Some(dec!(20)));
+        assert_eq!(p.securities[0].day_change, None);
     }
 
     #[test]

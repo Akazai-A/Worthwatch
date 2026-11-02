@@ -30,8 +30,9 @@ pub struct LedgerView {
     pub series: Vec<derive::Point>,
     pub deltas: Deltas,
     pub accounts: Vec<AccountView>,
-    /// Manual rates typed in the ledger (settings.fx).
-    pub fx: BTreeMap<String, Decimal>,
+    /// Rates typed in the ledger (settings.fx): the fallback, not necessarily what is in use.
+    /// `market.rates` has the rate actually applied per currency.
+    pub manual_fx: BTreeMap<String, Decimal>,
     pub events: Vec<ledger::Event>,
     pub market: MarketView,
     pub portfolio: derive::Portfolio,
@@ -200,7 +201,7 @@ pub fn build_view(snap: &Snapshot, path: &str, today: NaiveDate, offline: bool) 
         },
         series,
         accounts,
-        fx: l.settings.fx.clone(),
+        manual_fx: l.settings.fx.clone(),
         events: l.events.clone(),
         market,
         portfolio: derive::portfolio(l, &m, today),
@@ -345,15 +346,18 @@ mod tests {
         assert_eq!(v.market.price_provider, "yahoo");
         assert_eq!(v.market.fx_provider, "bank_of_canada");
         assert!(v.market.offline);
-        // The USD rate in settings.fx shows as a manual rate even with no USD account.
-        assert!(v.market.rates.is_empty());
+        assert!(v.market.rates.is_empty()); // no account in USD, so nothing to apply
+        assert_eq!(v.manual_fx["USD"], dec!(1.38));
     }
 
     #[test]
     fn fetched_quotes_show_as_of_and_rates() {
         let l = ledger::io::parse(include_str!("../../data/ledger.example.yaml")).unwrap();
         let mut quotes = QuoteCache::default();
-        quotes.prices.insert("XEQT.TO".into(), BTreeMap::from([(ymd(2026, 11, 1), dec!(34.50))]));
+        quotes.prices.insert(
+            "XEQT.TO".into(),
+            BTreeMap::from([(ymd(2026, 10, 30), dec!(34.00)), (ymd(2026, 11, 1), dec!(34.50))]),
+        );
         quotes.fx.insert("USD".into(), BTreeMap::from([(ymd(2026, 11, 1), dec!(1.39))]));
         let mut l = l;
         l.accounts.push(Account {
@@ -373,6 +377,7 @@ mod tests {
         assert_eq!(v.market.rates[0].source, Some(derive::Source::Fetched));
         let tfsa = v.accounts.iter().find(|a| a.account.id == "ws-tfsa").unwrap();
         assert_eq!(tfsa.holdings[0].price_source, Some(derive::Source::Fetched));
-        assert_eq!(v.portfolio.securities[0].day_change, Some(dec!(412.5) * dec!(0.38)));
+        // Day change is fetched Nov 1 vs fetched Oct 30; the typed Oct 31 price is not "yesterday".
+        assert_eq!(v.portfolio.securities[0].day_change, Some(dec!(412.5) * dec!(0.50)));
     }
 }
