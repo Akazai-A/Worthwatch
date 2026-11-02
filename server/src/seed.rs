@@ -1,11 +1,13 @@
-//! `worthwatch seed`: write a realistic 14-month ledger so every screen can be
+//! `worthwatch seed`: write a realistic 14-month ledger, plus a `quotes.json` that
+//! looks like three months of fetched daily closes and FX, so every screen can be
 //! designed against real-looking data. Deterministic (no randomness crate).
 
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use chrono::{Datelike, Months, NaiveDate};
+use chrono::{Datelike, Months, NaiveDate, Weekday};
 use ledger::{Account, AccountKind, Event, Ledger, LedgerError, Position, PositionChange};
+use providers::QuoteCache;
 use rust_decimal::Decimal;
 
 fn acct(id: &str, name: &str, inst: Option<&str>, kind: AccountKind, cur: &str) -> Account {
@@ -114,6 +116,37 @@ pub fn seed_ledger(today: NaiveDate) -> Ledger {
     l
 }
 
+/// Daily closes for the last ~90 weekdays for every seeded symbol, and a USD rate,
+/// as if a refresh had run every day. Starts from the ledger's manual month-end prices.
+pub fn seed_quotes(l: &Ledger, today: NaiveDate) -> QuoteCache {
+    let mut q = QuoteCache::default();
+    let start = today - chrono::Days::new(90);
+    let mut i = 0u64;
+    let mut day = start;
+    while day <= today {
+        if !matches!(day.weekday(), Weekday::Sat | Weekday::Sun) {
+            let w = wobble(i.wrapping_mul(7919));
+            let drift = Decimal::ONE + Decimal::new(i as i64 * 4, 4);
+            for (sym, base) in [("XEQT.TO", d(3180)), ("VFV.TO", d(13500)), ("VTI", d(25700))] {
+                let px = (base * drift + base * Decimal::new(12, 3) * w).round_dp(2);
+                q.prices.entry(sym.into()).or_default().insert(day, px);
+            }
+            q.fx.entry("USD".into()).or_default().insert(day, (d(13880) + d(30) * w).round_dp(4));
+            i += 1;
+        }
+        day = day.succ_opt().unwrap_or(day);
+    }
+    q.currencies = [("XEQT.TO", "CAD"), ("VFV.TO", "CAD"), ("VTI", "USD")]
+        .into_iter()
+        .map(|(a, b)| (a.to_string(), b.to_string()))
+        .collect();
+    // Quotes are "as of" the last weekday, fetched that evening.
+    let last = q.latest_price_date().unwrap_or(today);
+    q.fetched_at = last.and_hms_opt(21, 5, 0).map(|t| t.and_utc());
+    let _ = l;
+    q
+}
+
 pub fn write_seed(data_dir: &Path, today: NaiveDate, force: bool) -> Result<std::path::PathBuf, LedgerError> {
     std::fs::create_dir_all(data_dir)?;
     let path = data_dir.join("ledger.yaml");
@@ -123,7 +156,11 @@ pub fn write_seed(data_dir: &Path, today: NaiveDate, force: bool) -> Result<std:
             format!("{} exists; pass --force to overwrite it", path.display()),
         )));
     }
-    ledger::io::save(&path, &seed_ledger(today))?;
+    let l = seed_ledger(today);
+    ledger::io::save(&path, &l)?;
+    seed_quotes(&l, today)
+        .save(&data_dir.join("quotes.json"))
+        .map_err(|e| LedgerError::Io(std::io::Error::other(e.to_string())))?;
     Ok(path)
 }
 
@@ -136,12 +173,21 @@ mod tests {
         let today = NaiveDate::from_ymd_opt(2026, 11, 2).unwrap();
         let l = seed_ledger(today);
         ledger::validate::validate(&l).unwrap();
-        let s = derive::net_worth_series(&l);
+        let m = derive::Market::from_ledger(&l);
+        let s = derive::net_worth_series(&l, &m);
         assert!(s.len() >= 15);
         assert!(s.first().unwrap().date < today - chrono::Days::new(365));
-        let t = derive::totals(&l, today);
+        let t = derive::totals(&l, &m, today);
         assert!(t.net_worth > Decimal::ZERO);
-        assert!(l.accounts.iter().all(|a| !derive::value_account(&l, a, today).missing_fx));
+        assert!(l.accounts.iter().all(|a| !derive::value_account(&l, &m, a, today).missing_fx));
+        // With the seeded quotes, every position is priced within a few days and has a day change.
+        let q = seed_quotes(&l, today);
+        let m = derive::Market::merge(&l, &q.prices, &q.fx, &q.currencies);
+        let p = derive::portfolio(&l, &m, today);
+        assert!(p.unpriced.is_empty());
+        assert!(p.day_change.is_some());
+        assert!((today - m.latest_fetched_price_date().unwrap()).num_days() <= 3);
+        assert_eq!(m.rate_at("CAD", "USD", today).unwrap().source, derive::Source::Fetched);
         // Round-trips through YAML.
         let again = ledger::io::parse(&ledger::io::to_yaml(&l).unwrap()).unwrap();
         assert_eq!(l, again);

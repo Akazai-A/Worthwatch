@@ -12,6 +12,8 @@ path = "src/main.rs"
 [dependencies]
 ledger = { path = "../crates/ledger" }
 derive = { path = "../crates/derive" }
+providers = { path = "../crates/providers" }
+importers = { path = "../crates/importers" }
 serde.workspace = true
 serde_json.workspace = true
 rust_decimal.workspace = true

@@ -31,9 +31,46 @@ pub struct Ledger {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Settings {
     pub base_currency: Currency,
-    /// currency -> units of base currency per 1 unit of that currency
+    /// currency -> units of base currency per 1 unit of that currency. Typed by hand;
+    /// used when no fetched rate exists for a date.
     #[serde(default)]
     pub fx: BTreeMap<Currency, Decimal>,
+    /// Where market data comes from. Omitted in the file means the defaults.
+    #[serde(default, skip_serializing_if = "Providers::is_default")]
+    pub providers: Providers,
+}
+
+/// Market-data sources. Fetched data never lands in this file; it goes to
+/// `quotes.json` beside it, which can be deleted and rebuilt.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct Providers {
+    #[serde(default)]
+    pub prices: PriceSource,
+    #[serde(default)]
+    pub fx: FxSource,
+}
+
+impl Providers {
+    pub fn is_default(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PriceSource {
+    #[default]
+    Yahoo,
+    Stooq,
+    Off,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum FxSource {
+    #[default]
+    BankOfCanada,
+    Off,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -147,7 +184,11 @@ impl Ledger {
     pub fn starter(base_currency: &str) -> Self {
         Self {
             version: SCHEMA_VERSION,
-            settings: Settings { base_currency: base_currency.to_string(), fx: BTreeMap::new() },
+            settings: Settings {
+                base_currency: base_currency.to_string(),
+                fx: BTreeMap::new(),
+                providers: Providers::default(),
+            },
             accounts: Vec::new(),
             prices: BTreeMap::new(),
             snapshots: BTreeMap::new(),
@@ -158,5 +199,30 @@ impl Ledger {
 
     pub fn account(&self, id: &str) -> Option<&Account> {
         self.accounts.iter().find(|a| a.id == id)
+    }
+
+    /// Every symbol held in any position account, deduplicated and sorted.
+    pub fn symbols(&self) -> Vec<Symbol> {
+        let mut v: Vec<Symbol> = self
+            .accounts
+            .iter()
+            .flat_map(|a| a.positions.as_deref().unwrap_or(&[]).iter().map(|p| p.symbol.clone()))
+            .collect();
+        v.sort();
+        v.dedup();
+        v
+    }
+
+    /// Every non-base currency an account is denominated in, sorted.
+    pub fn foreign_currencies(&self) -> Vec<Currency> {
+        let mut v: Vec<Currency> = self
+            .accounts
+            .iter()
+            .filter(|a| a.currency != self.settings.base_currency)
+            .map(|a| a.currency.clone())
+            .collect();
+        v.sort();
+        v.dedup();
+        v
     }
 }
