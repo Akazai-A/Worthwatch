@@ -43,7 +43,7 @@
   const headParts = $derived(c ? parts(c) : []);
   // Column and bridge labels carry the year only when the two ends differ in it.
   const endLabel = (d: string) => formatDate(d, c && c.from.slice(0, 4) !== c.to.slice(0, 4) ? "long" : "short");
-  const steps = $derived(c ? bridgeSteps(c.accounts) : []);
+  const steps = $derived(c ? bridgeSteps(c.accounts, 6) : []);
   const byGroup = $derived(
     c ? GROUPS.map((g) => ({ g, rows: c.accounts.filter((a) => a.group === g) })).filter((x) => x.rows.length) : [],
   );
@@ -71,9 +71,6 @@
     ];
   const maxAccount = $derived(Math.max(0, ...(c?.accounts.map((a) => Math.abs(Number(a.change))) ?? [])));
   const maxHolding = $derived(Math.max(0, ...(c?.holdings.map((h) => Math.abs(Number(h.change ?? 0))) ?? [])));
-  const HOLD_SHOW = 12;
-  let allHoldings = $state(false);
-  const holdings = $derived(c ? (allHoldings ? c.holdings : c.holdings.slice(0, HOLD_SHOW)) : []);
 
   let mode = $state<"lookthrough" | "as_held">("lookthrough");
   // Look-through drift needs a file at both ends; with none old enough for the start, as held is the honest view.
@@ -81,9 +78,9 @@
   const noOldFiles = $derived((v?.funds_resolved_to ?? 0) > 0 && (v?.funds_resolved_from ?? 0) === 0);
   const eff = $derived<"lookthrough" | "as_held">(anyFiles ? mode : "as_held");
   const drift = $derived<Drift | null>(v ? (eff === "lookthrough" ? v.drift : v.as_held_drift) : null);
-  /** Rows that moved, biggest move first, capped so each set stays short. */
-  function moved(b: BucketDelta[], n = 8): BucketDelta[] {
-    return b.filter((x) => Number(x.delta) !== 0).sort((p, q) => Math.abs(Number(q.delta)) - Math.abs(Number(p.delta))).slice(0, n);
+  /** Rows that moved, biggest move first. The panel scrolls, so nothing is cut. */
+  function moved(b: BucketDelta[]): BucketDelta[] {
+    return b.filter((x) => Number(x.delta) !== 0).sort((p, q) => Math.abs(Number(q.delta)) - Math.abs(Number(p.delta)));
   }
   const driftSets = $derived(
     drift
@@ -91,15 +88,12 @@
           { title: "Sector", rows: moved(drift.by_sector) },
           { title: "Region", rows: moved(drift.by_region) },
           { title: "Country", rows: moved(drift.by_country) },
-          { title: eff === "lookthrough" ? "Currency of the underlying" : "Currency traded in", rows: moved(drift.by_currency, 6) },
+          { title: eff === "lookthrough" ? "Currency of the underlying" : "Currency traded in", rows: moved(drift.by_currency) },
         ].filter((s) => s.rows.length)
       : [],
   );
   const maxPts = $derived(Math.max(0.1, ...driftSets.flatMap((s) => s.rows.map((r) => Math.abs(Number(r.delta))))));
 
-  const FEED_SHOW = 6;
-  let allFunds = $state(false);
-  const feed = $derived(v ? (allFunds ? v.funds : v.funds.slice(0, FEED_SHOW)) : []);
   const THRESHOLDS = ["0.1", "0.5", "1.0"];
 </script>
 
@@ -138,6 +132,7 @@
         <p class="muted">Nothing was recorded before {formatDate(c.to, "long")}. After the next check-in this screen shows what moved, account by account.</p>
       </section>
     {:else}
+      <div class="board" class:solo={!c.holdings.length}>
       <section class="hero">
         <div class="label">Net worth change</div>
         <Money value={c.change} currency={cur} size="xl" signed tone="delta" />
@@ -150,26 +145,27 @@
       </section>
 
       {#if steps.length}
-        <section class="card">
-          <h2 class="label">What moved it</h2>
+        <section class="card panel">
+          <div class="head"><h2 class="label">What moved it</h2><span class="faint small">debt paid down = gain{#if steps.some((s) => s.folded)}&nbsp;· smallest movers folded into one step{/if}</span></div>
           <div class="bridge-wrap"><Bridge start={Number(c.from_net_worth)} end={Number(c.to_net_worth)} {steps} startLabel={endLabel(c.from)} endLabel={endLabel(c.to)} currency={cur} blur={prefs.blur} /></div>
-          <p class="faint note">Debt paid down counts as a gain.{#if steps.some((s) => s.folded)}&nbsp;Smallest movers folded into the last step.{/if}</p>
         </section>
       {/if}
 
-      <section class="card">
-        <div class="head"><h2 class="label">Accounts</h2><span class="faint small">{c.accounts.length} {c.accounts.length === 1 ? "account" : "accounts"} · biggest move first</span></div>
+      <section class="card panel">
+        <div class="head"><h2 class="label">Accounts</h2><span class="faint small">{c.accounts.length} {c.accounts.length === 1 ? "account" : "accounts"} · {endLabel(c.from)} → {endLabel(c.to)}</span></div>
+        <div class="body">
         <table class="accts">
-          <thead><tr><th>Account</th><th class="r">{endLabel(c.from)}</th><th class="r">{endLabel(c.to)}</th><th class="bar"></th><th class="r">Change</th><th class="r">%</th><th class="r why" title="What a mixed change is made of: market, trades, balance, FX; hover the row">Why</th></tr></thead>
+          <thead><tr><th>Account</th><th class="bar"></th><th class="r">Change</th><th class="r">%</th><th class="r why" title="What a mixed change is made of: market, trades, balance, FX; hover the row">Why</th></tr></thead>
           <tbody>
             {#each byGroup as { g, rows } (g)}
-              <tr class="grp"><td colspan="7">{GROUP_LABEL[g]}{#if g === "debt"}<span class="faint"> · paid down = gain</span>{/if}</td></tr>
+              <tr class="grp"><td colspan="5">{GROUP_LABEL[g]}{#if g === "debt"}<span class="faint"> · paid down = gain</span>{/if}</td></tr>
               {#each rows as a (a.account)}
                 {@const hint = accountHint(a, cur, tradeNotes(a))}
                 <tr title={hint}>
-                  <td><a class="name" href="#/accounts/{encodeURIComponent(a.account)}">{a.name}</a>{#if a.from_value == null}<span class="tag">new</span>{/if}{#if a.missing_fx || a.missing_price}<span class="tag warn">{a.missing_fx ? "no FX" : "no price"}</span>{/if}</td>
-                  <td class="r">{#if a.from_value == null}<span class="faint">—</span>{:else}<Money value={a.from_value} currency={cur} />{/if}</td>
-                  <td class="r">{#if a.to_value == null}<span class="faint">—</span>{:else}<Money value={a.to_value} currency={cur} />{/if}</td>
+                  <td>
+                    <a class="name" href="#/accounts/{encodeURIComponent(a.account)}">{a.name}</a>{#if a.from_value == null}<span class="tag">new</span>{/if}{#if a.missing_fx || a.missing_price}<span class="tag warn">{a.missing_fx ? "no FX" : "no price"}</span>{/if}
+                    <span class="sub2 num">{#if a.from_value == null}—{:else}<Money value={a.from_value} currency={cur} size="s" />{/if} → {#if a.to_value == null}—{:else}<Money value={a.to_value} currency={cur} size="s" />{/if}</span>
+                  </td>
                   <td class="bar"><DeltaBar value={Number(a.change)} max={maxAccount} /></td>
                   <td class="r">{#if Number(a.change) === 0}<span class="faint">—</span>{:else}<Money value={a.change} currency={cur} signed tone="delta" />{/if}</td>
                   <td class="r num" class:faint={a.pct == null || Number(a.pct) === 0}>{a.pct == null ? "—" : `${Number(a.pct) > 0 ? "+" : ""}${a.pct}%`}</td>
@@ -179,22 +175,27 @@
             {/each}
           </tbody>
         </table>
+        </div>
       </section>
 
       {#if c.holdings.length}
-        <section class="card">
+        <section class="card panel">
           <div class="head"><h2 class="label">Holdings</h2><span class="faint small" title="Market: the price move on units already held. Trades: units bought or sold, at the end price. FX: the rate move on the starting value. The three add up to the change exactly.">change = market + trades + FX · hover a row</span></div>
+          <div class="body">
           <table class="hold">
-            <thead><tr><th>Symbol</th><th class="r">Units</th><th class="r">Price</th><th class="bar"></th><th class="r">Change</th><th class="r why" title="market · trades · FX, left to right">Why</th></tr></thead>
+            <thead><tr><th>Symbol</th><th class="bar"></th><th class="r">Change</th><th class="r why" title="market · trades · FX, left to right">Why</th></tr></thead>
             <tbody>
-              {#each holdings as h (h.symbol)}
+              {#each c.holdings as h (h.symbol)}
                 {@const hp = [{ label: "market", value: Number(h.market ?? 0) }, { label: "trades", value: Number(h.trades ?? 0) }, { label: "fx", value: Number(h.fx ?? 0) }]}
                 <tr title={hp.filter((p) => p.value !== 0).map((p) => `${p.label} ${formatSigned(p.value, cur)}`).join(" · ") || undefined}>
-                  <td><span class="sym">{h.symbol}</span><span class="sub2">{h.accounts.join(" + ")}{#if h.currency !== cur}&nbsp;· {h.currency}{/if}{#if h.trade_count}&nbsp;· {h.trade_count} {h.trade_count === 1 ? "trade" : "trades"}{/if}</span></td>
-                  <td class="r num">{#if Number(h.from_units) !== Number(h.to_units)}<span class="faint">{units(h.from_units)} →</span> {/if}{units(h.to_units)}</td>
-                  <td class="r num">
-                    {#if h.to_price == null}<span class="warn">no price</span>
-                    {:else}{#if h.from_price != null && h.from_price !== h.to_price}<span class="faint">{formatPlain(h.from_price)} →</span> {/if}{formatPlain(h.to_price)}{/if}
+                  <td>
+                    <span class="sym">{h.symbol}</span><span class="faint small"> {h.accounts.join(" + ")}{#if h.currency !== cur}&nbsp;· {h.currency}{/if}</span>
+                    <span class="sub2 num">
+                      {#if Number(h.from_units) !== Number(h.to_units)}{units(h.from_units)} → {/if}{units(h.to_units)} units ·
+                      {#if h.to_price == null}<span class="warn">no price</span>
+                      {:else}{#if h.from_price != null && h.from_price !== h.to_price}{formatPlain(h.from_price)} → {/if}{formatPlain(h.to_price)}{/if}
+                      {#if h.trade_count}· {h.trade_count} {h.trade_count === 1 ? "trade" : "trades"}{/if}
+                    </span>
                   </td>
                   <td class="bar"><DeltaBar value={Number(h.change ?? 0)} max={maxHolding} /></td>
                   <td class="r">{#if h.change == null}<span class="warn" title="no price at one end of the period">unpriced</span>{:else}<Money value={h.change} currency={cur} signed tone="delta" />{/if}</td>
@@ -203,14 +204,12 @@
               {/each}
             </tbody>
           </table>
-          {#if c.holdings.length > HOLD_SHOW}
-            <button type="button" class="more" onclick={() => (allHoldings = !allHoldings)}>{allHoldings ? "Show fewer" : `Show ${c.holdings.length - HOLD_SHOW} more`}</button>
-          {/if}
+          </div>
         </section>
       {/if}
 
       {#if drift && c.holdings.length}
-        <section class="card">
+        <section class="card panel">
           <div class="head">
             <h2 class="label">Exposure drift{#if drift && eff === "lookthrough" && drift.from_as_of && drift.to_as_of}<span class="faint sub-h"> · holdings files {formatDate(drift.from_as_of)} → {formatDate(drift.to_as_of)}</span>{/if}</h2>
             <div class="toggle" role="radiogroup" aria-label="View">
@@ -218,6 +217,7 @@
               <button type="button" role="radio" aria-checked={eff === "as_held"} class:on={eff === "as_held"} onclick={() => (mode = "as_held")}>As held</button>
             </div>
           </div>
+          <div class="body">
           {#if driftSets.length === 0}
             <p class="muted empty-line">No bucket moved a tenth of a point{#if eff === "lookthrough"}&nbsp;through funds{/if} in this period.</p>
           {/if}
@@ -238,10 +238,11 @@
             {/each}
           </div>
           <p class="faint note">{#if noOldFiles}No holdings file is old enough for {formatDate(v.from)}, so this is as held. {/if}Percentage points of your investments{#if eff === "lookthrough"}, through every fund{/if}.</p>
+          </div>
         </section>
       {/if}
 
-      <section class="card">
+      <section class="card panel">
         <div class="head">
           <h2 class="label">Fund changes</h2>
           <span class="faint small thr">moves of
@@ -249,6 +250,7 @@
               {#each THRESHOLDS as t}<button type="button" role="radio" aria-checked={store.threshold === t} class:on={store.threshold === t} onclick={() => store.setThreshold(t)}>{t}</button>{/each}
             </span> pt or more</span>
         </div>
+        <div class="body">
         {#if v.funds.length === 0}
           <p class="muted empty-line">
             {#if v.funds_resolved_to === 0}No holdings files yet, so nothing to compare. Files arrive on <a href="#/portfolio/look-through">Look-through</a>.
@@ -257,7 +259,7 @@
           </p>
         {:else}
           <div class="feed">
-            {#each feed as f (f.symbol)}
+            {#each v.funds as f (f.symbol)}
               <div class="item">
                 <span class="who"><span class="sym">{f.symbol}</span><span class="when">{formatDate(f.from)} → {formatDate(f.to)}{#if !f.held}&nbsp;· inside a fund you hold{/if}</span></span>
                 <span class="what">
@@ -283,18 +285,26 @@
               </div>
             {/each}
           </div>
-          {#if v.funds.length > FEED_SHOW}
-            <button type="button" class="more" onclick={() => (allFunds = !allFunds)}>{allFunds ? "Show fewer" : `Show ${v.funds.length - FEED_SHOW} more funds`}</button>
-          {/if}
           <p class="faint note" title="Each line compares the fund's holdings file in effect at the start of the period with the one at the end. The right-hand dollars are your money in that fund × the weight change.">{#if v.same_file.length}{v.same_file.length} {v.same_file.length === 1 ? "fund" : "funds"} had no new file this period ({v.same_file.join(", ")}). {/if}Mark = old weight, bar = move; hover for words.</p>
         {/if}
+        </div>
       </section>
+      </div>
     {/if}
   {/if}
 </div>
 
 <style>
   .changes { display: flex; flex-direction: column; gap: 20px; }
+  /* One window: a 2×3 board. Row one is the headline and its bridge; the four panels
+     below share the rest of the height and scroll inside themselves. */
+  .board { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr); gap: 16px; height: calc(100vh - 172px); min-height: 640px; }
+  .board.solo > .panel { grid-column: 1 / -1; }
+  .board.solo { grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr); }
+  .panel { display: flex; flex-direction: column; min-height: 0; }
+  .panel .head, .panel h2 { flex: 0 0 auto; }
+  .body { flex: 1; min-height: 0; overflow: auto; margin: 0 -16px -14px; padding: 0 16px 14px; scrollbar-width: thin; }
+  thead th { position: sticky; top: 0; background: var(--surface); z-index: 1; }
   .top { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 12px; flex-wrap: wrap; }
   .error { color: var(--negative); }
   .empty { padding: 28px 24px; display: flex; flex-direction: column; gap: 10px; }
@@ -309,6 +319,7 @@
   .seg.mini button { padding: 1px 7px; font-size: 11px; font-family: var(--figures); }
   .custom { display: inline-flex; align-items: center; gap: 6px; }
   .custom input { font: inherit; font-size: 12px; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 3px 6px; color-scheme: inherit; }
+  .hero { align-self: start; }
   .hero .sub { margin-top: 8px; display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; }
   .split { margin-top: 12px; max-width: 560px; }
   th.bar, td.bar { width: 80px; padding-left: 10px; padding-right: 10px; }
@@ -337,7 +348,6 @@
   .sub2 { display: block; font-size: 11px; color: var(--text-3); }
   .warn { color: var(--warn); }
   .note { font-size: 12px; margin: 10px 0 0; }
-  .more { color: var(--accent); background: none; border: 0; font: inherit; cursor: pointer; font-size: 12px; padding: 10px 0 0; }
   .toggle { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
   .toggle button { padding: 4px 10px; font: inherit; font-size: 12px; color: var(--text-2); background: none; border: 0; cursor: pointer; }
   .toggle button.on { background: var(--accent-soft); color: var(--text); }
@@ -368,9 +378,17 @@
   .line { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   .eff { font-size: 12px; color: var(--text-2); margin-left: auto; white-space: nowrap; }
   .line .tag { margin-left: 0; width: 58px; text-align: center; }
+  @media (max-width: 1300px) {
+    .wnum { display: none; }
+  }
+  @media (max-width: 1100px) {
+    /* Narrow: one column, page scrolls, each panel still scrolls inside a capped height. */
+    .board { display: flex; flex-direction: column; height: auto; min-height: 0; }
+    .body { max-height: 360px; }
+  }
   @media (max-width: 760px) {
     .two { grid-template-columns: 1fr; }
-    .hold .bar, .hold .why, .accts .bar, .accts .why { display: none; }
+    .hold .why, .accts .why { display: none; }
     .wnum { display: none; }
     .item { grid-template-columns: 1fr; gap: 4px; }
   }
