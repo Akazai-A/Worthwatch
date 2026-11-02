@@ -2,7 +2,7 @@
 
 Self-hosted net worth and portfolio tracker. One Rust binary, your data in one folder, no bank connections.
 
-Status: **Stage 0 (skeleton)**. See `docs/` and the design doc for the plan.
+Status: **Stage 1**: hand-edited or typed-in balances, monthly check-in, net worth dashboard with history. Positions are valued from manually entered prices; price fetching comes in Stage 2. See `docs/` and the design doc for the plan.
 
 ## Run (dev)
 
@@ -13,7 +13,7 @@ cargo run
 pnpm --dir ui install && pnpm --dir ui dev
 ```
 
-Open http://localhost:5173. To run the single binary with the UI embedded:
+Open http://localhost:5173. `cargo run -- seed` writes a realistic sample ledger to look at first. To run the single binary with the UI embedded:
 
 ```sh
 pnpm --dir ui build && cargo run --release
@@ -53,6 +53,7 @@ data/           ledger.yaml (yours, gitignored) and ledger.example.yaml
 ## Tests
 
 ```sh
-cargo test --workspace
-pnpm --dir ui test
+cargo test --workspace            # validator rules, derive invariants, server state
+pnpm --dir ui test                # vitest: parsing, formatting, check-in diffing
+pnpm --dir ui build && cargo build && pnpm --dir ui e2e   # Playwright smoke flow against the real binary
 ```

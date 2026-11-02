@@ -1,32 +1,53 @@
-/* Design tokens. The only place colours are defined. Dark first. */
+/* Design tokens. The only place colours are defined. Dark first; light follows the OS
+   unless <html data-theme> says otherwise. Group colours are fixed so a colour means
+   the same thing on every chart. */
 :root {
   --bg: #0f1115;
   --surface: #171a21;
+  --surface-2: #1d212a;
   --border: #262a33;
   --text: #e8eaf0;
   --text-2: #9aa0ad;
   --text-3: #5d6370;
   --accent: #7aa2f7;
+  --accent-soft: rgba(122, 162, 247, 0.12);
   --negative: #d97b7b;
   --positive: #8fbf9f;
+  --warn: #d9b36b;
+  --g-cash: #3987e5;
+  --g-investments: #d95926;
+  --g-property: #199e70;
+  --g-debt: #c98500;
   --radius: 10px;
   --font: ui-sans-serif, -apple-system, "Inter", system-ui, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
   color-scheme: dark;
 }
 @media (prefers-color-scheme: light) {
-  :root {
-    --bg: #f6f6f8;
-    --surface: #ffffff;
-    --border: #e4e5ea;
-    --text: #1b1d22;
-    --text-2: #5f6470;
-    --text-3: #a0a4ae;
-    --accent: #3b6fe0;
-    --negative: #c0504f;
-    --positive: #3f8f5a;
+  :root:not([data-theme="dark"]) {
+    --bg: #f6f6f8; --surface: #ffffff; --surface-2: #f0f1f4; --border: #e4e5ea;
+    --text: #1b1d22; --text-2: #5f6470; --text-3: #a0a4ae;
+    --accent: #3b6fe0; --accent-soft: rgba(59, 111, 224, 0.1);
+    --negative: #c0504f; --positive: #3f8f5a; --warn: #a3781e;
+    --g-cash: #2a78d6; --g-investments: #eb6834; --g-property: #1baf7a; --g-debt: #eda100;
     color-scheme: light;
   }
 }
-html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); }
+:root[data-theme="light"] {
+  --bg: #f6f6f8; --surface: #ffffff; --surface-2: #f0f1f4; --border: #e4e5ea;
+  --text: #1b1d22; --text-2: #5f6470; --text-3: #a0a4ae;
+  --accent: #3b6fe0; --accent-soft: rgba(59, 111, 224, 0.1);
+  --negative: #c0504f; --positive: #3f8f5a; --warn: #a3781e;
+  --g-cash: #2a78d6; --g-investments: #eb6834; --g-property: #1baf7a; --g-debt: #eda100;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; line-height: 1.45; }
+a { color: var(--accent); }
 .num { font-variant-numeric: tabular-nums; }
-.blur .money { filter: blur(8px); }
+.blur .money { filter: blur(7px); }
+.label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+.muted { color: var(--text-2); }
+.faint { color: var(--text-3); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
