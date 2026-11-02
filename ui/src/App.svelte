@@ -9,6 +9,7 @@
   import CheckIn from "./screens/CheckIn.svelte";
   import AccountDetail from "./screens/AccountDetail.svelte";
   import Portfolio from "./screens/Portfolio.svelte";
+  import Changes from "./screens/Changes.svelte";
 
   onMount(() => {
     void view.load();
@@ -42,6 +43,8 @@
         <CheckIn view={view.current} />
       {:else if route.current.name === "portfolio"}
         <Portfolio view={view.current} tab={route.current.tab} />
+      {:else if route.current.name === "changes"}
+        <Changes view={view.current} />
       {:else if route.current.name === "account"}
         <AccountDetail view={view.current} id={route.current.id} />
       {:else}

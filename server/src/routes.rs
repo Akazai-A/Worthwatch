@@ -421,8 +421,10 @@ pub fn build_changes(snap: &Snapshot, q: &ChangesQuery, today: NaiveDate) -> Res
     let lt_from = holdings::lookthrough(&inputs_from, &snaps_from, &meta, DEPTH);
     let lt_to = holdings::lookthrough(&inputs_to, &snaps_to, &meta, DEPTH);
     let drift = holdings::drift(&lt_from, &lt_to);
+    // As held never expands a fund; the newest files only tell it which symbols are
+    // funds, so both ends are classified the same way.
     let as_held_drift = holdings::drift(
-        &holdings::lookthrough(&inputs_from, &snaps_from, &meta, 0),
+        &holdings::lookthrough(&inputs_from, &snaps_to, &meta, 0),
         &holdings::lookthrough(&inputs_to, &snaps_to, &meta, 0),
     );
     let dollars = holdings::fund_dollars(&inputs_to, &snaps_to, DEPTH);

@@ -1,9 +1,10 @@
-// Hash router: #/ (home), #/check-in, #/portfolio[/look-through|/exposure|/overlap], #/accounts/<id>
+// Hash router: #/ (home), #/check-in, #/portfolio[/look-through|/exposure|/overlap], #/changes, #/accounts/<id>
 export type PortfolioTab = "positions" | "lookthrough" | "exposure" | "overlap";
 export type Route =
   | { name: "home" }
   | { name: "checkin" }
   | { name: "portfolio"; tab: PortfolioTab }
+  | { name: "changes" }
   | { name: "account"; id: string };
 
 const TAB_PATH: Record<PortfolioTab, string> = { positions: "", lookthrough: "/look-through", exposure: "/exposure", overlap: "/overlap" };
@@ -15,6 +16,7 @@ function parse(hash: string): Route {
     const tab = (Object.keys(TAB_PATH) as PortfolioTab[]).find((t) => TAB_PATH[t] === (p[1] ? `/${p[1]}` : "")) ?? "positions";
     return { name: "portfolio", tab };
   }
+  if (p[0] === "changes") return { name: "changes" };
   if (p[0] === "accounts" && p[1]) return { name: "account", id: decodeURIComponent(p[1]) };
   return { name: "home" };
 }
@@ -24,6 +26,7 @@ export function hashFor(to: Route): string {
     case "home": return "#/";
     case "checkin": return "#/check-in";
     case "portfolio": return `#/portfolio${TAB_PATH[to.tab]}`;
+    case "changes": return "#/changes";
     case "account": return `#/accounts/${encodeURIComponent(to.id)}`;
   }
 }

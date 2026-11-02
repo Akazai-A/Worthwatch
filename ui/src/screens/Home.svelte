@@ -53,8 +53,8 @@
       <Money value={view.totals.net_worth} currency={cur} size="xl" />
       <div class="sub">
         {#if view.deltas.previous}
-          <span class="chip"><Money value={view.deltas.previous.amount} currency={cur} signed tone="delta" />
-            <span class="muted">{#if view.deltas.previous.pct != null}({view.deltas.previous.pct}%)&nbsp;{/if}since {formatDate(view.deltas.previous.from)}</span></span>
+          <a class="chip link" href="#/changes" title="What moved it: Changes"><Money value={view.deltas.previous.amount} currency={cur} signed tone="delta" />
+            <span class="muted">{#if view.deltas.previous.pct != null}({view.deltas.previous.pct}%)&nbsp;{/if}since {formatDate(view.deltas.previous.from)}</span></a>
         {/if}
         {#if view.deltas.ytd}
           <span class="chip"><Money value={view.deltas.ytd.amount} currency={cur} signed /><span class="muted">YTD</span></span>
@@ -133,6 +133,8 @@
   .act { margin-left: auto; text-decoration: none; white-space: nowrap; }
   .hero .sub { margin-top: 8px; display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; }
   .chip { display: inline-flex; gap: 5px; align-items: baseline; }
+  a.chip { text-decoration: none; color: inherit; }
+  a.chip:hover .muted { color: var(--accent); }
   .bars { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   .bar .lab { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-2); margin-bottom: 6px; }
   .track { height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; display: flex; gap: 2px; }
