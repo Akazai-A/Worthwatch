@@ -2,7 +2,7 @@
   // Portfolio › Look-through: where the money actually is, through every fund.
   import type { Company, LookThroughView } from "../lib/api";
   import { formatDate, formatMoney } from "../lib/money";
-  import { caveats, headlineParts, viaLabel, viaSummary } from "../lib/lookthrough";
+  import { caveats, familyHue, familyOf, headlineParts, viaLabel } from "../lib/lookthrough";
   import Money from "../lib/components/Money.svelte";
   import Treemap from "../lib/charts/Treemap.svelte";
 
@@ -18,6 +18,7 @@
   const unresolvedFunds = $derived(x.funds.filter((f) => !f.resolved));
   const broken = $derived(Object.entries(lt.errors));
   const missingChildren = $derived([...new Set(x.funds.flatMap((f) => f.unresolved_children))]);
+  const dot = (c: Company) => `background:var(${familyHue(familyOf(c.slot))})`;
 </script>
 
 <section class="hero">
@@ -43,23 +44,21 @@
 {:else}
   <section class="card chart">
     <Treemap companies={x.companies} currency={cur} selected={selected?.key ?? null} onselect={(k) => (selectedKey = k)} />
-    <p class="legend">Grouped by sector, sized by your dollars; the stronger the tint, the larger the name within its block. Bonds and cash stay grey. Click a cell for the funds behind it.</p>
+    <p class="legend">Sized by your dollars, grouped by sector. Click a cell to see which funds hold it.</p>
   </section>
 
   <div class="two">
     <section class="card">
       <h2 class="label">Top {top.length} companies</h2>
-      <table>
-        <thead><tr><th>Company</th><th class="r">Value</th><th class="r">Of total</th></tr></thead>
+      <table class="top">
+        <thead><tr><th>Company</th><th class="r">Value</th><th class="bar"></th><th class="r">Of total</th></tr></thead>
         <tbody>
           {#each top as c (c.key)}
             <tr class:on={selected?.key === c.key} onclick={() => (selectedKey = c.key)}>
-              <td>
-                {c.name}
-                <span class="sub2">{c.sector} · {viaSummary(c)}</span>
-              </td>
+              <td><i class="dot" style={dot(c)}></i>{c.name}<span class="sub2">{c.sector}</span></td>
               <td class="r"><Money value={c.value} currency={cur} /></td>
-              <td class="r"><span class="wt"><i style="width:{(Number(c.value) / maxTop) * 100}%"></i></span><span class="num">{Number(c.pct).toFixed(1)}%</span></td>
+              <td class="bar"><span class="wt"><i style="width:{(Number(c.value) / maxTop) * 100}%"></i></span></td>
+              <td class="r num">{Number(c.pct).toFixed(1)}%</td>
             </tr>
           {/each}
         </tbody>
@@ -69,11 +68,12 @@
       {/if}
     </section>
 
+    <div class="side">
     <section class="card detail" aria-live="polite">
       {#if selected}
         <div class="label">Selected</div>
         <h3>{selected.name}{#if selected.ticker && selected.ticker !== selected.name}&nbsp;<span class="faint tk">{selected.ticker}</span>{/if}</h3>
-        <div class="sub2">{selected.sector}{#if selected.country}&nbsp;· {selected.country}{/if}{#if selected.currency}&nbsp;· {selected.currency}{/if}</div>
+        <div class="sub2"><i class="dot" style={dot(selected)}></i>{selected.sector}{#if selected.country}&nbsp;· {selected.country}{/if}{#if selected.currency}&nbsp;· {selected.currency}{/if}</div>
         <div class="big"><Money value={selected.value} currency={cur} size="l" /></div>
         <div class="sub2">{Number(selected.pct).toFixed(2)}% of your investments</div>
         {#if selected.via.length}
@@ -83,45 +83,47 @@
             {/each}
           </ul>
         {/if}
-        <p class="note faint">Click any cell or row. Weights come from each issuer's holdings file; dollars are your value in the fund × that weight, through every level.</p>
+        <p class="note faint">Your value in each fund × the fund's disclosed weight, through every level.</p>
       {/if}
     </section>
+    <section class="card funds">
+      <h2 class="label">Funds</h2>
+      <table>
+        <thead><tr><th>Holding</th><th class="r">Value</th><th class="r">File</th><th class="r">Names</th></tr></thead>
+        <tbody>
+          {#each x.funds as f (f.symbol)}
+            <tr>
+              <td>
+                <span class="sym">{f.symbol}</span>
+                <span class="sub2">{#if f.name}{f.name} · {/if}{#if f.children.length}holds {f.children.join(", ")}{:else if f.resolved}stocks directly{:else}treated as one security{/if}{#if f.unresolved_children.length}&nbsp;<span class="warn">· no file for {f.unresolved_children.join(", ")}</span>{/if}</span>
+              </td>
+              <td class="r"><Money value={f.value} currency={cur} /></td>
+              <td class="r">
+                {#if f.resolved}
+                  {f.as_of ? formatDate(f.as_of) : ""}{#if f.source && f.source !== "seed"}&nbsp;<span class="faint">({f.source})</span>{/if}
+                  {#if f.coverage_pct != null && Number(f.coverage_pct) < 99.5}<span class="sub2 warn">{f.coverage_pct}% disclosed</span>{/if}
+                {:else}
+                  <span class="warn">none</span>
+                {/if}
+              </td>
+              <td class="r num">{f.resolved ? f.constituents : "—"}</td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+      {#if broken.length}
+        <ul class="errs">{#each broken as [k, v]}<li><b>{k}</b> <span class="warn">{v}</span></li>{/each}</ul>
+      {/if}
+      <p class="faint note">
+        {#if unresolvedFunds.length || missingChildren.length}
+          A fund with no file counts as one line. Save its holdings CSV as <code>&lt;SYMBOL&gt;.csv</code>{#if missingChildren.length}&nbsp;(also {missingChildren.map((c) => `${c}.csv`).join(", ")}){/if} in the folder below{#if !lt.offline}, or set <code>settings.holdings_urls</code>{/if}.
+        {/if}
+        Folder: <code>{lt.holdings_dir}</code>
+      </p>
+    </section>
+    </div>
   </div>
 
-  <section class="card funds">
-    <h2 class="label">Funds</h2>
-    <table>
-      <thead><tr><th>Holding</th><th class="r">Value</th><th>Holdings file</th><th class="r">Names</th><th>Expands into</th></tr></thead>
-      <tbody>
-        {#each x.funds as f (f.symbol)}
-          <tr>
-            <td><span class="sym">{f.symbol}</span>{#if f.name}<span class="sub2">{f.name}</span>{/if}</td>
-            <td class="r"><Money value={f.value} currency={cur} /></td>
-            <td>
-              {#if f.resolved}
-                {f.as_of ? formatDate(f.as_of) : ""}{#if f.source && f.source !== "seed"}&nbsp;<span class="faint">({f.source})</span>{/if}
-                {#if f.coverage_pct != null && Number(f.coverage_pct) < 99.5}<span class="sub2 warn">{f.coverage_pct}% disclosed</span>{/if}
-              {:else}
-                <span class="warn">none</span><span class="sub2">treated as one security</span>
-              {/if}
-            </td>
-            <td class="r num">{f.resolved ? f.constituents : "—"}</td>
-            <td class="faint">{f.children.length ? f.children.join(", ") : f.resolved ? "stocks directly" : ""}{#if f.unresolved_children.length}<span class="sub2 warn">no file for {f.unresolved_children.join(", ")}</span>{/if}</td>
-          </tr>
-        {/each}
-      </tbody>
-    </table>
-    {#if broken.length}
-      <ul class="errs">{#each broken as [k, v]}<li><b>{k}</b> <span class="warn">{v}</span></li>{/each}</ul>
-    {/if}
-    <p class="faint note">
-      {#if unresolvedFunds.length || missingChildren.length}
-        A fund without a file counts as one security. {#if !lt.offline}iShares funds are fetched by ticker; for others{:else}Offline, so{/if} download the holdings file from the issuer and save it as
-        <code>{lt.holdings_dir}/&lt;SYMBOL&gt;.csv</code>{#if missingChildren.length}&nbsp;(for the funds inside a fund too: {missingChildren.map((c) => `${c}.csv`).join(", ")}){/if}, or put its address under <code>settings.holdings_urls</code> in the ledger.
-      {/if}
-      Snapshots are kept per fund per date in <code>{lt.holdings_dir}</code> and never rewritten. Stocks you hold directly can be given a sector and country under <code>securities</code> in the ledger.
-    </p>
-  </section>
 {/if}
 
 <style>
@@ -132,23 +134,30 @@
   .empty p { margin: 0; max-width: 60ch; }
   .chart { padding: 10px; }
   .legend { font-size: 11px; color: var(--text-3); margin: 0; padding: 10px 6px 2px; }
-  .two { display: grid; grid-template-columns: 1.1fr 1fr; gap: 20px; }
+  .two { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(280px, 1fr); gap: 20px; align-items: start; }
+  .side { display: flex; flex-direction: column; gap: 20px; position: sticky; top: 16px; }
   h2.label { margin: 0 0 8px; font-weight: 500; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th { text-align: left; font-weight: 500; color: var(--text-3); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; padding: 4px 0; }
   td { padding: 7px 0; border-top: 1px solid var(--border); vertical-align: top; }
+  th.r, td.r { white-space: nowrap; padding-left: 14px; }
+  th.bar, td.bar { width: 64px; padding-left: 14px; }
+  td.bar { vertical-align: middle; }
+  .top td:first-child { min-width: 0; max-width: 0; width: 100%; }
   tbody tr { cursor: pointer; }
   tbody tr:hover td, tbody tr.on td { color: var(--text); }
-  tbody tr.on td:first-child { box-shadow: inset 2px 0 0 var(--accent); padding-left: 8px; }
+  .top tbody tr.on td:first-child { box-shadow: inset 2px 0 0 var(--accent); padding-left: 8px; }
   .funds tbody tr { cursor: default; }
-  .funds th, .funds td { padding-right: 14px; }
-  .funds th:last-child, .funds td:last-child { padding-right: 0; }
-  .funds td.r { white-space: nowrap; }
+  .funds td:first-child { min-width: 0; max-width: 0; width: 100%; }
+  .funds td.r { white-space: nowrap; vertical-align: top; }
   .r { text-align: right; }
-  .sub2 { display: block; font-size: 11px; color: var(--text-3); padding-left: 0; }
-  .funds td .sub2 { padding-left: 0; }
+  .sub2 { display: block; font-size: 11px; color: var(--text-3); padding-left: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .detail .sub2, .funds .sub2 { padding-left: 0; }
+  .detail h3 + .sub2 { margin-top: 2px; }
   .sym { font-weight: 500; }
-  .wt { display: inline-block; width: 56px; height: 6px; background: var(--surface-2); border-radius: 3px; vertical-align: middle; margin-right: 8px; overflow: hidden; }
+  .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 7px; vertical-align: 1px; }
+  .top td:first-child { padding-left: 0; }
+  .wt { display: block; width: 50px; height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
   .wt i { display: block; height: 100%; background: var(--fill); }
   .detail h3 { margin: 2px 0 0; font-size: 17px; font-weight: 600; }
   .detail .tk { font-weight: 400; font-size: 13px; }
@@ -162,8 +171,7 @@
   code { font-family: var(--mono); font-size: 11px; }
   @media (max-width: 760px) {
     .two { grid-template-columns: 1fr; }
-    th:nth-child(3), td:nth-child(3) { display: none; }
-    .funds th:nth-child(3), .funds td:nth-child(3) { display: table-cell; }
-    .funds th:nth-child(5), .funds td:nth-child(5) { display: none; }
+    th.bar, td.bar { display: none; }
+    .side { position: static; }
   }
 </style>

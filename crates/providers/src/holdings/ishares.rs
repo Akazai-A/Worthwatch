@@ -2,8 +2,12 @@
 //! listing every fund with its exchange ticker and product page, and every product
 //! page serves the full holdings CSV at a fixed `.ajax` address. So locating a fund is
 //! one screener download per site per refresh plus a map lookup; nothing is hard-coded
-//! per fund. The screener and CSV addresses are the ones in public use as of 2026;
-//! if BlackRock moves them the UI shows the HTTP error and the drop-in file still works.
+//! per fund. The screener addresses and the Canada CSV address were verified live in
+//! November 2026 (Canada on blackrock.com, US on ishares.com). The US CSV address
+//! answered with the product page's HTML instead of the file at that time, so a US
+//! fund may still need `settings.holdings_urls` or a drop-in file; `parse_any` names
+//! the HTML case. If BlackRock moves anything the UI shows the error and the drop-in
+//! file still works.
 
 use std::collections::BTreeMap;
 
@@ -31,23 +35,33 @@ pub fn site_for(symbol: &str) -> (Site, &str) {
 
 pub fn screener_url(site: Site) -> String {
     match site {
-        Site::Canada => "https://www.blackrock.com/ca/investors/en/product-screener/product-screener-v3.jsn?dcrPath=/templatedata/config/product-screener-v3/data/en/ca-one/product-screener&siteEntryPassthrough=true".into(),
-        Site::UnitedStates => "https://www.blackrock.com/us/individual/product-screener/product-screener-v3.jsn?dcrPath=/templatedata/config/product-screener-v3/data/en/us-one/product-screener&siteEntryPassthrough=true".into(),
+        Site::Canada => "https://www.blackrock.com/ca/investors/en/product-screener/product-screener-v3.jsn?dcrPath=/templatedata/config/product-screener-v3/data/en/ca-one/product-screener-backend-config&siteEntryPassthrough=true".into(),
+        Site::UnitedStates => "https://www.ishares.com/us/product-screener/product-screener-v3.jsn?dcrPath=/templatedata/config/product-screener-v3/data/en/us-ishares/ishares-product-screener-backend-config&siteEntryPassthrough=true".into(),
+    }
+}
+
+/// Host the screener's relative `productPageUrl` lives on.
+pub fn host(site: Site) -> &'static str {
+    match site {
+        Site::Canada => "https://www.blackrock.com",
+        Site::UnitedStates => "https://www.ishares.com",
     }
 }
 
 /// Product page path -> holdings CSV address.
 pub fn holdings_url(site: Site, product_page: &str, ticker: &str) -> String {
-    let ajax = match site {
-        Site::Canada => "1464253357814",
-        Site::UnitedStates => "1467271812596",
+    let (ajax, extra) = match site {
+        Site::Canada => ("1464253357814", ""),
+        // The US page served HTML at the bare address; the passthrough flag is the
+        // same one the screener needs and is the next thing to try.
+        Site::UnitedStates => ("1467271812596", "&siteEntryPassthrough=true"),
     };
     let page = if product_page.starts_with("http") {
         product_page.to_string()
     } else {
-        format!("https://www.blackrock.com{product_page}")
+        format!("{}{product_page}", host(site))
     };
-    format!("{page}/{ajax}.ajax?fileType=csv&fileName={ticker}_holdings&dataType=fund")
+    format!("{page}/{ajax}.ajax?fileType=csv&fileName={ticker}_holdings&dataType=fund{extra}")
 }
 
 fn cell_text(v: &Value) -> Option<String> {
@@ -106,6 +120,11 @@ mod tests {
             holdings_url(Site::Canada, &m["XIC"], "XIC"),
             "https://www.blackrock.com/ca/investors/en/products/239837/ishares-sptsx-capped-composite-index-etf/1464253357814.ajax?fileType=csv&fileName=XIC_holdings&dataType=fund"
         );
+        assert_eq!(
+            holdings_url(Site::UnitedStates, "/us/products/239724/ishares-core-sp-total-us-stock-market-etf", "ITOT"),
+            "https://www.ishares.com/us/products/239724/ishares-core-sp-total-us-stock-market-etf/1467271812596.ajax?fileType=csv&fileName=ITOT_holdings&dataType=fund&siteEntryPassthrough=true"
+        );
+        assert!(screener_url(Site::UnitedStates).starts_with("https://www.ishares.com/us/"));
         assert_eq!(site_for("XEQT.TO"), (Site::Canada, "XEQT"));
         assert_eq!(site_for("ITOT"), (Site::UnitedStates, "ITOT"));
     }

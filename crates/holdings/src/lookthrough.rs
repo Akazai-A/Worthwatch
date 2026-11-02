@@ -312,10 +312,8 @@ impl Ctx<'_> {
                 }
                 _ => {
                     if let Some(c) = &child {
-                        // Looks like a fund of this issuer family with no snapshot: say so once.
-                        let fundish = row.name.to_ascii_lowercase().contains(" etf")
-                            || row.name.to_ascii_lowercase().contains("index fund");
-                        if fundish && !unresolved.contains(c) {
+                        // Looks like a fund with no snapshot: say so once.
+                        if crate::is_fundish(row) && !unresolved.contains(c) {
                             unresolved.push(c.clone());
                         }
                     }

@@ -130,10 +130,30 @@ pub fn parse_any(
     fallback_as_of: Option<NaiveDate>,
 ) -> Result<FundHoldings, ParseError> {
     let t = text.trim_start_matches('\u{feff}').trim_start();
+    let head = t.get(..t.len().min(512)).unwrap_or(t).to_ascii_lowercase();
+    if head.starts_with("<!doctype html") || head.starts_with("<html") || head.contains("<head>") {
+        return Err(ParseError::Format(
+            "the address answered with a web page, not a holdings file; download the CSV from the fund's page and drop it in, or set settings.holdings_urls".into(),
+        ));
+    }
     if t.starts_with('{') || t.starts_with('[') {
         return vanguard::parse_json(symbol, t, fallback_as_of);
     }
     csv::parse_csv(symbol, t, fallback_as_of)
+}
+
+/// Does this constituent look like a fund rather than a stock? Used to decide which
+/// children to follow (store) and which missing children to report (look-through), so
+/// both sides agree. Issuer files name funds by brand ("ISHARES CORE ...", "Vanguard
+/// ...") or by kind ("... ETF", "... Index Fund").
+pub fn is_fundish(c: &Constituent) -> bool {
+    let n = c.name.to_ascii_lowercase();
+    n.contains("ishares")
+        || n.contains("vanguard")
+        || n.contains(" etf")
+        || n.starts_with("etf ")
+        || n.contains("index fund")
+        || c.sector.as_deref().is_some_and(|s| s.eq_ignore_ascii_case("funds"))
 }
 
 /// Ledger-style symbol for a constituent that is itself a listed fund, from the
@@ -196,6 +216,34 @@ pub fn parse_number(s: &str) -> Option<Decimal> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_html_page_is_named_as_such_not_as_a_parse_error() {
+        let html =
+            "\n<!DOCTYPE html><html lang=\"en\"><head><title>iShares</title></head><body></body></html>";
+        let err = parse_any("ITOT", html, None).unwrap_err();
+        assert!(matches!(err, ParseError::Format(_)));
+        assert!(err.to_string().contains("web page"), "{err}");
+    }
+
+    #[test]
+    fn fundish_recognises_issuer_naming_and_funds_sector() {
+        let row = |name: &str, sector: Option<&str>| Constituent {
+            ticker: Some("X".into()),
+            name: name.into(),
+            weight: rust_decimal::Decimal::ONE,
+            sector: sector.map(Into::into),
+            country: None,
+            asset_class: AssetClass::Equity,
+            currency: None,
+            exchange: None,
+        };
+        assert!(is_fundish(&row("ISHARES CORE S&P TOTAL U.S. STOCK", None)));
+        assert!(is_fundish(&row("Vanguard FTSE Canada All Cap", None)));
+        assert!(is_fundish(&row("Some Bond ETF", None)));
+        assert!(is_fundish(&row("Whatever", Some("Funds"))));
+        assert!(!is_fundish(&row("APPLE INC", Some("Information Technology"))));
+    }
 
     #[test]
     fn dates_in_issuer_spellings() {

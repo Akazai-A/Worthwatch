@@ -214,9 +214,18 @@ impl HoldingsStore {
                 match provider.locate(&symbol) {
                     Ok(None) => {
                         if depth == 0 {
+                            // Could be a stock; the look-through view says so if it is a fund.
                             report.not_funds.push(symbol.clone());
+                        } else {
+                            // Queued because a parent lists it as a fund, so its absence matters.
+                            errors.insert(
+                                symbol.clone(),
+                                format!(
+                                    "no built-in source for {symbol} (only iShares CA/US are looked up); set settings.holdings_urls or drop in {symbol}.csv"
+                                ),
+                            );
                         }
-                        None
+                        self.latest.get(&symbol).cloned()
                     }
                     Ok(Some(fund)) => match provider.fetch(&fund, today) {
                         Ok(h) => match self.save(h.clone()) {
@@ -243,12 +252,7 @@ impl HoldingsStore {
             if let Some(h) = snapshot {
                 if depth + 1 < MAX_DEPTH {
                     for row in &h.rows {
-                        let name = row.name.to_ascii_lowercase();
-                        let fundish = name.contains(" etf")
-                            || name.contains("index fund")
-                            || name.contains("ishares")
-                            || name.contains("vanguard");
-                        if let Some(c) = child_symbol(row).filter(|_| fundish) {
+                        if let Some(c) = child_symbol(row).filter(|_| holdings::is_fundish(row)) {
                             queue.push_back((c, depth + 1));
                         }
                     }
@@ -328,7 +332,10 @@ mod tests {
         let r = s.refresh(&p, &["XEQT.TO".into(), "SHOP.TO".into()], d, Utc::now(), false);
         assert_eq!(r.fetched, vec!["XEQT.TO".to_string(), "XUS.TO".to_string()]);
         assert_eq!(r.not_funds, vec!["SHOP.TO".to_string()]);
-        assert!(r.errors.is_empty(), "{:?}", r.errors);
+        // XIC.TO was listed by its parent as a fund but has no source: that is an error
+        // worth showing, unlike SHOP.TO, which may simply be a stock.
+        assert_eq!(r.errors.len(), 1, "{:?}", r.errors);
+        assert!(r.errors["XIC.TO"].contains("holdings_urls"));
         assert!(dir.path().join("XEQT.TO/2026-10-30.json").exists());
         assert!(dir.path().join("XUS.TO/2026-10-30.json").exists());
         assert!(dir.path().join("status.json").exists());
