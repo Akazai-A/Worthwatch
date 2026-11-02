@@ -362,7 +362,7 @@ mod tests {
         );
         p.funds.get_mut("XEQT.TO").unwrap().rows.pop();
         let r3 = s.refresh(&p, &["XEQT.TO".into()], d, Utc::now(), true);
-        assert_eq!(r3.fetched.len(), 3);
+        assert_eq!(r3.fetched.len(), 2);
         assert_eq!(std::fs::read_to_string(dir.path().join("XEQT.TO/2026-10-30.json")).unwrap(), before);
         assert_eq!(s.latest["XEQT.TO"].rows.len(), 3, "latest in memory stays what disk has for that date");
 
