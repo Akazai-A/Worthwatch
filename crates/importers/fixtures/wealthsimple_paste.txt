@@ -1,0 +1,5 @@
+Holdings
+XEQT	iShares Core Equity ETF Portfolio	426.5 shares	$34.12	$14,552.18	+$3,312.18
+VFV	Vanguard S&P 500 Index ETF	620 shares	$128.40	$79,608.00	+$8,608.00
+ZAG	BMO Aggregate Bond Index ETF	200 shares	$14.05	$2,810.00	−$190.00
+Cash	—	—	—	$1,204.33

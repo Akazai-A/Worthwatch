@@ -12,7 +12,7 @@ const usd: AccountView = { ...base, id: "usd", name: "USD", kind: "chequing", cu
 const tfsa: AccountView = {
   ...base, id: "tfsa", name: "TFSA", kind: "tfsa", currency: "CAD", group: "investments", value: "14074.5", native_value: "14074.5",
   positions: [{ symbol: "XEQT.TO", units: "412.5" }],
-  holdings: [{ symbol: "XEQT.TO", units: "412.5", price: "34.12", price_date: "2026-10-31", book_cost: null }],
+  holdings: [{ symbol: "XEQT.TO", units: "412.5", price: "34.12", price_date: "2026-10-31", price_source: "manual", native_value: "14074.5", value: "14074.5", book_cost: null }],
 };
 const rates = { USD: "1.38" };
 

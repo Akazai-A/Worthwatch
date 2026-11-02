@@ -34,6 +34,13 @@ pub enum Mutation {
     RecordPositionChange {
         change: PositionChange,
     },
+    /// Total cost of the position in the account's currency (what a broker export calls
+    /// book cost, or average cost x units). `None` clears it.
+    SetBookCost {
+        account: AccountId,
+        symbol: Symbol,
+        book_cost: Option<Decimal>,
+    },
     AddEvent {
         event: Event,
     },
@@ -88,6 +95,19 @@ impl Ledger {
                 next.position_changes.push(change);
                 next.position_changes.sort_by_key(|c| c.date);
             }
+            Mutation::SetBookCost { account, symbol, book_cost } => {
+                let acct = next
+                    .accounts
+                    .iter_mut()
+                    .find(|a| a.id == account)
+                    .ok_or_else(|| LedgerError::UnknownAccount(account.clone()))?;
+                let p = acct
+                    .positions
+                    .as_deref_mut()
+                    .and_then(|ps| ps.iter_mut().find(|p| p.symbol == symbol))
+                    .ok_or_else(|| LedgerError::UnknownPosition(account.clone(), symbol.clone()))?;
+                p.book_cost = book_cost;
+            }
             Mutation::AddEvent { event } => {
                 next.events.push(event);
                 next.events.sort_by_key(|e| e.date);
@@ -131,6 +151,38 @@ mod tests {
             })
             .unwrap();
         assert_eq!(l.snapshots.len(), 1);
+    }
+
+    #[test]
+    fn book_cost_needs_an_existing_position() {
+        let l = Ledger::starter("CAD").apply(Mutation::UpsertAccount { account: chq() }).unwrap();
+        let err = l
+            .apply(Mutation::SetBookCost {
+                account: "td-chq".into(),
+                symbol: "X".into(),
+                book_cost: Some(dec!(1)),
+            })
+            .unwrap_err();
+        assert!(matches!(err, LedgerError::UnknownPosition(..)));
+        let l = l
+            .apply(Mutation::RecordPositionChange {
+                change: PositionChange {
+                    date: NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+                    account: "td-chq".into(),
+                    symbol: "X".into(),
+                    units: dec!(2),
+                    price: None,
+                    note: None,
+                },
+            })
+            .unwrap()
+            .apply(Mutation::SetBookCost {
+                account: "td-chq".into(),
+                symbol: "X".into(),
+                book_cost: Some(dec!(50)),
+            })
+            .unwrap();
+        assert_eq!(l.account("td-chq").unwrap().positions.as_ref().unwrap()[0].book_cost, Some(dec!(50)));
     }
 
     #[test]

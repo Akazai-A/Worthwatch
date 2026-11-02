@@ -64,3 +64,32 @@ test("hand edit on disk shows up within a second; a broken edit shows a line num
   await expect(banner).toBeHidden({ timeout: 1500 });
   await expect(page.locator(".hero .money.xl")).toHaveText("$5,102");
 });
+
+test("paste a holdings export into a new investment account; portfolio values it from the pasted prices", async ({ page }) => {
+  await page.goto("/#/check-in");
+  await page.getByRole("button", { name: "+ Add account" }).click();
+  await page.locator("#add-name").fill("Wealthsimple TFSA");
+  await page.locator("#add-kind").selectOption("tfsa");
+  await page.locator("#add-symbols").fill("XEQT.TO");
+  await page.getByRole("button", { name: "Add account" }).click();
+
+  await page.locator("#paste-wealthsimple-tfsa-open").click();
+  const paste = "XEQT\tiShares Core Equity ETF Portfolio\t426.5 shares\t$34.12\t$14,552.18\nZAG\tBMO Aggregate Bond Index ETF\t200 shares\t$14.05\t$2,810.00\nCash\t—\t$1,204.33\n";
+  await page.getByLabel("Pasted holdings for Wealthsimple TFSA").fill(paste);
+  const apply = page.locator("#apply-paste");
+  await expect(apply).toHaveText("Apply 2 changes");
+  await expect(page.locator("#paste-wealthsimple-tfsa")).toContainText("2 of 3 lines parsed");
+  await expect(page.locator("#paste-wealthsimple-tfsa")).toContainText("ZAG.TO");
+  await apply.click();
+  await expect(apply).toBeHidden();
+
+  // Trades and prices landed in the file; portfolio shows both positions valued, offline.
+  const yaml = readFileSync(ledger(), "utf8");
+  expect(yaml).toMatch(/symbol: ZAG\.TO\n\s+units: 200\n/);
+  expect(yaml).toMatch(/from pasted holdings/);
+  await page.goto("/#/portfolio");
+  await expect(page.locator(".portfolio .hero .money.xl")).toHaveText("$17,362");
+  await expect(page.locator(".portfolio tbody tr.sec")).toHaveCount(2);
+  await expect(page.locator(".portfolio .top")).toContainText("offline · manual prices only");
+  await expect(page.locator("#refresh")).toHaveCount(0);
+});

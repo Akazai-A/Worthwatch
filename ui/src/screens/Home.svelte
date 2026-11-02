@@ -5,6 +5,7 @@
   import Money from "../lib/components/Money.svelte";
   import NetWorthChart from "../lib/charts/NetWorthChart.svelte";
   import Sparkline from "../lib/charts/Sparkline.svelte";
+  import MarketLine from "../lib/components/MarketLine.svelte";
 
   let { view }: { view: LedgerView } = $props();
   const STALE_DAYS = 45;
@@ -29,7 +30,7 @@
 </script>
 
 <div class="home">
-  <div class="top faint"><span>as of {formatDate(view.as_of, "long")}</span><span>{cur}</span></div>
+  <div class="top faint"><span>as of {formatDate(view.as_of, "long")} · {cur}</span>{#if view.accounts.length}<MarketLine {view} />{/if}</div>
 
   {#if view.accounts.length === 0}
     <section class="card empty">
@@ -91,7 +92,7 @@
     </section>
 
     <section class="tiles">
-      <div class="card tile"><div class="label">Investments</div><div class="v"><Money value={groupVal("investments")} currency={cur} size="l" /></div></div>
+      <a class="card tile" href="#/portfolio"><div class="label">Investments</div><div class="v"><Money value={groupVal("investments")} currency={cur} size="l" /></div>{#if view.portfolio.day_change != null}<div class="d"><Money value={view.portfolio.day_change} currency={cur} signed tone="delta" /> <span class="faint">today</span></div>{/if}</a>
       <div class="card tile"><div class="label">Cash</div><div class="v"><Money value={groupVal("cash")} currency={cur} size="l" /></div></div>
       <div class="card tile"><div class="label">Debt</div><div class="v"><Money value={debt} currency={cur} size="l" /></div></div>
       <div class="card tile"><div class="label">Liquid net worth</div><div class="v"><Money value={liquid} currency={cur} size="l" /></div><div class="d faint">excludes property</div></div>
@@ -120,7 +121,7 @@
 
 <style>
   .home { display: flex; flex-direction: column; gap: 20px; }
-  .top { display: flex; justify-content: space-between; font-size: 12px; }
+  .top { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 12px; flex-wrap: wrap; }
   .empty { padding: 28px 24px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
   .empty h2 { margin: 0; font-size: 20px; font-weight: 600; }
   .empty p { margin: 0; max-width: 52ch; }
@@ -142,6 +143,8 @@
   .tile { padding: 12px 14px; }
   .tile .v { margin-top: 2px; }
   .tile .d { font-size: 11px; }
+  a.tile { color: inherit; text-decoration: none; }
+  a.tile:hover .label { color: var(--accent); }
   .group h2 { margin: 2px 0 6px; font-weight: 500; }
   .row { display: grid; grid-template-columns: 10px 1fr 90px 120px 40px; align-items: center; gap: 12px; padding: 9px 0; border-top: 1px solid var(--border); color: inherit; text-decoration: none; }
   .row:first-of-type { border-top: 0; }

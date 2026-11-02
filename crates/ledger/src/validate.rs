@@ -21,6 +21,8 @@ pub enum LedgerError {
     EmptyCurrency(String),
     #[error("unknown account `{0}`")]
     UnknownAccount(String),
+    #[error("account `{0}` has no position in `{1}`")]
+    UnknownPosition(String, String),
     #[error("account `{0}` has both a balance snapshot and positions on {1}")]
     BalanceAndPositions(String, String),
     #[error("account `{0}` lists `{1}` more than once in positions")]

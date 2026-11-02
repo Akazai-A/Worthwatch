@@ -8,6 +8,7 @@
   import Home from "./screens/Home.svelte";
   import CheckIn from "./screens/CheckIn.svelte";
   import AccountDetail from "./screens/AccountDetail.svelte";
+  import Portfolio from "./screens/Portfolio.svelte";
 
   onMount(() => {
     void view.load();
@@ -39,6 +40,8 @@
         <p class="faint">Loading…</p>
       {:else if route.current.name === "checkin"}
         <CheckIn view={view.current} />
+      {:else if route.current.name === "portfolio"}
+        <Portfolio view={view.current} />
       {:else if route.current.name === "account"}
         <AccountDetail view={view.current} id={route.current.id} />
       {:else}

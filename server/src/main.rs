@@ -28,7 +28,9 @@ async fn main() -> anyhow::Result<()> {
             return Ok(());
         }
         Some("--help" | "-h" | "help") => {
-            println!("worthwatch            run the server\nworthwatch seed [--force]   write a sample ledger to WORTHWATCH_DATA");
+            println!(
+                "worthwatch                 run the server\nworthwatch seed [--force]  write a sample ledger (and quotes) to WORTHWATCH_DATA\n\nWORTHWATCH_DATA  data dir (default data)\nWORTHWATCH_BIND  address (default 127.0.0.1:7777)\nWORTHWATCH_OFFLINE=1  never fetch prices or FX"
+            );
             return Ok(());
         }
         _ => {}
@@ -41,6 +43,7 @@ async fn main() -> anyhow::Result<()> {
     let state = state::AppState::open(&data_dir)
         .with_context(|| format!("opening data dir {}", data_dir.display()))?;
     state.watch();
+    state.schedule_refresh();
     let app = routes::router(state).merge(ui::router());
 
     tracing::info!("worthwatch listening on http://{bind} (data: {})", data_dir.display());

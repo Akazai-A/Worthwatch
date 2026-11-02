@@ -17,7 +17,11 @@
 
 ## Layout
 - `crates/ledger` — plain-text ledger schema, IO, validation, mutations.
-- `crates/derive` — derived figures (net worth, allocations) from the ledger.
+- `crates/derive` — derived figures (net worth, portfolio) from the ledger plus a `Market`
+  (fetched quotes merged with manual prices/FX).
+- `crates/providers` — price/FX providers behind traits; pure `parse_*` fns tested on
+  `fixtures/`; `quotes.json` cache. No test may touch the network.
+- `crates/importers` — pasted broker exports → `Vec<Mutation>`.
 - `server` — Axum binary `worthwatch`, embeds the built UI from `ui/dist`.
 - `ui` — Svelte 5 + Vite. `pnpm --dir ui build` before `cargo build --release`.
 - `deploy/ci.yml` belongs at `.github/workflows/ci.yml` (moved by hand; remote file
@@ -30,4 +34,5 @@ pnpm --dir ui build && pnpm --dir ui test
 ```
 
 ## Env vars
-`WORTHWATCH_DATA` (data dir, default `data`), `WORTHWATCH_BIND` (default `127.0.0.1:7777`).
+`WORTHWATCH_DATA` (data dir, default `data`), `WORTHWATCH_BIND` (default `127.0.0.1:7777`),
+`WORTHWATCH_OFFLINE=1` (never fetch; set in the Playwright config).

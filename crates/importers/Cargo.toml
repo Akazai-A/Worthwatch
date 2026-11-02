@@ -1,0 +1,14 @@
+[package]
+name = "importers"
+version.workspace = true
+edition.workspace = true
+description = "Turn pasted broker exports into ledger mutations"
+
+[dependencies]
+ledger = { path = "../ledger" }
+serde.workspace = true
+rust_decimal.workspace = true
+chrono.workspace = true
+
+[dev-dependencies]
+rust_decimal_macros = "1"

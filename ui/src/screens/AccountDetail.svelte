@@ -10,7 +10,10 @@
   const cur = $derived(view.base_currency);
   // Reuse the time-series chart: one account's value as the "net worth" series.
   const series = $derived((a?.history ?? []).map((h) => ({ date: h.date, net_worth: h.value, assets: h.value, liabilities: "0", by_group: {} })));
-  const rows = $derived([...(a?.history ?? [])].reverse());
+  const allRows = $derived([...(a?.history ?? [])].reverse());
+  const SHOW = 24;
+  let showAll = $state(false);
+  const rows = $derived(showAll ? allRows : allRows.slice(0, SHOW));
 </script>
 
 {#if !a}
@@ -37,15 +40,16 @@
       <section class="card">
         <h2 class="label">Holdings</h2>
         <table>
-          <thead><tr><th>Symbol</th><th class="r">Units</th><th class="r">Price</th><th class="r">Value</th><th class="r">Book cost</th></tr></thead>
+          <thead><tr><th>Symbol</th><th class="r">Units</th><th class="r">Price ({a.currency})</th><th class="r">Value ({a.currency})</th><th class="r">Book cost</th><th class="r">Gain</th></tr></thead>
           <tbody>
             {#each a.holdings as h}
               <tr>
                 <td>{h.symbol}</td>
                 <td class="r num">{formatPlain(h.units, 4)}</td>
-                <td class="r num">{h.price == null ? "—" : formatPlain(h.price)}<span class="faint small">&nbsp;&nbsp;{h.price_date ? formatDate(h.price_date) : ""}</span></td>
-                <td class="r num money">{h.price == null ? "—" : formatPlain(Number(h.units) * Number(h.price))}</td>
+                <td class="r num">{#if h.price == null}<span class="warn">no price</span>{:else}{formatPlain(h.price)}<span class="faint small">&nbsp;&nbsp;{h.price_date ? formatDate(h.price_date) : ""}{h.price_source === "manual" ? " · manual" : ""}</span>{/if}</td>
+                <td class="r num money">{h.native_value == null ? "—" : formatPlain(h.native_value)}</td>
                 <td class="r num money">{h.book_cost == null ? "—" : formatPlain(h.book_cost)}</td>
+                <td class="r">{#if h.native_value != null && h.book_cost != null}<Money value={Number(h.native_value) - Number(h.book_cost)} currency={a.currency} signed tone="delta" />{:else}—{/if}</td>
               </tr>
             {/each}
           </tbody>
@@ -65,11 +69,14 @@
               <tr>
                 <td>{formatDate(h.date, "long")}</td>
                 <td class="r"><Money value={h.value} currency={cur} digits={2} /></td>
-                <td class="r">{#if i < rows.length - 1}<Money value={Number(h.value) - Number(rows[i + 1].value)} currency={cur} signed tone={a.liability ? "none" : "delta"} />{/if}</td>
+                <td class="r">{#if i < allRows.length - 1}<Money value={Number(h.value) - Number(allRows[i + 1].value)} currency={cur} signed tone={a.liability ? "none" : "delta"} />{/if}</td>
               </tr>
             {/each}
           </tbody>
         </table>
+        {#if allRows.length > SHOW}
+          <button type="button" class="link" onclick={() => (showAll = !showAll)}>{showAll ? "Show recent only" : `Show all ${allRows.length} rows`}</button>
+        {/if}
       {/if}
     </section>
   </div>
@@ -87,5 +94,7 @@
   td { padding: 7px 0; border-top: 1px solid var(--border); }
   .r { text-align: right; }
   .small { font-size: 11px; }
+  .warn { color: var(--warn); }
+  .link { color: var(--accent); background: none; border: 0; font: inherit; cursor: pointer; font-size: 12px; padding: 10px 0 0; }
   code { font-family: var(--mono); }
 </style>
