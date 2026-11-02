@@ -1,0 +1,18 @@
+services:
+  worthwatch:
+    build: { context: .., dockerfile: deploy/Dockerfile }
+    image: worthwatch:local
+    restart: unless-stopped
+    ports: ["7777:7777"]
+    volumes: ["worthwatch-data:/data"]
+
+  # Optional local LLM for the chat panel (Stage 5). docker compose --profile ai up -d
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["ai"]
+    restart: unless-stopped
+    volumes: ["worthwatch-ollama:/root/.ollama"]
+
+volumes:
+  worthwatch-data:
+  worthwatch-ollama:

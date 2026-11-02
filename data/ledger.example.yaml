@@ -1,0 +1,44 @@
+# Example ledger. Copy to data/ledger.yaml (or set WORTHWATCH_DATA) and edit freely.
+# Liabilities are entered as positive amounts owed.
+version: 1
+settings:
+  base_currency: CAD
+  fx:
+    USD: 1.38
+
+accounts:
+  - id: td-chq
+    name: TD Chequing
+    institution: TD
+    kind: chequing
+    currency: CAD
+  - id: ws-tfsa
+    name: Wealthsimple TFSA
+    institution: Wealthsimple
+    kind: tfsa
+    currency: CAD
+    positions:
+      - { symbol: XEQT.TO, units: 412.5, book_cost: 11240.00 }
+  - id: visa
+    name: TD Visa
+    kind: credit_card
+    currency: CAD
+  - id: condo
+    name: Condo
+    kind: property
+    currency: CAD
+    tags: [illiquid]
+
+prices:
+  XEQT.TO:
+    2026-10-31: 34.12
+
+snapshots:
+  2026-10-01: { td-chq: 4210.55, visa: 1820.00, condo: 640000 }
+  2026-10-31: { td-chq: 5102.10, visa: 640.12 }
+
+position_changes:
+  - { date: 2026-10-15, account: ws-tfsa, symbol: XEQT.TO, units: 14, note: monthly buy }
+
+events:
+  - { date: 2026-10-20, note: Annual bonus }

@@ -1,0 +1,32 @@
+/* Design tokens. The only place colours are defined. Dark first. */
+:root {
+  --bg: #0f1115;
+  --surface: #171a21;
+  --border: #262a33;
+  --text: #e8eaf0;
+  --text-2: #9aa0ad;
+  --text-3: #5d6370;
+  --accent: #7aa2f7;
+  --negative: #d97b7b;
+  --positive: #8fbf9f;
+  --radius: 10px;
+  --font: ui-sans-serif, -apple-system, "Inter", system-ui, sans-serif;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f6f6f8;
+    --surface: #ffffff;
+    --border: #e4e5ea;
+    --text: #1b1d22;
+    --text-2: #5f6470;
+    --text-3: #a0a4ae;
+    --accent: #3b6fe0;
+    --negative: #c0504f;
+    --positive: #3f8f5a;
+    color-scheme: light;
+  }
+}
+html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); }
+.num { font-variant-numeric: tabular-nums; }
+.blur .money { filter: blur(8px); }

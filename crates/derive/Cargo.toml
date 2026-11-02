@@ -1,0 +1,14 @@
+[package]
+name = "derive"
+version.workspace = true
+edition.workspace = true
+description = "Pure functions over a Ledger: valuation, net worth series, staleness"
+
+[dependencies]
+ledger = { path = "../ledger" }
+serde.workspace = true
+rust_decimal.workspace = true
+chrono.workspace = true
+
+[dev-dependencies]
+rust_decimal_macros = "1"

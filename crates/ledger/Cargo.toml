@@ -1,0 +1,16 @@
+[package]
+name = "ledger"
+version.workspace = true
+edition.workspace = true
+description = "The user's data: schema, validation, mutations, atomic YAML persistence"
+
+[dependencies]
+serde.workspace = true
+serde_yaml_ng.workspace = true
+rust_decimal.workspace = true
+chrono.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+rust_decimal_macros = "1"
+tempfile = "3"

@@ -1,0 +1,26 @@
+[package]
+name = "worthwatch"
+version.workspace = true
+edition.workspace = true
+description = "Self-hosted net worth and portfolio tracker: one binary, your data in one folder"
+default-run = "worthwatch"
+
+[[bin]]
+name = "worthwatch"
+path = "src/main.rs"
+
+[dependencies]
+ledger = { path = "../crates/ledger" }
+derive = { path = "../crates/derive" }
+serde.workspace = true
+serde_json.workspace = true
+rust_decimal.workspace = true
+chrono.workspace = true
+anyhow.workspace = true
+tokio.workspace = true
+axum.workspace = true
+tower-http.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+rust-embed.workspace = true
+mime_guess.workspace = true
