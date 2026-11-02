@@ -3,7 +3,9 @@ services:
     build: { context: .., dockerfile: deploy/Dockerfile }
     image: worthwatch:local
     restart: unless-stopped
-    ports: ["7777:7777"]
+    # Localhost only by default. To reach it from other devices on your network,
+    # start with WORTHWATCH_HOST=0.0.0.0 (see README "Security").
+    ports: ["${WORTHWATCH_HOST:-127.0.0.1}:${WORTHWATCH_PORT:-7777}:7777"]
     volumes: ["worthwatch-data:/data"]
 
   # Optional local LLM for the chat panel (Stage 5). docker compose --profile ai up -d
