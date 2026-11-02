@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { caveats, compactMoney, familyOf, headlineParts, topBuckets, viaLabel, viaSummary } from "./lookthrough";
+import { caveats, compactMoney, shortPath, familyOf, headlineParts, topBuckets, viaLabel, viaSummary } from "./lookthrough";
 import type { Company, FundStatus } from "./api";
 
 const co = (via: string[][]): Company => ({
@@ -37,5 +37,12 @@ describe("look-through wording", () => {
     expect(t).toHaveLength(9);
     expect(t[8]).toEqual({ label: "2 others", value: "20.00", pct: "20.0" });
     expect(topBuckets(b.slice(0, 9), 8)).toHaveLength(9);
+  });
+});
+
+describe("shortPath", () => {
+  it("keeps short paths and trims long ones to the last two parts", () => {
+    expect(shortPath("data/holdings")).toBe("data/holdings");
+    expect(shortPath("/tmp/claude-0/x/y/seed/holdings")).toBe("…/seed/holdings");
   });
 });

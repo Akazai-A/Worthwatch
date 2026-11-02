@@ -16,6 +16,13 @@ export function viaSummary(c: Company): string {
 }
 
 /** "$4.1k", "$920", "$1.2M" for bar rows where a full figure would crowd the label. */
+/** A long absolute folder path, shown as its last two parts: `…/data/holdings`. */
+export function shortPath(path: string, keep = 2): string {
+  const parts = path.split(/[\\/]+/).filter(Boolean);
+  if (parts.length <= keep + 1) return path;
+  return "…/" + parts.slice(-keep).join("/");
+}
+
 export function compactMoney(value: string | number): string {
   const n = Math.abs(Number(value));
   if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1).replace(/\.0$/, "")}M`;

@@ -2,14 +2,21 @@
   // Portfolio › Look-through: where the money actually is, through every fund.
   import type { Company, LookThroughView } from "../lib/api";
   import { formatDate, formatMoney } from "../lib/money";
-  import { caveats, familyHue, familyOf, headlineParts, viaLabel } from "../lib/lookthrough";
+  import { caveats, familyHue, familyOf, headlineParts, shortPath, viaLabel } from "../lib/lookthrough";
   import Money from "../lib/components/Money.svelte";
   import Treemap from "../lib/charts/Treemap.svelte";
 
   let { lt }: { lt: LookThroughView } = $props();
   const cur = $derived(lt.base_currency);
   const x = $derived(lt.lookthrough);
-  const top = $derived(x.companies.filter((c) => !c.undisclosed && c.key !== "__other__").slice(0, 25));
+  // Ten rows sit level with the detail and funds cards whatever the company count;
+  // the rest unfold on request, with the detail card pinned alongside.
+  const SHOW = 10;
+  const MAX = 50;
+  const ranked = $derived(x.companies.filter((c) => !c.undisclosed && c.key !== "__other__").slice(0, MAX));
+  let expanded = $state(false);
+  const top = $derived(expanded ? ranked : ranked.slice(0, SHOW));
+  const more = $derived(ranked.length - Math.min(ranked.length, SHOW));
   let selectedKey = $state<string | null>(null);
   const selected = $derived<Company | null>(x.companies.find((c) => c.key === selectedKey) ?? top[0] ?? null);
   const parts = $derived(headlineParts(x.company_count, x.funds, x.top10_pct, x.effective_holdings));
@@ -63,9 +70,14 @@
           {/each}
         </tbody>
       </table>
-      {#if x.company_count > top.length}
-        <p class="faint note">… {(x.company_count - top.length).toLocaleString("en-CA")} more names, each under {Number(top[top.length - 1]?.pct ?? 0).toFixed(1)}%.</p>
-      {/if}
+      <div class="foot">
+        {#if more > 0}
+          <button type="button" class="more" onclick={() => (expanded = !expanded)}>{expanded ? "Show fewer" : `Show ${more} more`}</button>
+        {/if}
+        {#if x.company_count > ranked.length}
+          <span class="faint">{(x.company_count - ranked.length).toLocaleString("en-CA")} more names, each under {Number(ranked[ranked.length - 1]?.pct ?? 0).toFixed(1)}%</span>
+        {/if}
+      </div>
     </section>
 
     <div class="side">
@@ -118,7 +130,7 @@
         {#if unresolvedFunds.length || missingChildren.length}
           A fund with no file counts as one line. Save its holdings CSV as <code>&lt;SYMBOL&gt;.csv</code>{#if missingChildren.length}&nbsp;(also {missingChildren.map((c) => `${c}.csv`).join(", ")}){/if} in the folder below{#if !lt.offline}, or set <code>settings.holdings_urls</code>{/if}.
         {/if}
-        Folder: <code>{lt.holdings_dir}</code>
+        Folder: <code title={lt.holdings_dir}>{shortPath(lt.holdings_dir)}</code>
       </p>
     </section>
     </div>
@@ -166,6 +178,10 @@
   .via li { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-top: 1px solid var(--border); }
   .via small { color: var(--text-3); margin-left: 6px; }
   .note { font-size: 12px; margin: 12px 0 0; }
+  .foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 10px; font-size: 12px; min-height: 20px; }
+  .more { font: inherit; font-size: 12px; color: var(--text-2); background: none; border: 1px solid var(--border); border-radius: 6px; padding: 3px 10px; cursor: pointer; }
+  .more:hover { color: var(--text); }
+  .more:focus-visible { outline: 2px solid var(--accent); }
   .errs { margin: 10px 0 0; padding: 0; list-style: none; font-size: 12px; }
   .errs li { padding: 4px 0; }
   code { font-family: var(--mono); font-size: 11px; }
