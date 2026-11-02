@@ -5,6 +5,7 @@ edition.workspace = true
 description = "Market data at the boundary: price and FX providers behind traits, plus the fetched-quote cache"
 
 [dependencies]
+holdings = { path = "../holdings" }
 serde.workspace = true
 serde_json.workspace = true
 rust_decimal.workspace = true

@@ -5,7 +5,8 @@ use std::time::Duration;
 use chrono::Utc;
 use ledger::{io, Diagnostic, FxSource, Ledger, LedgerError, Mutation, PriceSource};
 use providers::cache::RefreshReport;
-use providers::{FxProvider, PriceProvider, QuoteCache};
+use providers::holdings::HoldingsReport;
+use providers::{FxProvider, HoldingsProvider, HoldingsStore, PriceProvider, QuoteCache};
 use tokio::sync::broadcast;
 
 /// What the server knows about the ledger file right now.
@@ -17,6 +18,8 @@ pub struct Snapshot {
     pub problem: Option<Diagnostic>,
     /// Everything fetched so far (`quotes.json`).
     pub quotes: QuoteCache,
+    /// Fund compositions (`holdings/`): newest snapshot per fund, plus errors.
+    pub holdings: HoldingsStore,
     /// Bumps on every change; the UI reloads when it sees a new one.
     pub version: u64,
 }
@@ -32,6 +35,7 @@ impl Snapshot {
 pub struct AppState {
     pub ledger_path: PathBuf,
     pub quotes_path: PathBuf,
+    pub holdings_dir: PathBuf,
     /// `WORTHWATCH_OFFLINE=1`: never touch the network (tests, air-gapped use).
     pub offline: bool,
     inner: Arc<RwLock<Snapshot>>,
@@ -44,6 +48,7 @@ impl AppState {
         std::fs::create_dir_all(data_dir)?;
         let ledger_path = data_dir.join("ledger.yaml");
         let quotes_path = data_dir.join("quotes.json");
+        let holdings_dir = data_dir.join("holdings");
         let ledger = if ledger_path.exists() {
             io::load(&ledger_path)?
         } else {
@@ -58,10 +63,11 @@ impl AppState {
                 QuoteCache::default()
             }
         };
+        let holdings = HoldingsStore::load(&holdings_dir);
         let offline = std::env::var("WORTHWATCH_OFFLINE").is_ok_and(|v| v == "1" || v == "true");
         let (changed, _) = broadcast::channel(16);
-        let inner = Arc::new(RwLock::new(Snapshot { ledger, problem: None, quotes, version: 1 }));
-        Ok(Self { ledger_path, quotes_path, offline, inner, changed })
+        let inner = Arc::new(RwLock::new(Snapshot { ledger, problem: None, quotes, holdings, version: 1 }));
+        Ok(Self { ledger_path, quotes_path, holdings_dir, offline, inner, changed })
     }
 
     pub fn snapshot(&self) -> Snapshot {
@@ -108,6 +114,31 @@ impl AppState {
         }
         let mut guard = self.inner.write().expect("ledger lock");
         guard.quotes = quotes;
+        guard.version += 1;
+        let _ = self.changed.send(guard.version);
+        report
+    }
+
+    /// Re-read `holdings/` (picking up any file dropped in), then fetch holdings files
+    /// for every held fund and the funds inside them. `force` refetches fresh ones too.
+    /// Blocking (network); call from `spawn_blocking`. Offline it only re-reads the dir.
+    pub fn refresh_holdings(&self, force: bool) -> HoldingsReport {
+        let snap = self.snapshot();
+        let l = &snap.ledger;
+        let mut store = HoldingsStore::load(&self.holdings_dir);
+        let provider: Box<dyn HoldingsProvider + Send> = if self.offline {
+            Box::new(providers::Off)
+        } else {
+            Box::new(providers::Issuers::new(l.settings.holdings_urls.clone()))
+        };
+        let today = chrono::Local::now().date_naive();
+        let report = if self.offline {
+            HoldingsReport::default()
+        } else {
+            store.refresh(provider.as_ref(), &l.symbols(), today, Utc::now(), force)
+        };
+        let mut guard = self.inner.write().expect("ledger lock");
+        guard.holdings = store;
         guard.version += 1;
         let _ = self.changed.send(guard.version);
         report
@@ -193,6 +224,24 @@ impl AppState {
                             r.errors.len()
                         ),
                         Err(e) => tracing::warn!("refresh task failed: {e}"),
+                    }
+                }
+                // Holdings files change monthly; fetch when a held fund has none or a stale one.
+                let holdings_due = {
+                    let s = state.snapshot();
+                    let today = chrono::Local::now().date_naive();
+                    !s.holdings.stale(&s.ledger.symbols(), today).is_empty()
+                };
+                if holdings_due {
+                    let st = state.clone();
+                    match tokio::task::spawn_blocking(move || st.refresh_holdings(false)).await {
+                        Ok(r) => tracing::info!(
+                            "refreshed holdings: {} fetched, {} not funds, {} errors",
+                            r.fetched.len(),
+                            r.not_funds.len(),
+                            r.errors.len()
+                        ),
+                        Err(e) => tracing::warn!("holdings refresh task failed: {e}"),
                     }
                 }
                 tokio::time::sleep(Duration::from_secs(30 * 60)).await;

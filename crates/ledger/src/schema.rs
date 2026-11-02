@@ -26,6 +26,9 @@ pub struct Ledger {
     pub position_changes: Vec<PositionChange>,
     #[serde(default)]
     pub events: Vec<Event>,
+    /// symbol -> hand-typed metadata for look-through (sector, country, ...).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub securities: BTreeMap<Symbol, Security>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -38,6 +41,28 @@ pub struct Settings {
     /// Where market data comes from. Omitted in the file means the defaults.
     #[serde(default, skip_serializing_if = "Providers::is_default")]
     pub providers: Providers,
+    /// symbol -> URL of that fund's holdings file (iShares-style CSV or Vanguard JSON),
+    /// for a fund the built-in lookup cannot find. Fetched data lands in `holdings/`.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub holdings_urls: BTreeMap<Symbol, String>,
+}
+
+/// What you know about a security by hand: fills in or overrides what issuer files
+/// say about a stock you hold directly, or a fund without a holdings file.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct Security {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    /// GICS-style wording ("Information Technology", "Financials", ...).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sector: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub country: Option<String>,
+    /// equity | fixed_income | cash | other
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub asset_class: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub currency: Option<String>,
 }
 
 /// Market-data sources. Fetched data never lands in this file; it goes to
@@ -188,12 +213,14 @@ impl Ledger {
                 base_currency: base_currency.to_string(),
                 fx: BTreeMap::new(),
                 providers: Providers::default(),
+                holdings_urls: BTreeMap::new(),
             },
             accounts: Vec::new(),
             prices: BTreeMap::new(),
             snapshots: BTreeMap::new(),
             position_changes: Vec::new(),
             events: Vec::new(),
+            securities: BTreeMap::new(),
         }
     }
 

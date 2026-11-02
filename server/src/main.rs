@@ -1,5 +1,6 @@
 mod routes;
 mod seed;
+mod seed_holdings;
 mod state;
 mod ui;
 
@@ -29,7 +30,7 @@ async fn main() -> anyhow::Result<()> {
         }
         Some("--help" | "-h" | "help") => {
             println!(
-                "worthwatch                 run the server\nworthwatch seed [--force]  write a sample ledger (and quotes) to WORTHWATCH_DATA\n\nWORTHWATCH_DATA  data dir (default data)\nWORTHWATCH_BIND  address (default 127.0.0.1:7777)\nWORTHWATCH_OFFLINE=1  never fetch prices or FX"
+                "worthwatch                 run the server\nworthwatch seed [--force]  write a sample ledger, quotes and fund holdings to WORTHWATCH_DATA\n\nWORTHWATCH_DATA  data dir (default data): ledger.yaml, quotes.json, holdings/\nWORTHWATCH_BIND  address (default 127.0.0.1:7777)\nWORTHWATCH_OFFLINE=1  never fetch prices, FX or holdings files"
             );
             return Ok(());
         }
