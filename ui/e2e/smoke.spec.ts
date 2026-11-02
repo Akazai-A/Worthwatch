@@ -27,7 +27,7 @@ test("first run: add an account, check in, the chart gets a point", async ({ pag
   await expect(page.locator(".hero .money.xl")).toHaveText("$5,102");
   await expect(page.locator(".uplot")).toBeVisible();
   const yaml = readFileSync(ledger(), "utf8");
-  expect(yaml).toContain("td-chequing: 5102.10");
+  expect(yaml).toMatch(/td-chequing: 5102\.10?\n/);
 
   // Second check-in on an earlier date: two points, carry-forward intact.
   await page.goto("/#/check-in");
@@ -43,10 +43,12 @@ test("hand edit on disk shows up within a second; a broken edit shows a line num
   await expect(page.locator(".hero .money.xl")).toHaveText("$5,102");
 
   const good = readFileSync(ledger(), "utf8");
-  writeFileSync(ledger(), good.replace("td-chequing: 5102.10", "td-chequing: 9999.00"));
+  const edited = good.replace(/td-chequing: 5102\.10?\n/, "td-chequing: 9999.00\n");
+  expect(edited).not.toBe(good);
+  writeFileSync(ledger(), edited);
   await expect(page.locator(".hero .money.xl")).toHaveText("$9,999", { timeout: 1500 });
 
-  writeFileSync(ledger(), good.replace("td-chequing: 9999.00", "td-chequing: 5102.10") + "accounts: [oops\n");
+  writeFileSync(ledger(), edited + "accounts: [oops\n");
   const banner = page.getByRole("alert");
   await expect(banner).toBeVisible({ timeout: 1500 });
   await expect(banner).toContainText(/line \d+/);

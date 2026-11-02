@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
 
 use ledger::{io, Diagnostic, Ledger, LedgerError, Mutation};
 use tokio::sync::broadcast;
@@ -88,8 +88,10 @@ impl AppState {
         changed
     }
 
-    /// Poll the file's mtime and size a few times a second. Polling (not inotify)
-    /// so it also works on Docker bind mounts, where change events never arrive.
+    /// Poll the file a few times a second and reload when its bytes change. Polling
+    /// (not inotify) so it also works on Docker bind mounts, where change events never
+    /// arrive; hashing the bytes rather than trusting mtime, which editors and fast
+    /// successive writes can leave unchanged.
     pub fn watch(&self) {
         let state = self.clone();
         std::thread::Builder::new()
@@ -111,9 +113,10 @@ impl AppState {
     }
 }
 
-fn stamp(p: &Path) -> Option<(SystemTime, u64)> {
-    let m = std::fs::metadata(p).ok()?;
-    Some((m.modified().ok()?, m.len()))
+fn stamp(p: &Path) -> Option<u64> {
+    // FNV-1a over the file bytes; the ledger is small, so this is cheap at 4 Hz.
+    let bytes = std::fs::read(p).ok()?;
+    Some(bytes.iter().fold(0xcbf29ce484222325u64, |h, b| (h ^ u64::from(*b)).wrapping_mul(0x100000001b3)))
 }
 
 #[cfg(test)]
