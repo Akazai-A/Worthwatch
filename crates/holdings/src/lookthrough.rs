@@ -521,7 +521,7 @@ pub fn lookthrough(
     });
     LookThrough {
         depth: max_depth,
-        total,
+        total: total.round_dp(2),
         as_of: ctx.as_of,
         funds,
         company_count: disclosed.len(),

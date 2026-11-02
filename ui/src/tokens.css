@@ -19,6 +19,15 @@
   --g-investments: #d95926;
   --g-property: #199e70;
   --g-debt: #9085e9;
+  /* Four muted sector families for the look-through treemap only (blue, rose, sage, plum). */
+  --f-tech: #5f8fd4;
+  --f-fin: #cc7490;
+  --f-cons: #3aa68d;
+  --f-ind: #ad7ec5;
+  --f-none: var(--text);
+  /* One neutral fill for every bar and cell (bone on graphite); brass stays the only accent. */
+  --fill: color-mix(in oklab, var(--text) 42%, var(--surface-2));
+  --fill-soft: color-mix(in oklab, var(--text) 22%, var(--surface-2));
   --radius: 8px;
   --font: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
   --figures: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -32,6 +41,7 @@
     --accent: #9a7420; --accent-soft: rgba(154, 116, 32, 0.1);
     --negative: #b4523f; --positive: #4f7f52; --warn: #9a7420;
     --g-cash: #2a78d6; --g-investments: #eb6834; --g-property: #1baf7a; --g-debt: #6250d6;
+    --f-tech: #3f78c8; --f-fin: #b8506e; --f-cons: #1f8f74; --f-ind: #8b5bb3;
     color-scheme: light;
   }
 }
@@ -41,6 +51,7 @@
   --accent: #9a7420; --accent-soft: rgba(154, 116, 32, 0.1);
   --negative: #b4523f; --positive: #4f7f52; --warn: #9a7420;
   --g-cash: #2a78d6; --g-investments: #eb6834; --g-property: #1baf7a; --g-debt: #6250d6;
+--f-tech: #3f78c8; --f-fin: #b8506e; --f-cons: #1f8f74; --f-ind: #8b5bb3;
   color-scheme: light;
 }
 * { box-sizing: border-box; }

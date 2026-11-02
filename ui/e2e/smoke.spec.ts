@@ -93,3 +93,43 @@ test("paste a holdings export into a new investment account; portfolio values it
   await expect(page.locator(".portfolio .top")).toContainText("offline · manual prices only");
   await expect(page.locator("#refresh")).toHaveCount(0);
 });
+
+test("a holdings file dropped into data/holdings shows up in Look-through, Exposure and Overlap", async ({ page }) => {
+  const { mkdirSync } = await import("node:fs");
+  mkdirSync(join(dataDir, "holdings"), { recursive: true });
+  const csv = [
+    "iShares Core Equity ETF Portfolio",
+    'Fund Holdings as of,"Oct 30, 2026"',
+    "",
+    "Ticker,Name,Sector,Asset Class,Market Value,Weight (%),Location,Exchange,Market Currency",
+    '"AAPL","APPLE INC","Information Technology","Equity","1","60.00","United States","NASDAQ","USD"',
+    '"SHOP","SHOPIFY INC","Information Technology","Equity","1","30.00","Canada","Toronto Stock Exchange","CAD"',
+    '"RY","ROYAL BANK OF CANADA","Financials","Equity","1","10.00","Canada","Toronto Stock Exchange","CAD"',
+    "",
+  ].join("\n");
+  writeFileSync(join(dataDir, "holdings", "XEQT.TO.csv"), csv);
+
+  await page.goto("/#/portfolio/look-through");
+  await expect(page.getByRole("heading", { name: "No holdings files yet" })).toBeVisible();
+  await page.locator("#refresh-holdings").click(); // offline: re-reads the folder
+  await expect(page.locator(".treemap .cell")).toHaveCount(4); // 3 companies + ZAG.TO as itself
+  await expect(page.locator(".hero .sub")).toContainText("4 companies via 1 fund");
+  await expect(page.locator(".hero .sub")).toContainText("ZAG.TO has no holdings file");
+  await page.getByRole("button", { name: /^Apple Inc,/ }).click();
+  const detail = page.locator(".detail");
+  await expect(detail).toContainText("Apple Inc");
+  await expect(detail).toContainText("XEQT.TO");
+  await expect(detail).toContainText("60.00% of XEQT.TO");
+  // 426.5 units × $34.12 × 60% = $8,731
+  await expect(detail.locator(".money.l")).toHaveText("$8,731");
+  expect(readFileSync(join(dataDir, "holdings", "XEQT.TO", "2026-10-30.json"), "utf8")).toContain("\"source\": \"file\"");
+
+  await page.goto("/#/portfolio/exposure");
+  await expect(page.locator(".barset").first()).toContainText("Technology");
+  await expect(page.locator(".barset").first()).toContainText("Unclassified"); // ZAG.TO, no file and no securities entry
+  await page.getByRole("radio", { name: "As held" }).click();
+  await expect(page.locator(".barset").first()).toContainText("Funds");
+
+  await page.goto("/#/portfolio/overlap");
+  await expect(page.locator(".empty")).toContainText("at least two funds");
+});
