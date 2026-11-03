@@ -1,6 +1,6 @@
 # Worthwatch in a container: built from source, runs as a non-root user, needs nothing
 # writable but /data. Run it with deploy/container/run.sh, which adds the locked-down flags
-# (read-only, no capabilities, port on 127.0.0.1 only). See docs/security.md.
+# (read-only, no capabilities, port on 127.0.0.1 only). See docs/run/security.md.
 
 # Stage 1: build the UI. The lockfile is the contract: no silent upgrades.
 FROM node:26-alpine AS ui

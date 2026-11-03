@@ -8,7 +8,7 @@
   import { view as viewStore } from "../../lib/stores/view.svelte";
 
   let { view }: { view: LedgerView } = $props();
-  const DOCS = "https://github.com/Akazai-A/Worthwatch/blob/main/docs/apple-pay-feed.md";
+  const DOCS = "https://github.com/Akazai-A/Worthwatch/blob/main/docs/use/apple-pay-feed.md";
 
   let s = $state<SettingsView | null>(null);
   let err = $state<string | null>(null);

@@ -179,7 +179,7 @@ pub fn shortcuts_icloud_root() -> Option<PathBuf> {
 }
 
 pub fn icloud_dir(l: &Ledger) -> Option<PathBuf> {
-    // In a container: the one taps folder, mounted read-only (see docs/security.md).
+    // In a container: the one taps folder, mounted read-only (see docs/run/security.md).
     if let Some(d) = std::env::var_os("WORTHWATCH_TAPS_DIR").filter(|d| !d.is_empty()) {
         return Some(PathBuf::from(d));
     }

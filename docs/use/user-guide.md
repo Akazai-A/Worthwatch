@@ -4,7 +4,7 @@ This page explains what each screen shows and how to use it. Every screen reads 
 
 ## Home
 
-![Home in dark theme](screenshots/home-dark.png)
+![Home in dark theme](../screenshots/home/home-dark.png)
 
 Home answers "what am I worth, and is it going up?"
 
@@ -18,7 +18,7 @@ Stale accounts appear in a banner at the top. Select **Check in now** to update 
 
 ## Check-in
 
-![Check-in in dark theme](screenshots/checkin-dark.png)
+![Check-in in dark theme](../screenshots/check-in/checkin-dark.png)
 
 Use Check-in once a month to record balances.
 
@@ -38,19 +38,19 @@ Portfolio has four tabs: **Positions**, **Look-through**, **Exposure** and **Ove
 
 ### Look-through
 
-![Look-through treemap](screenshots/lookthrough-dark.png)
+![Look-through treemap](../screenshots/portfolio/lookthrough-dark.png)
 
 Look-through shows the companies you own through your funds. A fund that holds other funds, such as XEQT, is opened up to three levels deep. Each tile's size is your dollars in that company. Hover a tile for its weight and which funds it came from.
 
 ### Exposure
 
-![Exposure breakdown](screenshots/exposure-dark.png)
+![Exposure breakdown](../screenshots/portfolio/exposure-dark.png)
 
 Exposure groups your money by sector, region, country, asset class and currency. Switch between **Look-through** (through every fund) and **As held** (each fund as one line).
 
 ### Overlap
 
-![Fund overlap matrix](screenshots/overlap-dark.png)
+![Fund overlap matrix](../screenshots/portfolio/overlap-dark.png)
 
 Overlap shows how much each pair of funds holds in common. A high figure means the two funds mostly duplicate each other.
 
@@ -58,7 +58,7 @@ Fund holdings come from the issuers' published files. See [Prices, FX and fund h
 
 ## Changes
 
-![Changes screen](screenshots/changes-dark.png)
+![Changes screen](../screenshots/changes/changes-dark.png)
 
 Changes explains the difference between two dates.
 
@@ -70,7 +70,7 @@ Hover any bar for the exact figures. Moves smaller than the threshold are counte
 
 ## Chat
 
-![Ask or update drawer with a change card, open over Home](screenshots/chat-dark.png)
+![Ask or update drawer with a change card, open over Home](../screenshots/chat/chat-dark.png)
 
 Chat lets you update balances the way you would text a friend. It opens as a drawer over any screen: select **Ask or update** in the sidebar, or press <kbd>⌘</kbd> <kbd>J</kbd> (<kbd>Ctrl</kbd> <kbd>J</kbd>). For example:
 
@@ -90,15 +90,15 @@ Nothing is saved until you approve. If part of a message doesn't match your acco
 A purchase, such as `coffee 6 cash`, goes to your budget instead of a balance. Its card says **budget only · net worth unchanged**, and approving it adds the purchase as if you'd used **+ Add** on **Budget**. Use `cash`, or the name of a bank account or card you paid with.
 
 <picture>
-  <source media="(prefers-color-scheme: light)" srcset="screenshots/chat-spend-light.png">
-  <img src="screenshots/chat-spend-dark.png" alt="Chat card for coffee 6 cash, lunch 18.40 on td visa: 2 purchases, budget only, net worth unchanged, with Approve 2" width="420">
+  <source media="(prefers-color-scheme: light)" srcset="../screenshots/chat/chat-spend-light.png">
+  <img src="../screenshots/chat/chat-spend-dark.png" alt="Chat card for coffee 6 cash, lunch 18.40 on td visa: 2 purchases, budget only, net worth unchanged, with Approve 2" width="420">
 </picture>
 
-Chat works without any model. To choose a local model or Claude, see [Configure Worthwatch](configuration.md#choose-the-chat-model). Proposals from Claude Desktop and other MCP clients also appear here as cards. See [Connect an AI assistant](mcp.md).
+Chat works without any model. To choose a local model or Claude, see [Configure Worthwatch](configuration.md#choose-the-chat-model). Proposals from Claude Desktop and other MCP clients also appear here as cards. See [Connect an AI assistant](../run/mcp.md).
 
 ## Plan
 
-![Plan screen](screenshots/plan-dark.png)
+![Plan screen](../screenshots/plan/plan-dark.png)
 
 Plan projects your net worth forward.
 
@@ -111,7 +111,7 @@ Recurring deposits and payments drive the projection. Add them on the Plan scree
 
 ## Budget
 
-![Budget screen](screenshots/budget-dark.png)
+![Budget screen](../screenshots/budget/budget-dark.png)
 
 Budget shows one month of spending against your category limits.
 
@@ -129,7 +129,7 @@ Select **Settings** at the bottom of the sidebar to set up the Apple Pay feed, c
 
 ## Wall view
 
-![Wall view](screenshots/wall-dark.png)
+![Wall view](../screenshots/home/wall-dark.png)
 
 Open `#/wall`, or select **Wall view** in the sidebar, for a full-screen dashboard. Use it on a spare tablet or monitor.
 
@@ -141,10 +141,10 @@ Open `#/wall`, or select **Wall view** in the sidebar, for a full-screen dashboa
 | Open or close Ask or update (Chat) | <kbd>⌘</kbd> <kbd>J</kbd> (<kbd>Ctrl</kbd> <kbd>J</kbd>) |
 | Hide all amounts as `*****`, for screen sharing | <kbd>⌘</kbd> <kbd>⇧</kbd> <kbd>H</kbd> (<kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>H</kbd>) |
 
-![Command palette](screenshots/palette-dark.png)
+![Command palette](../screenshots/home/palette-dark.png)
 
 The theme follows your system. To force dark or light, select **Theme** at the bottom of the sidebar.
 
 ## Backups
 
-Select **Backups** in the sidebar to make a backup now or download an earlier one. See [Back up and restore](backup-restore.md).
+Select **Backups** in the sidebar to make a backup now or download an earlier one. See [Back up and restore](../run/backup-restore.md).
