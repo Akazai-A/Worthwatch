@@ -5,7 +5,7 @@
   // file changes. All figures come from GET /api/changes; this file lays them out.
   import { GROUP_LABEL, type AccountDiff, type BucketDelta, type Drift, type LedgerView } from "../../lib/api";
   import { formatDate, formatPlain, formatSigned, formatUnits, formatPct } from "../../lib/format/money";
-  import { PRESETS, accountHint, bridgeSteps, changeLine, minorLine, parts, presetFrom, presetTo, rangeLabel, type BridgeStep, type Preset } from "../../lib/portfolio/changes";
+  import { PRESETS, accountHint, bridgeSteps, changeLine, minorLine, parts, presetFrom, presetTo, rangeLabel, verdict, type BridgeStep, type Preset } from "../../lib/portfolio/changes";
   import { changes as store } from "../../lib/stores/portfolio/changes.svelte";
   import { prefs } from "../../lib/stores/prefs.svelte";
   import Money from "../../lib/components/amounts/Money.svelte";
@@ -48,6 +48,7 @@
   // folded "N others" step opens into one step each.
   let unfold = $state(false);
   const steps = $derived(c ? bridgeSteps(c.accounts, unfold ? Infinity : 6) : []);
+  const said = $derived(c ? verdict(steps, Number(c.change)) : null);
   const byId = $derived(new Map((c?.accounts ?? []).map((a) => [a.account, a])));
   /** "bought 14 XEQT.TO" notes for one account, from the ledger's trade log. */
   function tradeNotes(a: AccountDiff): string[] {
@@ -141,6 +142,9 @@
           <PrivacyToggle />
           <span class="chip"><span class="num"><Money value={c.from_net_worth} currency={cur} /> → <Money value={c.to_net_worth} currency={cur} /></span>{#if c.pct != null}<span class="muted">({Number(c.pct) > 0 ? "+" : ""}{c.pct}%)</span>{/if}</span>
         </div>
+        {#if said}
+          <p class="verdict">Mostly {said.who}: <Money value={said.delta} currency={cur} signed tone="delta" />.</p>
+        {/if}
         {#if headParts.length}
           <div class="split"><SplitStrip parts={headParts} currency={cur} height={10} legend blur={prefs.blur} /></div>
         {/if}
@@ -148,7 +152,8 @@
 
       {#if steps.length}
         <section class="card panel bridge">
-          <div class="head"><h2 class="label">What moved it</h2><span class="faint small">one step per account · <span class="on-hover">hover</span><span class="on-touch">tap</span> or tab to a step for from → to and what made it · debt paid down = gain{#if unfold}&nbsp;· <button type="button" class="linkish" onclick={() => (unfold = false)}>fold the small ones</button>{/if}</span></div>
+          <div class="head"><h2 class="label">Your accounts: what moved it</h2><span class="faint small">one step per account · <span class="on-hover">hover</span><span class="on-touch">tap</span> or tab to a step for from → to and what made it · debt paid down = gain{#if unfold}&nbsp;· <button type="button" class="linkish" onclick={() => (unfold = false)}>fold the small ones</button>{/if}</span></div>
+          <div class="causes faint small"><span><i class="k-market"></i>market and FX</span><span><i class="k-money"></i>money you moved in or out</span><span><i class="k-debt"></i>debt</span></div>
           <div class="bridge-wrap"><Bridge start={Number(c.from_net_worth)} end={Number(c.to_net_worth)} {steps} startLabel={endLabel(c.from)} endLabel={endLabel(c.to)} currency={cur} blur={prefs.blur} tip={stepTip} onunfold={() => (unfold = true)} /></div>
         </section>
       {/if}
@@ -211,6 +216,10 @@
                 {/each}
               </div>
             {/each}
+            {#if v.funds.some((f) => f.changes.length === 0)}
+              {@const still = v.funds.filter((f) => f.changes.length === 0)}
+              <p class="still faint small">{still.length} {still.length === 1 ? "fund" : "funds"} with nothing over {Number(still[0].threshold).toFixed(1)} pt: {still.map((f) => f.symbol).join(", ")}</p>
+            {/if}
           </div>
           <p class="faint note">{#if noOldFiles}No holdings file is old enough for {formatDate(v.from)}, so this is as held. {/if}Percentage points of your investments{#if eff === "lookthrough"}, through every fund{/if}.</p>
           </div>
@@ -219,7 +228,7 @@
 
       <section class="card panel">
         <div class="head">
-          <h2 class="label">Fund changes</h2>
+          <h2 class="label">Inside your funds <span class="faint sub-h">· what each ETF bought and sold, not your trades</span></h2>
           <span class="faint small thr">moves of
             <span class="seg mini" role="radiogroup" aria-label="Threshold">
               {#each THRESHOLDS as t}<button type="button" role="radio" aria-checked={store.threshold === t} class:on={store.threshold === t} onclick={() => store.setThreshold(t)}>{t}</button>{/each}
@@ -234,13 +243,11 @@
           </p>
         {:else}
           <div class="feed">
-            {#each v.funds as f (f.symbol)}
+            {#each v.funds.filter((f) => f.changes.length > 0) as f (f.symbol)}
               <div class="item">
                 <span class="who"><span class="sym">{f.symbol}</span><span class="when">{formatDate(f.from)} → {formatDate(f.to)}{#if !f.held}&nbsp;· inside a fund you hold{/if}</span></span>
                 <span class="what">
-                  {#if f.changes.length === 0}
-                    <span class="muted">Nothing moved {Number(f.threshold).toFixed(1)} pt or more</span>
-                  {:else}
+                  {#if f.changes.length > 0}
                     {@const maxW = Math.max(...f.changes.slice(0, 3).flatMap((ch) => [Number(ch.from_weight), Number(ch.to_weight)]), 0.1)}
                     {#each f.changes.slice(0, 3) as ch (ch.key)}
                       {@const d = Number(ch.delta)}
@@ -343,6 +350,13 @@
   .toggle button:disabled { opacity: 0.5; cursor: default; }
   .bridge-wrap { overflow: visible; }
   /* Sector and country side by side only when each gets room for its bars (the panel is narrow on desktop). */
+  .verdict { margin: 10px 0 0; font-family: var(--display); font-size: 1.35rem; font-weight: 500; }
+  .causes { display: flex; gap: 14px; flex-wrap: wrap; margin: -4px 0 8px; }
+  .causes i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+  .k-market { background: var(--positive); }
+  .k-money { background: var(--fill); }
+  .k-debt { background: var(--g-debt); }
+  .still { margin: 10px 0 0; padding-top: 10px; border-top: 1px solid var(--border); }
   .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px 24px; margin-top: 6px; }
   .set .label { margin-bottom: 6px; }
   .drow { display: grid; grid-template-columns: minmax(96px, 130px) 1fr 76px 42px; gap: 10px; align-items: center; font-size: 12px; padding: 3px 0; }

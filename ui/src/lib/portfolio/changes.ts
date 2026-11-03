@@ -86,12 +86,28 @@ export function accountHint(a: AccountDiff, base: string, tradeNotes: string[]):
   return bits.join(" · ");
 }
 
-export interface BridgeStep { label: string; delta: number; folded?: number; account?: string }
+/** What mostly moved an account: prices and FX, money you moved in or out, or a debt. */
+export type Cause = "market" | "money" | "debt";
+export interface BridgeStep { label: string; delta: number; folded?: number; account?: string; cause?: Cause }
+
+export function causeOf(a: AccountDiff): Cause {
+  if (a.liability) return "debt";
+  const m = Math.abs(Number(a.market ?? 0)) + Math.abs(Number(a.fx ?? 0));
+  const money = Math.abs(Number(a.balance ?? 0)) + Math.abs(Number(a.trades ?? 0));
+  return m > money ? "market" : "money";
+}
+
+/** One sentence for the top of Changes: the account that did most of it, or "spread across". */
+export function verdict(steps: BridgeStep[], change: number): { who: string; delta: number } | null {
+  const top = steps.filter((s) => !s.folded).sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))[0];
+  if (!top || Math.abs(change) < 0.5) return null;
+  return Math.abs(top.delta) >= Math.abs(change) * 0.25 ? { who: top.label, delta: top.delta } : null;
+}
 
 /** Keep the biggest movers; fold the rest into one step so the chart stays one screen tall. */
 export function bridgeSteps(accounts: AccountDiff[], keep = 8): BridgeStep[] {
   const moving = accounts.filter((a) => Math.abs(Number(a.change)) >= 0.005);
-  const step = (a: AccountDiff): BridgeStep => ({ label: a.name, delta: Number(a.change), account: a.account });
+  const step = (a: AccountDiff): BridgeStep => ({ label: a.name, delta: Number(a.change), account: a.account, cause: causeOf(a) });
   if (moving.length <= keep + 1) return moving.map(step);
   const head = moving.slice(0, keep).map(step);
   const tail = moving.slice(keep);

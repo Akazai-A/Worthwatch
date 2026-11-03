@@ -81,7 +81,7 @@
     >
       <rect class="hit" x={0} y={-ROW / 2} width={W} height={ROW} />
       <text class="lab" class:faint={r.folded} x={GUTTER - 10} y={4} text-anchor="end">{short(r.label)}{r.folded && onunfold ? " ▸" : ""}</text>
-      <rect class:up={r.delta > 0} class:down={r.delta < 0} style="--i:{Math.min(i, 10)}" x={left} y={-6} width={width} height={12} rx="1.5" />
+      <rect class="c-{r.cause ?? 'none'}" class:up={r.delta > 0} class:down={r.delta < 0} style="--i:{Math.min(i, 10)}" x={left} y={-6} width={width} height={12} rx="1.5" />
       <text class="val" class:up={r.delta > 0} class:down={r.delta < 0} x={left + width + 6} y={4}>{signed(r.delta)}</text>
     </g>
   {/each}
@@ -111,6 +111,10 @@
   rect:not(.hit) { fill: var(--fill); }
   rect.up { fill: var(--positive); }
   rect.down { fill: var(--negative); }
+  /* Steps take the colour of their cause: market (sage, clay when it fell), money you moved (bone), debt (violet). */
+  rect.c-money { fill: var(--fill); }
+  rect.c-debt { fill: var(--g-debt); }
+  rect.c-debt.down { fill: color-mix(in oklab, var(--g-debt) 55%, var(--negative)); }
   text.up { fill: var(--positive); }
   text.down { fill: var(--negative); }
   /* The waterfall builds a step at a time, each bar growing from where the last one ended. */
