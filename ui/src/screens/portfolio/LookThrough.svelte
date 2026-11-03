@@ -16,14 +16,9 @@
   const cashTotal = $derived(cash.reduce((s, c) => s + c.value, 0));
   const cur = $derived(lt.base_currency);
   const x = $derived(lt.lookthrough);
-  // Ten rows sit level with the detail card; the rest unfold inside the card, which then
-  // scrolls on its own instead of growing the page.
-  const SHOW = 10;
+  // The top 50, in a list that scrolls inside its card so the page never grows with it.
   const MAX = 50;
-  const ranked = $derived(x.companies.filter((c) => !c.undisclosed && c.key !== "__other__").slice(0, MAX));
-  let expanded = $state(false);
-  const top = $derived(expanded ? ranked : ranked.slice(0, SHOW));
-  const more = $derived(ranked.length - Math.min(ranked.length, SHOW));
+  const top = $derived(x.companies.filter((c) => !c.undisclosed && c.key !== "__other__").slice(0, MAX));
   let selectedKey = $state<string | null>(null);
   const selected = $derived<Company | null>(x.companies.find((c) => c.key === selectedKey) ?? top[0] ?? null);
   const parts = $derived(headlineParts(x.company_count, x.funds, x.top10_pct, x.effective_holdings));
@@ -69,8 +64,8 @@
 
   <div class="two">
     <section class="card">
-      <h2 class="label">Top companies</h2>
-      <div class="scroll" class:open={expanded}>
+      <h2 class="label">Top {top.length} companies</h2>
+      <div class="scroll">
         <table class="top">
           <thead><tr><th>Company</th><th class="r">Value</th><th class="bar"></th><th class="r">Of total</th><th class="go"></th></tr></thead>
           <tbody>
@@ -86,14 +81,9 @@
           </tbody>
         </table>
       </div>
-      <div class="foot">
-        {#if more > 0}
-          <button type="button" class="more" aria-expanded={expanded} onclick={() => (expanded = !expanded)}>{expanded ? "Show top 10" : `Show ${more} more`}</button>
-        {/if}
-        {#if x.company_count > ranked.length}
-          <span class="faint">{(x.company_count - ranked.length).toLocaleString("en-CA")} more names, each under {formatPct(ranked[ranked.length - 1]?.pct ?? 0)}</span>
-        {/if}
-      </div>
+      {#if x.company_count > top.length}
+        <p class="foot faint">{(x.company_count - top.length).toLocaleString("en-CA")} more names, each under {formatPct(top[top.length - 1]?.pct ?? 0)}</p>
+      {/if}
     </section>
 
     <section class="card detail" aria-live="polite">
@@ -134,9 +124,9 @@
   .legend { font-size: 11px; color: var(--text-3); margin: 0; padding: 10px 6px 2px; }
   .two { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(280px, 1fr); gap: 20px; align-items: start; }
   .detail { position: sticky; top: 16px; }
-  /* Ten rows show; "Show more" keeps the card this tall and scrolls the list inside it. */
-  .scroll.open { max-height: 520px; overflow-y: auto; overscroll-behavior: contain; box-shadow: inset 0 -12px 10px -10px rgba(0, 0, 0, 0.35); }
-  .scroll thead th { position: sticky; top: 0; z-index: 1; background: var(--surface); }
+  /* About ten rows tall; the rest scroll inside the card. */
+  .scroll { max-height: 520px; overflow-y: auto; overscroll-behavior: contain; box-shadow: inset 0 -12px 10px -10px rgba(0, 0, 0, 0.35); }
+  .scroll thead th { position: sticky; top: 0; z-index: 1; background: var(--bg); }
   .rank { display: inline-block; width: 22px; font-size: 11px; color: var(--text-3); }
   h2.label { margin: 0 0 8px; font-weight: 500; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -154,7 +144,7 @@
   .detail .sub2 { padding-left: 0; }
   .detail h3 + .sub2 { margin-top: 2px; }
   .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 7px; vertical-align: 1px; }
-  .top td:first-child { padding-left: 0; }
+  .top td:first-child, .top th:first-child { padding-left: 8px; }
   .wt { display: block; width: 50px; height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
   .wt i { display: block; height: 100%; background: var(--fill); }
   th.go, td.go { width: 22px; padding-left: 8px; text-align: right; }
@@ -167,10 +157,7 @@
   .detail .tk { font-weight: 400; font-size: 13px; }
   .detail .big { margin-top: 12px; }
   .note { font-size: 12px; margin: 12px 0 0; }
-  .foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 10px; font-size: 12px; min-height: 20px; }
-  .more { font: inherit; font-size: 12px; color: var(--text-2); background: none; border: 1px solid var(--border); border-radius: 6px; padding: 3px 10px; cursor: pointer; }
-  .more:hover { color: var(--text); }
-  .more:focus-visible { outline: 2px solid var(--accent); }
+  .foot { margin: 10px 0 0; font-size: 12px; }
   .fix .note { margin: 0; }
   .errs { margin: 0 0 10px; padding: 0; list-style: none; font-size: 12px; }
   .errs li { padding: 4px 0; }
@@ -179,6 +166,6 @@
     .two { grid-template-columns: 1fr; }
     th.bar, td.bar { display: none; }
     .detail { position: static; }
-    .scroll.open { max-height: 440px; }
+    .scroll { max-height: 440px; }
   }
 </style>

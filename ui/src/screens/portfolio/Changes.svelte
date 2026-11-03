@@ -74,10 +74,9 @@
   // Underneath: look-through needs a file at both ends.
   const anyFiles = $derived((v?.funds_resolved_to ?? 0) > 0 && (v?.funds_resolved_from ?? 0) > 0);
   const noOldFiles = $derived((v?.funds_resolved_to ?? 0) > 0 && (v?.funds_resolved_from ?? 0) === 0);
-  const SHOW = 8;
-  let allCos = $state(false);
   const cos = $derived<CompanyDelta[]>(anyFiles ? (v?.drift.by_company ?? []) : []);
-  const shownCos = $derived([...(allCos ? cos : cos.slice(0, SHOW))].sort((a, b) => Number(b.delta) - Number(a.delta)));
+  // Gainers first, then the drops; all 40 in a list that scrolls inside its card.
+  const shownCos = $derived([...cos].sort((a, b) => Number(b.delta) - Number(a.delta)));
   const maxCo = $derived(Math.max(0.01, ...cos.map((x) => Math.abs(Number(x.delta)))));
   const sectorMove = (b: BucketDelta) => Number(b.to_value) - Number(b.from_value);
   const sectors = $derived<BucketDelta[]>(anyFiles ? (v?.drift.by_sector ?? []).filter((b) => Math.abs(sectorMove(b)) >= 0.5).sort((a, b) => sectorMove(b) - sectorMove(a)) : []);
@@ -187,7 +186,7 @@
             {#if cos.length === 0}
               <p class="muted empty-line">{noOldFiles ? `No holdings file is old enough for ${formatDate(v.from)}, so there is nothing to compare underneath.` : "No holdings files yet, so nothing to look under."}</p>
             {:else}
-              <div class="list" class:open={allCos}>
+              <div class="list scroll">
                 {#each shownCos as x (x.key)}
                   {@const d = Number(x.delta)}
                   <a class="mrow" href={hashFor({ name: "company", key: x.key })} title="{x.name}: {formatSigned(d, cur)} ({formatPlain(x.from_value, 0)} → {formatPlain(x.to_value, 0)}) · {x.sector}">
@@ -197,7 +196,6 @@
                   </a>
                 {/each}
               </div>
-              {#if cos.length > SHOW}<button type="button" class="linkish more" aria-expanded={allCos} onclick={() => (allCos = !allCos)}>{allCos ? "Top 8 only" : `All ${cos.length}`}</button>{/if}
             {/if}
           </section>
           <section class="card panel">
@@ -342,13 +340,11 @@
   .st .ft { color: var(--text-2); }
   /* Companies beside sectors when both get room for their bars. */
   .pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 20px; align-items: start; }
-  .list.open { max-height: 300px; overflow-y: auto; overscroll-behavior: contain; padding-right: 4px; }
+  .list.scroll { max-height: 300px; overflow-y: auto; overscroll-behavior: contain; padding-right: 4px; }
   .mrow { display: grid; grid-template-columns: minmax(0, 150px) minmax(40px, 1fr) auto; gap: 10px; align-items: center; font-size: 12px; padding: 4px 0; }
   .mrow .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .amt { text-align: right; min-width: 64px; }
   .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 7px; vertical-align: 1px; }
-  .more { align-self: flex-start; margin-top: 8px; font-size: 12px; }
-  .linkish { background: none; border: 0; padding: 0; font: inherit; color: var(--text-2); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
   .div { position: relative; height: 10px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
   .div::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--border); }
   .div i { position: absolute; top: 0; bottom: 0; min-width: 1px; }

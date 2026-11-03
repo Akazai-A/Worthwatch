@@ -41,7 +41,7 @@ Portfolio opens on **Look-through**: the companies you own through your funds. A
 ### Find what you really own
 
 - The treemap sizes each company by your dollars in it. Select a tile or a row in **Top companies** to see which funds carry it, in **Selected**.
-- **Show more** lists up to 50 companies. The list scrolls inside its card.
+- **Top companies** lists your 50 biggest. The list scrolls inside its card.
 - An amber note under the total flags two funds that hold mostly the same things, such as `VFV.TO and VTI are 95% the same`.
 
 ### Compare your funds
