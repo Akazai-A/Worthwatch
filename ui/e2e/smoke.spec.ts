@@ -329,7 +329,7 @@ test("Play: the game asks for a budget, then a goal; the jar and today's token s
   expect(ledgerText()).toMatch(/game:\n\s+goal: /);
 
   // The Shortcut shows whatever the reply's notify line says.
-  const token = (await (await request.get("/api/settings")).json()).token as string;
+  const token = (await (await request.post("/api/settings/token/reveal")).json()).token as string;
   const now = new Date();
   const tap = { merchant: "Balzac's", amount: "4.85", card: "TD Aeroplan Visa", at: now.toISOString() };
   const reply = await (await request.post("/api/ingest/transaction", { data: tap, headers: { Authorization: `Bearer ${token}` } })).json();
