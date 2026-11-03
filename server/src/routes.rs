@@ -519,6 +519,110 @@ async fn refresh_holdings(State(s): State<AppState>) -> Json<LookThroughView> {
     Json(lookthrough_of(&s))
 }
 
+/// The Plan screen: projection under the ledger's assumptions (or the slider's), contribution
+/// room and the recurring rules behind both.
+#[derive(Serialize)]
+pub struct PlanView {
+    pub projection: derive::projection::Projection,
+    pub room: Vec<derive::RoomView>,
+    pub recurring: Vec<RecurringView>,
+    /// The ledger's own assumptions, so the screen can show where the slider started.
+    pub settings: ledger::Projection,
+}
+
+#[derive(Serialize)]
+pub struct RecurringView {
+    #[serde(flatten)]
+    pub rule: ledger::Recurring,
+    pub name: String,
+    pub liability: bool,
+    /// Monthly equivalent in base currency.
+    pub monthly: Option<Decimal>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+pub struct PlanQuery {
+    pub years: Option<u32>,
+    pub return_pct: Option<Decimal>,
+    pub extra: Option<Decimal>,
+    pub target: Option<Decimal>,
+}
+
+pub fn build_plan(snap: &Snapshot, q: &PlanQuery, today: NaiveDate) -> PlanView {
+    let l = &snap.ledger;
+    let m = snap.market();
+    let mut a = derive::Assumptions::from_ledger(l);
+    a.years = q.years.unwrap_or(30).clamp(1, 50);
+    if let Some(r) = q.return_pct {
+        a.return_pct = r.clamp(Decimal::from(-20), Decimal::from(30));
+    }
+    if let Some(x) = q.extra {
+        a.extra_monthly = x.max(Decimal::ZERO);
+    }
+    if q.target.is_some() {
+        a.target = q.target.filter(|t| *t > Decimal::ZERO);
+    }
+    let recurring = l
+        .recurring
+        .iter()
+        .map(|r| {
+            let acct = l.account(&r.account);
+            let per_month = r.amount * Decimal::from(r.every.per_year()) / Decimal::from(12);
+            RecurringView {
+                rule: r.clone(),
+                name: acct.map_or_else(|| r.account.clone(), |a| a.name.clone()),
+                liability: acct.is_some_and(|a| a.kind.is_liability()),
+                monthly: acct
+                    .and_then(|a| derive::to_base(l, &m, per_month, &a.currency, today))
+                    .map(|v| v.round_dp(2)),
+            }
+        })
+        .collect();
+    PlanView {
+        projection: derive::project(l, &m, today, &a),
+        room: derive::room(l, &m, today),
+        recurring,
+        settings: l.settings.projection.clone(),
+    }
+}
+
+async fn get_plan(State(s): State<AppState>, Query(q): Query<PlanQuery>) -> Json<PlanView> {
+    Json(build_plan(&s.snapshot(), &q, Local::now().date_naive()))
+}
+
+async fn list_backups(State(s): State<AppState>) -> Json<Vec<crate::backup::BackupInfo>> {
+    Json(crate::backup::list(&s.data_dir()))
+}
+
+async fn create_backup(State(s): State<AppState>) -> ApiResult<Vec<crate::backup::BackupInfo>> {
+    let dir = s.data_dir();
+    let made = tokio::task::spawn_blocking(move || crate::backup::create(&dir, Local::now())).await;
+    match made {
+        Ok(Ok(_)) => Ok(Json(crate::backup::list(&s.data_dir()))),
+        Ok(Err(e)) => {
+            Err((StatusCode::INTERNAL_SERVER_ERROR, Json(ApiError { message: e.to_string(), line: None })))
+        }
+        Err(e) => {
+            Err((StatusCode::INTERNAL_SERVER_ERROR, Json(ApiError { message: e.to_string(), line: None })))
+        }
+    }
+}
+
+async fn download_backup(State(s): State<AppState>, Path(name): Path<String>) -> axum::response::Response {
+    use axum::response::IntoResponse;
+    match crate::backup::path_of(&s.data_dir(), &name).and_then(|p| std::fs::read(p).ok()) {
+        Some(bytes) => (
+            [
+                (axum::http::header::CONTENT_TYPE, "application/gzip".to_string()),
+                (axum::http::header::CONTENT_DISPOSITION, format!("attachment; filename=\"{name}\"")),
+            ],
+            bytes,
+        )
+            .into_response(),
+        None => StatusCode::NOT_FOUND.into_response(),
+    }
+}
+
 async fn health() -> &'static str {
     "ok"
 }
@@ -721,6 +825,9 @@ pub fn router(state: AppState) -> Router {
         .route("/api/changes", get(get_changes))
         .route("/api/refresh-holdings", post(refresh_holdings))
         .route("/api/events", get(events))
+        .route("/api/plan", get(get_plan))
+        .route("/api/backups", get(list_backups).post(create_backup))
+        .route("/api/backups/{name}", get(download_backup))
         .route("/api/chat", post(chat))
         .route("/api/context", get(get_context))
         .route("/api/propose", post(propose))

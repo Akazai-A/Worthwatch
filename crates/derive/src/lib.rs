@@ -4,6 +4,8 @@
 pub mod diff;
 pub mod market;
 pub mod portfolio;
+pub mod projection;
+pub mod room;
 
 use std::collections::BTreeMap;
 
@@ -15,6 +17,8 @@ use serde::Serialize;
 pub use diff::{changes, AccountDiff, Changes, HoldingDiff};
 pub use market::{Market, Price, Rate, Source};
 pub use portfolio::{portfolio, AccountSlice, Portfolio, SecurityRow, Slice};
+pub use projection::{project, Assumptions};
+pub use room::{room, RoomView};
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct Valuation {

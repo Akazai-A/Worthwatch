@@ -1,3 +1,4 @@
+mod backup;
 mod chat;
 mod mcp;
 mod routes;
@@ -39,9 +40,28 @@ async fn main() -> anyhow::Result<()> {
             });
             return mcp::run(&url);
         }
+        Some("backup") => {
+            let b = backup::create(&data_dir(), chrono::Local::now())?;
+            println!("wrote {}", data_dir().join(backup::DIR).join(&b.name).display());
+            return Ok(());
+        }
+        Some("restore") => {
+            let archive = args
+                .iter()
+                .skip(1)
+                .find(|a| !a.starts_with("--"))
+                .context("usage: worthwatch restore <backup.tar.gz> [--force]")?;
+            let force = args.iter().any(|a| a == "--force");
+            let r = backup::restore(std::path::Path::new(archive), &data_dir(), force, chrono::Local::now())?;
+            println!("restored {} files into {}", r.files, data_dir().display());
+            if let Some(prev) = r.previous {
+                println!("what was there before is in {}", data_dir().join(backup::DIR).join(prev).display());
+            }
+            return Ok(());
+        }
         Some("--help" | "-h" | "help") => {
             println!(
-                "worthwatch                 run the server\nworthwatch seed [--force]  write a sample ledger, quotes and fund holdings to WORTHWATCH_DATA\nworthwatch mcp             MCP server on stdio for Claude Desktop; talks to the running app at WORTHWATCH_URL\n\nWORTHWATCH_DATA  data dir (default data): ledger.yaml, quotes.json, holdings/\nWORTHWATCH_BIND  address (default 127.0.0.1:7777)\nWORTHWATCH_OFFLINE=1  never fetch prices, FX or holdings files"
+                "worthwatch                 run the server\nworthwatch seed [--force]  write a sample ledger, quotes and fund holdings to WORTHWATCH_DATA\nworthwatch mcp             MCP server on stdio for Claude Desktop; talks to the running app at WORTHWATCH_URL\nworthwatch backup          write a backup of WORTHWATCH_DATA to its backups/ folder\nworthwatch restore <file> [--force]  unpack a backup into WORTHWATCH_DATA (stop the server first)\n\nWORTHWATCH_DATA  data dir (default data): ledger.yaml, quotes.json, holdings/, backups/\nWORTHWATCH_BIND  address (default 127.0.0.1:7777)\nWORTHWATCH_OFFLINE=1  never fetch prices, FX or holdings files"
             );
             return Ok(());
         }
@@ -56,6 +76,7 @@ async fn main() -> anyhow::Result<()> {
         .with_context(|| format!("opening data dir {}", data_dir.display()))?;
     state.watch();
     state.schedule_refresh();
+    state.schedule_backups();
     let app = routes::router(state).merge(ui::router());
 
     tracing::info!("worthwatch listening on http://{bind} (data: {})", data_dir.display());

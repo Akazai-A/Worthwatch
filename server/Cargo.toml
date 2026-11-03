@@ -31,6 +31,8 @@ rust-embed.workspace = true
 mime_guess.workspace = true
 futures-util = "0.3"
 tokio-stream = { version = "0.1", features = ["sync"] }
+tar = "0.4"
+flate2 = "1"
 
 [dev-dependencies]
 rust_decimal_macros = "1"

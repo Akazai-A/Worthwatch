@@ -33,6 +33,14 @@ pub enum LedgerError {
     NonPositivePrice(String, String),
     #[error("fx rate for `{0}` must be positive")]
     NonPositiveFx(String),
+    #[error("recurring amount for `{0}` must be positive")]
+    NonPositiveRecurring(String),
+    #[error("`{0}` is not a TFSA, RRSP or FHSA, so it has no contribution room")]
+    NotRegistered(String),
+    #[error("contribution room for {0} cannot be negative")]
+    NegativeRoom(String),
+    #[error("projection rate {0} is outside -50..100 percent")]
+    BadRate(String),
     #[error("ledger.yaml has a problem; fix the file first: {0}")]
     FileHasProblem(String),
     #[error("yaml: {0}")]
@@ -130,6 +138,42 @@ pub fn validate(l: &Ledger) -> Result<(), LedgerError> {
     for c in &l.position_changes {
         if l.account(&c.account).is_none() {
             return Err(LedgerError::UnknownAccount(c.account.clone()));
+        }
+    }
+    for r in &l.recurring {
+        if l.account(&r.account).is_none() {
+            return Err(LedgerError::UnknownAccount(r.account.clone()));
+        }
+        if r.amount <= rust_decimal::Decimal::ZERO {
+            return Err(LedgerError::NonPositiveRecurring(r.account.clone()));
+        }
+    }
+    for c in &l.contributions {
+        let a = l.account(&c.account).ok_or_else(|| LedgerError::UnknownAccount(c.account.clone()))?;
+        if !matches!(a.kind, AccountKind::Tfsa | AccountKind::Rrsp | AccountKind::Fhsa) {
+            return Err(LedgerError::NotRegistered(c.account.clone()));
+        }
+    }
+    for (kind, r) in &l.room {
+        if r.amount.is_sign_negative() {
+            return Err(LedgerError::NegativeRoom(kind.label().into()));
+        }
+    }
+    let p = &l.settings.projection;
+    let lo = rust_decimal::Decimal::from(-50);
+    let hi = rust_decimal::Decimal::from(100);
+    for (what, v) in
+        [("return_pct", &p.return_pct), ("cash_pct", &p.cash_pct), ("property_pct", &p.property_pct)]
+            .into_iter()
+            .chain(p.rates.iter().map(|(k, v)| (k.as_str(), v)))
+    {
+        if *v < lo || *v > hi {
+            return Err(LedgerError::BadRate(what.into()));
+        }
+    }
+    for id in p.rates.keys() {
+        if l.account(id).is_none() {
+            return Err(LedgerError::UnknownAccount(id.clone()));
         }
     }
     Ok(())
