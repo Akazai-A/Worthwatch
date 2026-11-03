@@ -22,6 +22,9 @@
     <key>HOME</key>
     <string>__HOME__</string>
   </dict>
+  <!-- 077: files it writes are readable by you only. -->
+  <key>Umask</key>
+  <integer>63</integer>
   <key>WorkingDirectory</key>
   <string>__HOME__/Library/Application Support/Worthwatch</string>
   <key>RunAtLoad</key>
