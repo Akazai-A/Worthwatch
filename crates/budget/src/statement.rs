@@ -442,7 +442,7 @@ fn parse_date(s: &str, order: SlashOrder) -> Option<NaiveDate> {
 // ---------------------------------------------------------------- OFX
 
 fn ofx_field(block: &str, tag: &str) -> Option<String> {
-    let up = block.to_uppercase();
+    let up = block.to_ascii_uppercase();
     let open = format!("<{tag}>");
     let start = up.find(&open)? + open.len();
     let rest = &block[start..];
@@ -452,7 +452,7 @@ fn ofx_field(block: &str, tag: &str) -> Option<String> {
 }
 
 fn parse_ofx(text: &str) -> ParsedStatement {
-    let up = text.to_uppercase();
+    let up = text.to_ascii_uppercase();
     let mut rows = Vec::new();
     let mut skipped = Vec::new();
     let mut from = 0;
@@ -495,6 +495,16 @@ mod tests {
 
     fn fixture(name: &str) -> String {
         std::fs::read_to_string(format!("{}/fixtures/{name}", env!("CARGO_MANIFEST_DIR"))).unwrap()
+    }
+
+    #[test]
+    fn ofx_with_letters_that_change_length_in_uppercase_does_not_panic() {
+        // "ﬁ" uppercases to "FI" and "ı" to "I": offsets taken from a Unicode-uppercased
+        // copy used to land inside a character of the original.
+        let text = fixture("statement.ofx").replace("BLUE BOTTLE", "ﬁne café ı BOTTLE");
+        let p = parse_statement(&text, Preset::Auto, false);
+        assert!(!p.rows.is_empty());
+        let _ = parse_statement("<STMTTRN>ﬁﬁﬁ<DTPOSTED>2026ı</STMTTRN>", Preset::Auto, false);
     }
 
     #[test]

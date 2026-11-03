@@ -80,7 +80,10 @@ fn number(cell: &str) -> Option<(Decimal, bool, bool)> {
     if s.is_empty() || !s.bytes().all(|b| b.is_ascii_digit() || b == b'.' || b == b'-') {
         return None;
     }
-    s.parse::<Decimal>().ok().map(|d| (d, money, percent))
+    // Nothing real is a trillion units or dollars; bigger is junk, and would overflow
+    // `units * price` below.
+    let limit = Decimal::from(1_000_000_000_000_i64);
+    s.parse::<Decimal>().ok().filter(|d| d.abs() < limit).map(|d| (d, money, percent))
 }
 
 fn looks_like_symbol(cell: &str) -> bool {
@@ -322,6 +325,14 @@ mod tests {
     use super::*;
     use ledger::{AccountKind, Ledger, Position};
     use rust_decimal_macros::dec;
+
+    #[test]
+    fn absurd_numbers_are_skipped_not_multiplied_into_a_panic() {
+        // Used to overflow `units * price` and panic the paste preview.
+        let p = parse_holdings("XEQT  $9999999999999999999999999999  9999999999999999999999999999.  $34.12\nVFV  $1,500.00  10  $150.00\n");
+        assert!(p.rows.iter().all(|r| r.units < dec!(1_000_000_000_000)));
+        assert!(p.rows.iter().any(|r| r.symbol == "VFV"), "{p:?}");
+    }
 
     fn tfsa() -> Account {
         Account {
