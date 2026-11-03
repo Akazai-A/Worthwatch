@@ -83,7 +83,7 @@
 </div>
 
 <style>
-  .wrap { position: relative; }
+  .wrap { position: relative; contain: inline-size; }
   svg { display: block; touch-action: pan-y; }
   .grid { stroke: var(--border); }
   .ax { font-size: 10px; fill: var(--text-3); font-family: var(--figures); }

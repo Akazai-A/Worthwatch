@@ -107,7 +107,7 @@
 </div>
 
 <style>
-  .treemap { position: relative; width: 100%; overflow: hidden; border-radius: 6px; background: var(--surface-2); }
+  .treemap { position: relative; width: 100%; contain: inline-size; overflow: hidden; border-radius: 6px; background: var(--surface-2); }
   .block { position: absolute; border-radius: 4px; background: color-mix(in oklab, var(--hue) 7%, var(--surface-2)); }
   .head { position: absolute; left: 6px; right: 6px; top: 0; height: 18px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: color-mix(in oklab, var(--hue) 70%, var(--text)); white-space: nowrap; overflow: hidden; }
   .head .bn { overflow: hidden; text-overflow: ellipsis; }

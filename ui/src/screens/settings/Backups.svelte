@@ -63,7 +63,7 @@
   .s { text-align: right; font-size: 12px; }
   .r a { color: var(--text-2); font-size: 12px; }
   .new { font-size: 10px; color: var(--positive); }
-  pre { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; font-family: var(--mono); font-size: 12px; overflow-x: auto; }
+  pre { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; font-family: var(--mono); font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
   code { font-family: var(--mono); font-size: 12px; }
   .small { font-size: 12px; }
   .error { color: var(--negative); }

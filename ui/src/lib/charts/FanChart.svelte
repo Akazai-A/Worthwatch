@@ -168,7 +168,7 @@
 </div>
 
 <style>
-  .fan { position: relative; width: 100%; }
+  .fan { position: relative; width: 100%; contain: inline-size; }
   svg { display: block; overflow: visible; touch-action: pan-y; }
   .grid { stroke: var(--border); }
   .ax { font-family: var(--figures); font-size: 11px; fill: var(--text-3); }

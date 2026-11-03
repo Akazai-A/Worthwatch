@@ -39,7 +39,8 @@
 </div>
 
 <style>
-  .lin { width: 100%; margin-top: 12px; }
+  /* contain: inline-size: the measured SVG never props the card open, so it shrinks with the window. */
+  .lin { width: 100%; margin-top: 12px; contain: inline-size; }
   svg { display: block; overflow: visible; }
   path { fill-opacity: 0.5; }
   .l { font-size: 12px; fill: var(--text); }

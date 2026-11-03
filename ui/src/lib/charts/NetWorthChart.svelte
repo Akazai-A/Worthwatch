@@ -308,7 +308,7 @@
   .seg button.on { background: var(--surface-2); color: var(--text); }
   .seg button:disabled { color: var(--text-3); cursor: default; }
   .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-  .plot { position: relative; min-height: 240px; }
+  .plot { position: relative; min-height: 240px; contain: inline-size; }
   /* Hover: a caliper measures the day's gain; tags sit on the axes, details go in the line under the chart.
      Nothing sits on top of the line it describes. */
   .hair, .tag, .cal, .cal-tag { position: absolute; pointer-events: none; z-index: 2; }
