@@ -13,7 +13,7 @@ Start with [Get started](getting-started.md). Each page below covers one task.
 
 ## Connect and run
 
-- [Connect Claude Desktop](mcp.md): use Worthwatch as an MCP server.
+- [Connect an AI assistant](mcp.md): use Worthwatch from Claude Desktop, Claude Code or another MCP client.
 - [Access Worthwatch remotely](remote-access.md): reach it from your phone or another computer, safely.
 - [Back up and restore](backup-restore.md): keep your data safe and move it to a new machine.
 - [Run Worthwatch on a Mac](macos.md): start it at login on a Mac mini with launchd.

@@ -111,6 +111,6 @@ For an annotated example, see [`data/ledger.example.yaml`](../data/ledger.exampl
 
 - Learn each screen in the [User guide](user-guide.md).
 - [Budget your spending](budgeting.md) from your bank statements and Apple Pay.
-- [Connect Claude Desktop](mcp.md) to ask questions about your portfolio.
+- [Connect an AI assistant](mcp.md) to ask questions about your portfolio.
 - [Access Worthwatch from your phone](remote-access.md).
 - Set up [backups](backup-restore.md) off the machine.
