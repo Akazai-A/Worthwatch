@@ -9,7 +9,7 @@
   import RunningTotal from "../lib/charts/RunningTotal.svelte";
   import ImportPanel from "../lib/components/ImportPanel.svelte";
   import Sparkline from "../lib/charts/Sparkline.svelte";
-  import PaceRun from "../lib/components/PaceRun.svelte";
+  import RoundGame from "../lib/components/RoundGame.svelte";
 
   let { view, month, importing = false }: { view: LedgerView; month: string | null; importing?: boolean } = $props();
 
@@ -138,6 +138,8 @@
   {#if !b}
     <p class="faint">{budget.error ?? "Loading…"}</p>
   {:else}
+    {#if Number(b.budget) > 0 && b.day > 0}<RoundGame v={b} />{/if}
+
     <section class="hero">
       <div>
         <div class="label">Spent in {monthLabel(b.month).split(" ")[0]}</div>
@@ -202,8 +204,6 @@
         </section>
       {/if}
     {/if}
-
-    {#if Number(b.budget) > 0 && b.day > 0}<PaceRun v={b} />{/if}
 
     {#if b.txns.length === 0}
       <section class="card empty">

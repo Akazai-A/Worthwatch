@@ -188,3 +188,61 @@ export function monthsKept(v: BudgetView): { month: string; spent: number; budge
   out.push({ month: v.month.slice(0, 7), spent: Number(v.spent), budget: Number(v.pace), kept: Number(v.spent) <= Number(v.pace), current: true });
   return out.filter((m) => m.current || m.spent > 0);
 }
+
+// ---- Draft 2: the round game. Paydays and goals are mocked here; a build would read
+// them from the ledger (settings.paydays, settings.round_goal, recurring contributions).
+
+export interface RoundDay { day: number; iso: string; allowance: number; spent: number; closed: boolean; today: boolean; net: number }
+export interface Round {
+  start: string; end: string; payday: string; n: number; of: number; days: number; dayIn: number;
+  allowance: number; days_: RoundDay[]; banked: number; taken: number; planned: number; goal: number; pot: number; toGo: number; daysLeft: number;
+  today: { allowance: number; spent: number; left: number; taps: { merchant: string; amount: number; category: string }[] };
+}
+
+const PAYDAYS = [15, 30]; // mocked "paid twice a month" setting
+const dayIso = (month: string, d: number) => `${month.slice(0, 7)}-${String(d).padStart(2, "0")}`;
+
+export function round(v: BudgetView, goal = 500, planned = 250): Round {
+  const bills = v.categories.find((c) => c.category === "bills");
+  const disc = Number(v.budget) - Number(bills?.limit ?? 0);
+  const allowance = Math.round(disc / v.days);
+  const today = v.day;
+  const start = today >= PAYDAYS[0] ? PAYDAYS[0] : 1;
+  const end = today >= PAYDAYS[0] ? v.days - 1 : PAYDAYS[0] - 1;
+  const paidOn = new Map(v.bills.filter((b) => b.paid_on).map((b) => [b.paid_on!, Number(b.paid_amount ?? b.amount)]));
+  const days_: RoundDay[] = [];
+  for (let d = start; d <= end; d++) {
+    const iso = dayIso(v.month, d);
+    const raw = d <= today ? Number(v.daily[d - 1] ?? 0) - (paidOn.get(iso) ?? 0) : 0;
+    const spent = Math.max(0, raw);
+    days_.push({ day: d, iso, allowance, spent, closed: d < today, today: d === today, net: d < today ? allowance - spent : 0 });
+  }
+  const banked = days_.filter((d) => d.closed && d.net > 0).reduce((a, d) => a + d.net, 0);
+  const taken = days_.filter((d) => d.closed && d.net < 0).reduce((a, d) => a - d.net, 0);
+  const pot = Math.max(0, planned + banked - taken);
+  const taps = v.txns.filter((t) => t.date === dayIso(v.month, today) && counts(t.category)).reverse()
+    .map((t) => ({ merchant: t.merchant, amount: Number(t.base_amount ?? t.amount), category: t.category }));
+  const spentToday = taps.reduce((a, t) => a + t.amount, 0);
+  const [y, m] = v.month.split("-").map(Number);
+  return {
+    start: dayIso(v.month, start), end: dayIso(v.month, end), payday: end + 1 > v.days ? shiftMonth(v.month, 1) + "-01" : dayIso(v.month, end + 1),
+    n: (m - 1) * 2 + (start === 1 ? 1 : 2), of: 24, days: days_.length, dayIn: today - start + 1,
+    allowance, days_, banked, taken, planned, goal, pot, toGo: Math.max(0, goal - pot), daysLeft: end - today,
+    today: { allowance, spent: spentToday, left: allowance - spentToday, taps },
+  };
+}
+
+/** Arc segments for the day ring: one wedge per tap, in order, then what is left. */
+export function ringWedges(allowance: number, taps: { amount: number }[], r = 44, cx = 50, cy = 50) {
+  const total = Math.max(allowance, taps.reduce((a, t) => a + t.amount, 0)) || 1;
+  const C = 2 * Math.PI * r;
+  let acc = 0;
+  const seg = (from: number, to: number) => {
+    const a = (f: number) => -Math.PI / 2 + 2 * Math.PI * f;
+    const p = (f: number) => `${(cx + r * Math.cos(a(f))).toFixed(2)} ${(cy + r * Math.sin(a(f))).toFixed(2)}`;
+    const large = to - from > 0.5 ? 1 : 0;
+    return `M${p(from)} A${r} ${r} 0 ${large} 1 ${p(Math.min(to, 0.9999))}`;
+  };
+  const wedges = taps.map((t) => { const from = acc / total; acc += t.amount; return { d: seg(from, acc / total), over: acc > allowance }; });
+  return { wedges, left: seg(acc / total, 1), circumference: C, overFrac: Math.max(0, (acc - allowance) / total) };
+}
