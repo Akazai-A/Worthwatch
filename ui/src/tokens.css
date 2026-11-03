@@ -58,7 +58,6 @@
 html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; line-height: 1.45; }
 a { color: var(--accent); }
 .num, .money { font-family: var(--figures); font-variant-numeric: tabular-nums; }
-.blur .money { filter: blur(7px); }
 .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-3); }
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
 .muted { color: var(--text-2); }

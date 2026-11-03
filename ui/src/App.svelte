@@ -20,6 +20,9 @@
 
   let palette = $state(false);
 
+  // <svelte:body class:…> is not applied in Svelte 5, so the privacy blur sets the class itself.
+  $effect(() => { document.body.classList.toggle("blur", prefs.blur); });
+
   onMount(() => {
     void view.load();
     view.connect();
@@ -38,7 +41,6 @@
 </script>
 
 <svelte:window onkeydown={onKey} />
-<svelte:body class:blur={prefs.blur} />
 
 <Palette view={view.current} bind:open={palette} />
 {#if route.current.name === "wall" && view.current}

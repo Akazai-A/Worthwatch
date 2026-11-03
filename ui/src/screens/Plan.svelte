@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PrivacyToggle from "../lib/components/PrivacyToggle.svelte";
   import { apply, ApiError, EVERY_LABEL, type Every, type LedgerView, type Mutation, type Recurring, type RoomKind } from "../lib/api";
   import { formatCompact, formatDate, formatMoney, parseAmount, todayIso } from "../lib/money";
   import { milestoneSplit, monthYear, payoffLine, roomBar, roomLine, yearsBetween } from "../lib/plan";
@@ -23,8 +24,8 @@
   const extraN = $derived(Number(plan.extra));
   const changed = $derived(p != null && ((plan.returnPct != null && Number(plan.returnPct) !== ledgerReturn) || (plan.target != null && Number(plan.target) !== Number(p.settings.target ?? 0))));
   const headline = $derived(P ? (P.milestones.find((m) => m.years === 10) ?? P.milestones[P.milestones.length - 1]) : null);
-  const money = (v: number | string) => (prefs.blur ? "•••" : formatMoney(v, cur));
-  const compact = (v: number | string) => (prefs.blur ? "•••" : formatCompact(Number(v)));
+  const money = (v: number | string) => (prefs.blur ? "*****" : formatMoney(v, cur));
+  const compact = (v: number | string) => (prefs.blur ? "*****" : formatCompact(Number(v)));
   const maxDebt = $derived(P ? Math.max(1, ...P.debts.map((d) => Number(d.balance))) : 1);
   const groupOf = (id: string) => view.accounts.find((a) => a.id === id)?.group ?? "cash";
 
@@ -121,6 +122,7 @@
         <div class="label">In {headline.years} year{headline.years > 1 ? "s" : ""}, at {ret}%</div>
         <Money value={headline.net_worth} currency={cur} size="xl" />
         <div class="sub">
+          <PrivacyToggle />
           range <b class="money">{compact(headline.low)}–{compact(headline.high)}</b> at {ret - 2}–{ret + 2}%
           {#if tgt != null && tgt > 0}
             · <b class="money">{compact(tgt)}</b> target

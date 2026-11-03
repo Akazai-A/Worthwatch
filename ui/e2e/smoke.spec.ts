@@ -219,7 +219,7 @@ test("Plan: a recurring rule moves the projection; ⌘K reaches the wall view; a
 
   await page.getByRole("button", { name: "+ Add rule" }).click();
   await page.getByLabel("Account").selectOption({ label: "TD Chequing" });
-  await page.getByLabel("Amount").fill("1000");
+  await page.getByLabel("Amount", { exact: true }).fill("1000");
   await page.getByRole("button", { name: "Add", exact: true }).click();
   await expect(page.locator(".rules .r")).toContainText("TD Chequing");
   await expect(hero).not.toHaveText(before!);
@@ -296,4 +296,51 @@ test("Budget: a tap needs the token, shows at once as provisional, and the state
   await expect(page.getByText("1 already imported")).toBeVisible();
   await expect(page.getByRole("button", { name: "Import 0 new" })).toBeDisabled();
   expect((await (await request.get("/api/budget")).json()).txns).toHaveLength(1);
+});
+
+test("⌘⇧H hides every amount as stars, and shows them again", async ({ page }) => {
+  await page.goto("/#/");
+  const amount = page.locator(".hero .money.xl");
+  await expect(amount).toHaveText(/^\$[\d,]+$/);
+  await page.keyboard.press("Control+Shift+H");
+  await expect(amount).toHaveText("*****");
+  await expect(page.locator(".money").filter({ hasText: /\d/ })).toHaveCount(0);
+  await expect(page.locator(".rail").getByRole("button", { name: /Show amounts/ })).toBeVisible();
+  // Unit counts are personal too; share prices are public and stay.
+  await page.goto("/#/portfolio");
+  await expect(page.locator("table td.num").filter({ hasText: /^\*{5}$/ }).first()).toBeVisible();
+  await page.goto("/#/");
+  await page.keyboard.press("Control+Shift+H");
+  await expect(amount).toHaveText(/^\$[\d,]+$/);
+
+  // The eye under the big figure does the same.
+  const eye = page.getByRole("button", { name: "Hide amounts" }).first();
+  await eye.click();
+  await expect(amount).toHaveText("*****");
+  await expect(page.locator(".hero").getByRole("button", { name: "Show amounts" })).toHaveAttribute("aria-pressed", "true");
+  await page.locator(".hero").getByRole("button", { name: "Show amounts" }).click();
+  await expect(amount).toHaveText(/^\$[\d,]+$/);
+});
+
+test("Check-in: Enter in ⌘K doesn't save, and a live update doesn't move the cursor", async ({ page }) => {
+  await page.goto("/#/check-in");
+  const visa = page.getByLabel("TD Visa new value");
+  await visa.fill("123");
+  const before = readFileSync(ledger(), "utf8");
+
+  // Enter inside the palette runs the palette item, never the check-in save.
+  await page.keyboard.press("Control+K");
+  await page.getByRole("combobox", { name: "Search" }).fill("Backups");
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/#\/backups$/);
+  expect(readFileSync(ledger(), "utf8")).toBe(before);
+
+  // A change on disk reloads the view; the field being typed in keeps focus.
+  await page.goto("/#/check-in");
+  await visa.click();
+  await visa.fill("456");
+  writeFileSync(ledger(), before + "\n# touched by the e2e test\n");
+  await expect(page.getByText("touched", { exact: false })).toHaveCount(0);
+  await page.waitForTimeout(1200);
+  await expect(visa).toBeFocused();
 });

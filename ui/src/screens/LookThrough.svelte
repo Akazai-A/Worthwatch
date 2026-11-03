@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PrivacyToggle from "../lib/components/PrivacyToggle.svelte";
   // Portfolio › Look-through: where the money actually is, through every fund.
   import type { Company, LookThroughView } from "../lib/api";
   import { formatDate, formatMoney } from "../lib/money";
@@ -32,6 +33,7 @@
   <div class="label">Where the money actually is</div>
   <Money value={x.total} currency={cur} size="xl" />
   <div class="sub">
+    <PrivacyToggle />
     {#each parts as p}<span class="chip">{p}</span>{/each}
     {#each warns as w}<span class="chip warn">{w}</span>{/each}
   </div>

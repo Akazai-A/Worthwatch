@@ -1,6 +1,7 @@
 // Browser-side wording for the look-through screens. No arithmetic on money here
 // beyond layout; every figure comes from the server.
 import type { Bucket, Company, FundStatus, Via } from "./api";
+import { MASK, amountsHidden } from "./money";
 
 /** "XEQT.TO → XUS.TO" */
 export function viaLabel(v: Via): string {
@@ -24,6 +25,7 @@ export function shortPath(path: string, keep = 2): string {
 }
 
 export function compactMoney(value: string | number): string {
+  if (amountsHidden()) return MASK;
   const n = Math.abs(Number(value));
   if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1).replace(/\.0$/, "")}M`;
   if (n >= 1_000) return `$${(n / 1_000).toFixed(n >= 100_000 ? 0 : 1).replace(/\.0$/, "")}k`;

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { apply, ApiError, GROUPS, GROUP_LABEL, KIND_LABEL, ratesInUse, type Account, type AccountKind, type AccountView, type LedgerView, type Mutation } from "../lib/api";
   import { balanceDelta, buildCheckin, slugify, summarize, type Entry } from "../lib/checkin";
-  import { formatDate, formatPlain, parseNumber, todayIso } from "../lib/money";
+  import { formatDate, formatPlain, formatUnits, parseNumber, todayIso, MASK, amountsHidden } from "../lib/money";
   import { view as viewStore } from "../lib/stores/view.svelte";
   import { route } from "../lib/stores/route.svelte";
   import Money from "../lib/components/Money.svelte";
@@ -43,7 +43,9 @@
     const el = document.querySelector<HTMLInputElement>(".ci input[type=text]");
     el?.focus();
   }
-  $effect(() => { if (view.accounts.length) queueMicrotask(focusFirst); });
+  // Focus the first field once, when the accounts first arrive; live updates must not move the cursor.
+  let focused = false;
+  $effect(() => { if (!focused && view.accounts.length) { focused = true; queueMicrotask(focusFirst); } });
 
   async function save() {
     if (saving || result.mutations.length === 0 || result.invalid.length) return;
@@ -94,7 +96,9 @@
   }
 
   function onKey(e: KeyboardEvent) {
-    if (e.key === "Enter" && !adding && (e.target as HTMLElement)?.tagName === "INPUT") { e.preventDefault(); void save(); }
+    // Only Enter in this screen's own fields saves; the ⌘K palette's input must not.
+    const t = e.target as HTMLElement | null;
+    if (e.key === "Enter" && !adding && t?.tagName === "INPUT" && t.closest(".checkin")) { e.preventDefault(); void save(); }
   }
   const kinds = Object.keys(KIND_LABEL) as AccountKind[];
 </script>
@@ -123,9 +127,9 @@
           {@const d = deltaOf(a)}
           <div class="ci">
             <span class="name">{a.name}<span class="faint inst">{a.institution ?? ""}{a.currency !== cur ? ` · ${a.currency}` : ""}</span></span>
-            <span class="r num muted">{a.as_of ? formatPlain(a.native_value) : "—"}</span>
+            <span class="r num muted">{a.as_of ? (amountsHidden() ? MASK : formatPlain(a.native_value)) : "—"}</span>
             <span class="r upd" class:warn={stale}>{a.days_stale == null ? "never" : `${a.days_stale}d`}</span>
-            <input type="text" id="in-{a.id}" inputmode="decimal" placeholder={a.as_of ? formatPlain(a.native_value) : "0.00"} value={entries[a.id]?.balance ?? ""} oninput={(e) => setBalance(a.id, e.currentTarget.value)} class:bad={d === "invalid"} disabled={locked} aria-label="{a.name} new value" />
+            <input type="text" id="in-{a.id}" inputmode="decimal" placeholder={a.as_of ? (amountsHidden() ? MASK : formatPlain(a.native_value)) : "0.00"} value={entries[a.id]?.balance ?? ""} oninput={(e) => setBalance(a.id, e.currentTarget.value)} class:bad={d === "invalid"} disabled={locked} aria-label="{a.name} new value" />
             <span class="r delta num" class:bad={d === "invalid"}>
               {#if d === "invalid"}not a number{:else if d == null}<span class="faint">carry</span>{:else}<Money value={d} currency={a.currency} signed digits={2} tone={a.liability ? "none" : "delta"} />{/if}
             </span>
@@ -133,7 +137,7 @@
         {:else}
           <div class="ci">
             <span class="name">{a.name}<span class="faint inst">{a.institution ?? ""}{a.currency !== cur ? ` · ${a.currency}` : ""}</span></span>
-            <span class="r num muted">{a.missing_price ? "—" : formatPlain(a.native_value)}</span>
+            <span class="r num muted">{a.missing_price ? "—" : amountsHidden() ? MASK : formatPlain(a.native_value)}</span>
             <span class="r upd" class:warn={stale}>{a.days_stale == null ? "never" : `${a.days_stale}d`}</span>
             <span class="r faint">from holdings</span>
             <span class="r"><button type="button" class="link" id="paste-{a.id}-open" onclick={() => (pasting = pasting === a.id ? null : a.id)} disabled={locked}>{pasting === a.id ? "Close paste" : "Paste holdings"}</button></span>
@@ -144,10 +148,10 @@
           {#each a.holdings as h}
             <div class="ci pos">
               <span class="name">{h.symbol}<span class="faint inst">units · price in {a.currency}</span></span>
-              <span class="r num muted">{formatPlain(h.units, 4)}</span>
+              <span class="r num muted">{formatUnits(h.units)}</span>
               <span class="r upd faint" title={h.price_source === "fetched" ? "fetched price; typing one overrides it for this date" : h.price_source === "manual" ? "typed on a check-in" : ""}>{h.price == null ? "no price" : `${formatPlain(h.price)} ${h.price_date ? formatDate(h.price_date) : ""}`}</span>
               <span class="pair">
-                <input type="text" id="in-{a.id}-{h.symbol}-units" inputmode="decimal" placeholder={formatPlain(h.units, 4)} value={entries[a.id]?.units?.[h.symbol] ?? ""} oninput={(e) => setUnits(a.id, h.symbol, e.currentTarget.value)} class:bad={result.invalid.includes(`${a.id}:${h.symbol}:units`)} disabled={locked} aria-label="{h.symbol} units" />
+                <input type="text" id="in-{a.id}-{h.symbol}-units" inputmode="decimal" placeholder={formatUnits(h.units)} value={entries[a.id]?.units?.[h.symbol] ?? ""} oninput={(e) => setUnits(a.id, h.symbol, e.currentTarget.value)} class:bad={result.invalid.includes(`${a.id}:${h.symbol}:units`)} disabled={locked} aria-label="{h.symbol} units" />
                 <input type="text" id="in-{a.id}-{h.symbol}-price" inputmode="decimal" placeholder={h.price == null ? "price" : formatPlain(h.price)} value={entries[a.id]?.prices?.[h.symbol] ?? ""} oninput={(e) => setPrice(a.id, h.symbol, e.currentTarget.value)} class:bad={result.invalid.includes(`${a.id}:${h.symbol}:price`)} disabled={locked} aria-label="{h.symbol} price" />
               </span>
               <span class="r delta faint">{entries[a.id]?.units?.[h.symbol] || entries[a.id]?.prices?.[h.symbol] ? "edited" : "carry"}</span>

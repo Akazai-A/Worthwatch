@@ -1,6 +1,7 @@
 <script lang="ts">
+  import PrivacyToggle from "../lib/components/PrivacyToggle.svelte";
   import { KIND_LABEL, type LedgerView } from "../lib/api";
-  import { formatDate, formatPlain } from "../lib/money";
+  import { formatDate, formatPlain, formatUnits, MASK, amountsHidden } from "../lib/money";
   import { prefs } from "../lib/stores/prefs.svelte";
   import Money from "../lib/components/Money.svelte";
   import NetWorthChart from "../lib/charts/NetWorthChart.svelte";
@@ -28,7 +29,7 @@
       </div>
       <div class="val">
         <Money value={a.value} currency={cur} size="xl" />
-        <div class="faint">{a.as_of ? `updated ${formatDate(a.as_of, "long")}` : "no value yet"}{a.days_stale != null ? ` · ${a.days_stale}d ago` : ""}</div>
+        <div class="faint"><PrivacyToggle /> {a.as_of ? `updated ${formatDate(a.as_of, "long")}` : "no value yet"}{a.days_stale != null ? ` · ${a.days_stale}d ago` : ""}</div>
       </div>
     </div>
 
@@ -45,10 +46,10 @@
             {#each a.holdings as h}
               <tr>
                 <td>{h.symbol}</td>
-                <td class="r num">{formatPlain(h.units, 4)}</td>
+                <td class="r num">{formatUnits(h.units)}</td>
                 <td class="r num">{#if h.price == null}<span class="warn">no price</span>{:else}{formatPlain(h.price)}<span class="faint small">&nbsp;&nbsp;{h.price_date ? formatDate(h.price_date) : ""}{h.price_source === "manual" ? " · manual" : ""}</span>{/if}</td>
-                <td class="r num money">{h.native_value == null ? "—" : formatPlain(h.native_value)}</td>
-                <td class="r num money">{h.book_cost == null ? "—" : formatPlain(h.book_cost)}</td>
+                <td class="r num money">{h.native_value == null ? "—" : amountsHidden() ? MASK : formatPlain(h.native_value)}</td>
+                <td class="r num money">{h.book_cost == null ? "—" : amountsHidden() ? MASK : formatPlain(h.book_cost)}</td>
                 <td class="r">{#if h.native_value != null && h.book_cost != null}<Money value={Number(h.native_value) - Number(h.book_cost)} currency={a.currency} signed tone="delta" />{:else}—{/if}</td>
               </tr>
             {/each}

@@ -1,7 +1,7 @@
 <script lang="ts">
   // Paste a broker holdings export for one position account; preview the diff; apply.
   import { apply, ApiError, parseHoldings, type AccountView, type PastePlan } from "../api";
-  import { formatPlain } from "../money";
+  import { formatPlain, formatUnits, MASK, amountsHidden } from "../money";
   import { view as viewStore } from "../stores/view.svelte";
 
   let { account, date, locked = false, onclose }: { account: AccountView; date: string; locked?: boolean; onclose: () => void } = $props();
@@ -60,10 +60,10 @@
         {@const d = Number(r.delta)}
         <div class="prev">
           <span>{r.symbol}{#if r.new}<span class="new">new</span>{:else if r.pasted_symbol.toUpperCase() !== r.symbol}<span class="faint small">&nbsp;from {r.pasted_symbol}</span>{/if}</span>
-          <span class="r num">{r.new ? "—" : formatPlain(r.current_units, 4)}</span>
-          <span class="r num">{formatPlain(r.units, 4)}</span>
-          <span class="r num" class:up={d > 0} class:down={d < 0} class:faint={d === 0}>{d === 0 ? "same" : `${d > 0 ? "+" : "−"}${formatPlain(Math.abs(d), 4)}`}</span>
-          <span class="r num">{r.price == null ? "—" : formatPlain(r.price)}{#if r.book_cost != null}<span class="faint small"> · book {formatPlain(r.book_cost)}</span>{/if}</span>
+          <span class="r num">{r.new ? "—" : formatUnits(r.current_units)}</span>
+          <span class="r num">{formatUnits(r.units)}</span>
+          <span class="r num" class:up={d > 0} class:down={d < 0} class:faint={d === 0}>{d === 0 ? "same" : `${d > 0 ? "+" : "−"}${formatUnits(Math.abs(d))}`}</span>
+          <span class="r num">{r.price == null ? "—" : formatPlain(r.price)}{#if r.book_cost != null}<span class="faint small"> · book {amountsHidden() ? MASK : formatPlain(r.book_cost)}</span>{/if}</span>
         </div>
       {/each}
     {/if}
