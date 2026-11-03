@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { MASK, formatCompact, formatMoney, formatSigned, hideAmountsWhen, maskAmounts, parseAmount, parseNumber } from "./money";
+import { MASK, formatCompact, formatMoney, formatSigned, formatUnits, hideAmountsWhen, maskAmounts, parseAmount, parseNumber } from "./money";
 
 describe("parseAmount", () => {
   it("handles plain, comma, k, negative and unicode minus", () => {
@@ -54,9 +54,11 @@ describe("hidden amounts", () => {
     expect(formatMoney("5102.1")).toBe(MASK);
     expect(formatSigned(1240)).toBe(MASK);
     expect(formatCompact(12_000)).toBe(MASK);
+    expect(formatUnits("426.5")).toBe(MASK);
     expect(MASK).toBe("*****");
     on = false;
     expect(formatMoney("5102.1")).toBe("$5,102");
+    expect(formatUnits("426.5")).toBe("426.5");
   });
 
   it("masks dollar amounts inside prose, leaving other numbers", () => {

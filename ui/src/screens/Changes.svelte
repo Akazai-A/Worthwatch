@@ -1,9 +1,10 @@
 <script lang="ts">
+  import PrivacyToggle from "../lib/components/PrivacyToggle.svelte";
   // Changes: what moved between two dates. Net worth bridge, every account, every
   // holding split into market / trades / FX, exposure drift, and the feed of fund
   // file changes. All figures come from GET /api/changes; this file lays them out.
   import { GROUPS, GROUP_LABEL, type AccountDiff, type BucketDelta, type Drift, type LedgerView } from "../lib/api";
-  import { formatDate, formatPlain, formatSigned } from "../lib/money";
+  import { formatDate, formatPlain, formatSigned, formatUnits } from "../lib/money";
   import { PRESETS, accountHint, bridgeSteps, changeLine, minorLine, parts, presetFrom, presetTo, rangeLabel, type Preset } from "../lib/changes";
   import { changes as store } from "../lib/stores/changes.svelte";
   import { prefs } from "../lib/stores/prefs.svelte";
@@ -60,7 +61,7 @@
       });
   }
 
-  const units = (x: string) => new Intl.NumberFormat("en-CA", { maximumFractionDigits: 4 }).format(Number(x));
+  const units = (x: string) => formatUnits(x);
   const accountParts = (a: AccountDiff) =>
     [
       { label: "market", value: Number(a.market ?? 0) },
@@ -137,6 +138,7 @@
         <div class="label">Net worth change</div>
         <Money value={c.change} currency={cur} size="xl" signed tone="delta" />
         <div class="sub">
+          <PrivacyToggle />
           <span class="chip"><span class="num"><Money value={c.from_net_worth} currency={cur} /> → <Money value={c.to_net_worth} currency={cur} /></span>{#if c.pct != null}<span class="muted">({Number(c.pct) > 0 ? "+" : ""}{c.pct}%)</span>{/if}</span>
         </div>
         {#if headParts.length}

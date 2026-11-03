@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PrivacyToggle from "../lib/components/PrivacyToggle.svelte";
   import { apply, ApiError, setCategory, type LedgerView, type Mutation, type Txn } from "../lib/api";
   import { bullet, byDay, counts, monthLabel, paceLine, shiftMonth, STATUS_LABEL } from "../lib/budget";
   import { formatDate, formatMoney, parseAmount, todayIso } from "../lib/money";
@@ -141,6 +142,7 @@
         <div class="label">Spent in {monthLabel(b.month).split(" ")[0]}</div>
         <div class="big money">{money(b.spent)}</div>
         <div class="sub">
+          <PrivacyToggle />
           {#if Number(b.budget) > 0}
             of <b class="money">{money(b.budget)}</b> budget ·
             {#if pace!.left >= 0}<b class="money">{money(pace!.left)}</b> left{#if pace!.perDay != null && b.day < b.days} · <b class="money">{money(pace!.perDay)}</b>/day for {b.days - b.day} days{/if}

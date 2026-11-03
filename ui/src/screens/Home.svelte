@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PrivacyToggle from "../lib/components/PrivacyToggle.svelte";
   import { GROUPS, GROUP_LABEL, type AccountView, type LedgerView } from "../lib/api";
   import { formatDate, formatMoney } from "../lib/money";
   import { prefs } from "../lib/stores/prefs.svelte";
@@ -52,6 +53,7 @@
       <div class="label">Net worth</div>
       <Money value={view.totals.net_worth} currency={cur} size="xl" />
       <div class="sub">
+        <PrivacyToggle />
         {#if view.deltas.previous}
           <a class="chip link" href="#/changes" title="What moved it: Changes"><Money value={view.deltas.previous.amount} currency={cur} signed tone="delta" />
             <span class="muted">{#if view.deltas.previous.pct != null}({view.deltas.previous.pct}%)&nbsp;{/if}since {formatDate(view.deltas.previous.from)}</span></a>

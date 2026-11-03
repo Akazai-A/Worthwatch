@@ -1,7 +1,7 @@
 <script lang="ts">
   import { apply, ApiError, GROUPS, GROUP_LABEL, KIND_LABEL, ratesInUse, type Account, type AccountKind, type AccountView, type LedgerView, type Mutation } from "../lib/api";
   import { balanceDelta, buildCheckin, slugify, summarize, type Entry } from "../lib/checkin";
-  import { formatDate, formatPlain, parseNumber, todayIso, MASK, amountsHidden } from "../lib/money";
+  import { formatDate, formatPlain, formatUnits, parseNumber, todayIso, MASK, amountsHidden } from "../lib/money";
   import { view as viewStore } from "../lib/stores/view.svelte";
   import { route } from "../lib/stores/route.svelte";
   import Money from "../lib/components/Money.svelte";
@@ -148,10 +148,10 @@
           {#each a.holdings as h}
             <div class="ci pos">
               <span class="name">{h.symbol}<span class="faint inst">units · price in {a.currency}</span></span>
-              <span class="r num muted">{formatPlain(h.units, 4)}</span>
+              <span class="r num muted">{formatUnits(h.units)}</span>
               <span class="r upd faint" title={h.price_source === "fetched" ? "fetched price; typing one overrides it for this date" : h.price_source === "manual" ? "typed on a check-in" : ""}>{h.price == null ? "no price" : `${formatPlain(h.price)} ${h.price_date ? formatDate(h.price_date) : ""}`}</span>
               <span class="pair">
-                <input type="text" id="in-{a.id}-{h.symbol}-units" inputmode="decimal" placeholder={formatPlain(h.units, 4)} value={entries[a.id]?.units?.[h.symbol] ?? ""} oninput={(e) => setUnits(a.id, h.symbol, e.currentTarget.value)} class:bad={result.invalid.includes(`${a.id}:${h.symbol}:units`)} disabled={locked} aria-label="{h.symbol} units" />
+                <input type="text" id="in-{a.id}-{h.symbol}-units" inputmode="decimal" placeholder={formatUnits(h.units)} value={entries[a.id]?.units?.[h.symbol] ?? ""} oninput={(e) => setUnits(a.id, h.symbol, e.currentTarget.value)} class:bad={result.invalid.includes(`${a.id}:${h.symbol}:units`)} disabled={locked} aria-label="{h.symbol} units" />
                 <input type="text" id="in-{a.id}-{h.symbol}-price" inputmode="decimal" placeholder={h.price == null ? "price" : formatPlain(h.price)} value={entries[a.id]?.prices?.[h.symbol] ?? ""} oninput={(e) => setPrice(a.id, h.symbol, e.currentTarget.value)} class:bad={result.invalid.includes(`${a.id}:${h.symbol}:price`)} disabled={locked} aria-label="{h.symbol} price" />
               </span>
               <span class="r delta faint">{entries[a.id]?.units?.[h.symbol] || entries[a.id]?.prices?.[h.symbol] ? "edited" : "carry"}</span>

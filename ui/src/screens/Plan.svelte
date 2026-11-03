@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PrivacyToggle from "../lib/components/PrivacyToggle.svelte";
   import { apply, ApiError, EVERY_LABEL, type Every, type LedgerView, type Mutation, type Recurring, type RoomKind } from "../lib/api";
   import { formatCompact, formatDate, formatMoney, parseAmount, todayIso } from "../lib/money";
   import { milestoneSplit, monthYear, payoffLine, roomBar, roomLine, yearsBetween } from "../lib/plan";
@@ -121,6 +122,7 @@
         <div class="label">In {headline.years} year{headline.years > 1 ? "s" : ""}, at {ret}%</div>
         <Money value={headline.net_worth} currency={cur} size="xl" />
         <div class="sub">
+          <PrivacyToggle />
           range <b class="money">{compact(headline.low)}–{compact(headline.high)}</b> at {ret - 2}–{ret + 2}%
           {#if tgt != null && tgt > 0}
             · <b class="money">{compact(tgt)}</b> target

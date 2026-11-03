@@ -1,6 +1,7 @@
 <script lang="ts">
+  import PrivacyToggle from "../lib/components/PrivacyToggle.svelte";
   import type { LedgerView, SecurityRow } from "../lib/api";
-  import { formatDate, formatPlain } from "../lib/money";
+  import { formatDate, formatPlain, formatUnits } from "../lib/money";
   import { providerLabel } from "../lib/market";
   import Money from "../lib/components/Money.svelte";
   import MarketLine from "../lib/components/MarketLine.svelte";
@@ -70,6 +71,7 @@
       <div class="label">Investments</div>
       <Money value={p.total} currency={cur} size="xl" />
       <div class="sub">
+        <PrivacyToggle />
         {#if p.day_change != null}
           <span class="chip"><Money value={p.day_change} currency={cur} signed tone="delta" /><span class="muted">since previous close</span></span>
         {/if}
@@ -108,7 +110,7 @@
                 <span class="sym">{r.symbol}</span>
                 <span class="sub2">{r.accounts.map((a) => a.name).join(" + ")} · {r.currency}{#if r.currency !== cur && !r.missing_fx}&nbsp;→ {cur}{/if}{#if multi}&nbsp;<span class="tw">{open[r.symbol] ? "▾" : "▸"}</span>{/if}</span>
               </td>
-              <td class="r num">{formatPlain(r.units, 4)}</td>
+              <td class="r num">{formatUnits(r.units)}</td>
               <td class="r num">
                 {#if r.price == null}<span class="warn">no price</span><span class="sub2 warn">type one on Check-in</span>
                 {:else}{formatPlain(r.price)}<span class="sub2" class:warn={age != null && age > STALE_DAYS}>{r.price_date ? formatDate(r.price_date) : ""}{r.price_source === "manual" ? " · manual" : ""}</span>{/if}
@@ -129,7 +131,7 @@
               {#each r.accounts as a}
                 <tr class="acct">
                   <td><a href="#/accounts/{encodeURIComponent(a.account)}">{a.name}</a></td>
-                  <td class="r num">{formatPlain(a.units, 4)}</td>
+                  <td class="r num">{formatUnits(a.units)}</td>
                   <td></td>
                   <td class="r">{#if a.value != null}<Money value={a.value} currency={cur} />{/if}</td>
                   <td></td>

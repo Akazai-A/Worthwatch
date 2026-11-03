@@ -47,6 +47,12 @@ function trim(s: string): string {
   return s.replace(/\.0$/, "");
 }
 
+/** Unit counts (shares held): personal like amounts, so hidden with them. Up to 4 decimals. */
+export function formatUnits(value: string | number, digits = 4): string {
+  if (hidden()) return MASK;
+  return new Intl.NumberFormat("en-CA", { maximumFractionDigits: digits }).format(Number(value));
+}
+
 /** Plain number with grouping and 2 decimals, for inputs and tables. */
 export function formatPlain(value: string | number, digits = 2): string {
   const n = typeof value === "string" ? Number(value) : value;
