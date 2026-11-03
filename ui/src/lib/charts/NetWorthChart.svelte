@@ -3,6 +3,7 @@
   import uPlot from "uplot";
   import { onMount } from "svelte";
   import { GROUPS, GROUP_LABEL, type Group, type GrowthPoint, type Point } from "../api";
+  import { addedLine as addedLineOf, windowTotals } from "../growth";
   import { formatCompact, formatDate, formatMoney, formatSigned } from "../money";
 
   type Range = "3m" | "1y" | "all";
@@ -18,7 +19,10 @@
     range = $bindable("1y"),
   }: { series: Point[]; events?: { date: string; note: string }[]; currency?: string; blur?: boolean; groups?: boolean; growth?: GrowthPoint[] | null; range?: Range } = $props();
 
-  let mode = $state<Mode>("line");
+  // Added vs grown is the default view once the growth series has loaded: it is the
+  // net worth line plus where the change came from. Line and By group are one click away.
+  let chosen = $state<Mode | null>(null);
+  const mode = $derived<Mode>(chosen ?? (growth?.length ? "added" : "line"));
   let host: HTMLDivElement;
   let plot: uPlot | null = null;
   let hover = $state<{ i: number; left: number } | null>(null);
@@ -43,16 +47,8 @@
 
   const g = (p: Point, k: Group) => Number(p.by_group[k] ?? 0);
 
-  // Added vs grown: a dashed line of where you would be on what you put in alone,
-  // from the window's first point. The gap to net worth is what the market did.
-  const addedBy = $derived(new Map((growth ?? []).map((p) => [p.date, Number(p.added)])));
-  const addedLine = $derived.by(() => {
-    if (!visible.length) return [];
-    const a0 = addedBy.get(visible[0].date) ?? 0;
-    const n0 = Number(visible[0].net_worth);
-    let last = a0;
-    return visible.map((p) => { last = addedBy.get(p.date) ?? last; return n0 + last - a0; });
-  });
+  // Added vs grown: a dashed line of where you would be on what you put in alone.
+  const addedLine = $derived(addedLineOf(visible, growth ?? []));
 
   function data(): uPlot.AlignedData {
     const xs = visible.map((p) => toSec(p.date));
@@ -206,6 +202,9 @@
     if (host) build();
   });
 
+  // The window's totals, shown under the chart: what you put in, and what the market and FX did.
+  const totals = $derived(mode === "added" ? windowTotals(visible, addedLine) : null);
+
   const hovered = $derived(hover ? visible[hover.i] : null);
   const hoverEvents = $derived(hovered ? events.filter((e) => e.date === hovered.date) : []);
   const tipLeft = $derived.by(() => {
@@ -223,9 +222,9 @@
       <button type="button" class:on={range === "all"} onclick={() => (range = "all")}>All</button>
     </div>
     {#if groups}<div class="seg" role="group" aria-label="View">
-      <button type="button" class:on={mode === "line"} onclick={() => (mode = "line")}>Line</button>
-      <button type="button" class:on={mode === "groups"} onclick={() => (mode = "groups")}>By group</button>
-      {#if growth?.length}<button type="button" class:on={mode === "added"} onclick={() => (mode = "added")} title="Net worth against what you put in; the gap is the market">Added vs grown</button>{/if}
+      <button type="button" class:on={mode === "line"} onclick={() => (chosen = "line")}>Line</button>
+      <button type="button" class:on={mode === "groups"} onclick={() => (chosen = "groups")}>By group</button>
+      {#if growth?.length}<button type="button" class:on={mode === "added"} onclick={() => (chosen = "added")} title="Net worth against what you put in; the gap is the market">Added vs grown</button>{/if}
     </div>{/if}
   </div>
 
@@ -252,6 +251,12 @@
   </div>
 
   {#if mode === "added"}
+    {#if totals}
+      <p class="totals">
+        Since {formatDate(totals.from, "long")}: you added <b class="money num">{formatSigned(totals.added, currency)}</b>,
+        the market and other changes <b class="money num" class:neg={totals.grown < 0}>{formatSigned(totals.grown, currency)}</b>{#if totals.fromYou != null}<span class="faint">&nbsp;· {totals.fromYou}% came from you</span>{/if}
+      </p>
+    {/if}
     <div class="legend">
       <span><i class="line" style="background:var(--accent)"></i>Net worth</span>
       <span><i class="line dash"></i>What you added (saving, contributions, debt paid down)</span>
@@ -288,5 +293,8 @@
   .legend i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
   .legend i.line { height: 2px; width: 10px; background: var(--text); vertical-align: 2px; }
   .legend i.dash { background: repeating-linear-gradient(90deg, var(--g-cash) 0 4px, transparent 4px 7px); width: 14px; }
+  .totals { margin: 10px 0 0; font-size: 13px; color: var(--text-2); }
+  .totals b { color: var(--text); font-weight: 600; }
+  .totals b.neg { color: var(--negative); }
   .num { font-variant-numeric: tabular-nums; }
 </style>

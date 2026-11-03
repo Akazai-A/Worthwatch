@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lastMonths, rangeCut, splitSince } from "./growth";
+import { addedLine, lastMonths, windowTotals } from "./growth";
 
 const pts = [
   { date: "2026-01-01", net_worth: "1000", added: "0" },
@@ -8,22 +8,21 @@ const pts = [
 ];
 
 describe("added vs grown", () => {
-  it("splits the move into what you added and the rest", () => {
-    expect(splitSince(pts, null)).toEqual({ from: "2026-01-01", to: "2026-03-01", start: 1000, end: 1100, added: 350, grown: -250 });
+  it("draws what you added from the window's first point", () => {
+    expect(addedLine(pts.slice(1), pts)).toEqual([1300, 1450]);
   });
-  it("starts from the point before the cut, like the chart", () => {
-    const s = splitSince(pts, "2026-02-15");
-    expect(s?.from).toBe("2026-02-01");
-    expect(s?.added).toBe(150);
-    expect(s?.grown).toBe(-350);
+  it("carries the last known total over dates the growth series lacks", () => {
+    expect(addedLine([...pts, { date: "2026-03-15", net_worth: "1200", added: "0" }], pts)).toEqual([1000, 1200, 1350, 1350]);
+  });
+  it("splits the window into what you added and the rest", () => {
+    expect(windowTotals(pts, addedLine(pts, pts))).toEqual({ from: "2026-01-01", added: 350, grown: -250, fromYou: null });
+  });
+  it("gives your share only when both parts helped", () => {
+    const up = [pts[0], pts[1]];
+    expect(windowTotals(up, addedLine(up, pts))?.fromYou).toBe(67);
   });
   it("needs two points", () => {
-    expect(splitSince(pts.slice(0, 1), null)).toBeNull();
-  });
-  it("cuts 3M and 1Y back from the last date", () => {
-    expect(rangeCut("3m", "2026-11-03")).toBe("2026-08-03");
-    expect(rangeCut("1y", "2026-11-03")).toBe("2025-11-02");
-    expect(rangeCut("all", "2026-11-03")).toBeNull();
+    expect(windowTotals(pts.slice(0, 1), [1000])).toBeNull();
   });
 });
 

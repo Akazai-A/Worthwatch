@@ -1,8 +1,6 @@
 <script lang="ts">
   import PrivacyToggle from "../lib/components/PrivacyToggle.svelte";
   import { GROUPS, GROUP_LABEL, getChanges, getGrowth, type AccountView, type Changes, type GrowthPoint, type LedgerView } from "../lib/api";
-  import { rangeCut, splitSince } from "../lib/growth";
-  import GrowthBar from "../lib/components/GrowthBar.svelte";
   import { formatDate, formatMoney, formatSigned } from "../lib/money";
   import { parts } from "../lib/changes";
   import SplitStrip from "../lib/components/SplitStrip.svelte";
@@ -56,17 +54,15 @@
   });
   const whyParts = $derived(why ? parts(why) : []);
 
-  // Added vs grown, for the chart's third mode and the bar under it (same range as the chart).
+  // Added vs grown: the chart's default view once this loads.
   let growth = $state<GrowthPoint[] | null>(null);
   let growthKey = -1;
-  let range = $state<"3m" | "1y" | "all">("1y");
   $effect(() => {
     const v = view.version;
     if (v === growthKey) return;
     growthKey = v;
     getGrowth().then((g) => { growth = g; }, () => { growth = null; });
   });
-  const split = $derived(growth && growth.length > 1 ? splitSince(growth, rangeCut(range, growth[growth.length - 1].date)) : null);
 </script>
 
 <div class="home">
@@ -108,10 +104,8 @@
     </section>
 
     <section class="card">
-      <NetWorthChart series={view.series} events={view.events} currency={cur} blur={prefs.blur} {growth} bind:range />
+      <NetWorthChart series={view.series} events={view.events} currency={cur} blur={prefs.blur} {growth} />
     </section>
-
-    {#if split}<GrowthBar {split} currency={cur} label={range === "all" ? "Where it came from:" : range === "3m" ? "Where the last 3 months' change came from:" : "Where the last year's change came from:"} />{/if}
 
     <section class="tiles">
       <a class="card tile" style="--gc:var(--g-investments)" href="#/portfolio"><div class="label">Investments</div><div class="v"><Money value={groupVal("investments")} currency={cur} size="l" /></div>{@render shareOf(groupVal("investments"))}{#if view.portfolio.day_change != null}<div class="d"><Money value={view.portfolio.day_change} currency={cur} signed tone="delta" /> <span class="faint">today</span></div>{/if}</a>

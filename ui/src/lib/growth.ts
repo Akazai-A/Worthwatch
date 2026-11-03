@@ -1,24 +1,28 @@
-// Added vs grown over a window of the growth series: pure, so it is unit-tested.
+// Added vs grown: pure, so it is unit-tested. The Home chart and the account page use these.
 import type { GrowthPoint } from "./api";
 
-export interface Split { from: string; to: string; start: number; end: number; added: number; grown: number }
-
-/** The split between the first and last point on or after `cut` (ISO date); null with fewer than two. */
-export function splitSince(points: GrowthPoint[], cut: string | null): Split | null {
-  const i = cut == null ? 0 : Math.max(0, points.findIndex((p) => p.date >= cut) - 1);
-  const a = points[i], b = points[points.length - 1];
-  if (!a || !b || a === b) return null;
-  const start = Number(a.net_worth), end = Number(b.net_worth);
-  const added = Number(b.added) - Number(a.added);
-  return { from: a.date, to: b.date, start, end, added, grown: end - start - added };
+/** Where net worth would be on what you put in alone, from the window's first point.
+ *  The gap between this line and net worth is what the market and FX did. */
+export function addedLine(visible: { date: string; net_worth: string }[], growth: GrowthPoint[]): number[] {
+  if (!visible.length) return [];
+  const by = new Map(growth.map((p) => [p.date, Number(p.added)]));
+  const a0 = by.get(visible[0].date) ?? 0;
+  const n0 = Number(visible[0].net_worth);
+  let last = a0;
+  return visible.map((p) => { last = by.get(p.date) ?? last; return n0 + last - a0; });
 }
 
-/** First date of a chart range ending at `last` (ISO): 3M = 92 days, 1Y = 366, All = null. */
-export function rangeCut(range: "3m" | "1y" | "all", last: string): string | null {
-  if (range === "all") return null;
-  const d = new Date(last + "T00:00:00Z");
-  d.setUTCDate(d.getUTCDate() - (range === "3m" ? 92 : 366));
-  return d.toISOString().slice(0, 10);
+export interface WindowTotals { from: string; added: number; grown: number; fromYou: number | null }
+
+/** The window's totals: what you added, what the market did, and your share when both helped. */
+export function windowTotals(visible: { date: string; net_worth: string }[], line: number[]): WindowTotals | null {
+  if (visible.length < 2 || line.length !== visible.length) return null;
+  const start = Number(visible[0].net_worth);
+  const end = Number(visible[visible.length - 1].net_worth);
+  const atEnd = line[line.length - 1];
+  const added = atEnd - start, grown = end - atEnd;
+  const fromYou = added > 0 && grown > 0 ? Math.round((added / (added + grown)) * 100) : null;
+  return { from: visible[0].date, added, grown, fromYou };
 }
 
 export interface MonthBar { month: string; added: number; grown: number }
