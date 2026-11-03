@@ -409,7 +409,96 @@ export type Mutation =
   | { op: "set_recurring"; account: string; rules: Recurring[] }
   | { op: "set_room"; kind: RoomKind; room: { as_of: string; amount: string } | null }
   | { op: "record_contribution"; contribution: { date: string; account: string; amount: string; note?: string | null } }
-  | { op: "set_projection"; projection: ProjectionSettings };
+  | { op: "set_projection"; projection: ProjectionSettings }
+  | { op: "set_budget_limit"; category: string; amount: string | null }
+  | { op: "link_card"; card: string; account: string | null }
+  | { op: "set_txn_source"; account: string; source: TxnSource }
+  | { op: "set_category_rules"; rules: CategoryRule[] }
+  | { op: "set_bills"; bills: Bill[] }
+  | { op: "set_feed"; feed: Feed };
+
+// ---- Budget (GET /api/budget) ----
+export type TxnSource = "statement" | "apple_pay_statement" | "apple_pay";
+export const SOURCE_LABEL: Record<TxnSource, string> = { statement: "Statement", apple_pay_statement: "Apple Pay + statement", apple_pay: "Apple Pay only" };
+export type FeedMode = "off" | "icloud" | "tailscale";
+export interface Feed { mode: FeedMode; icloud_dir?: string | null; tailscale_url?: string | null }
+export interface CategoryRule { contains: string; category: string; account?: string | null }
+export interface Bill { name: string; amount: string; every?: Every; category?: string; matches?: string | null; day?: number | null }
+export interface BudgetSettings {
+  limits?: Record<string, string>;
+  cards?: Record<string, string>;
+  sources?: Record<string, TxnSource>;
+  rules?: CategoryRule[];
+  bills?: Bill[];
+  feed?: Feed;
+}
+export type TxnStatus = "provisional" | "confirmed" | "posted" | "review" | "tap_only" | "unlinked";
+export interface Txn {
+  id: string; account: string | null; card: string | null; date: string; amount: string; currency: string;
+  merchant: string; description: string | null; category: string; status: TxnStatus;
+  tap_id: string | null; tap_amount: string | null; tap_currency: string | null; tap_date: string | null;
+  base_amount: string | null;
+}
+export interface CategoryLine { category: string; label: string; spent: string; provisional: string; limit: string | null; history: string[]; count: number }
+export interface BillStatus { name: string; amount: string; category: string; paid_on: string | null; paid_amount: string | null; due_day: number | null }
+export interface UnlinkedCard { card: string; taps: number; last: string; total: string }
+export interface AccountFeed { id: string; name: string; kind: AccountKind; group: Group; source: TxnSource; cards: string[]; last_statement: string | null; statement_rows: number }
+export interface BudgetView {
+  version: number; as_of: string; base_currency: string;
+  month: string; days: number; day: number; spent: string; provisional: string; income: string; budget: string; pace: string; pace_by_day: string[];
+  categories: CategoryLine[]; daily: (string | null)[]; cumulative: (string | null)[]; cumulative_provisional: (string | null)[];
+  bills: BillStatus[]; txns: Txn[]; review: Txn[]; unlinked: UnlinkedCard[]; missing_fx: number;
+  first_month: string | null; options: CategoryOption[];
+  accounts: AccountFeed[]; settings: BudgetSettings;
+  feed: { mode: FeedMode; last_tap: string | null; taps: number };
+  store_errors: string[];
+}
+export interface CategoryOption { id: string; label: string }
+
+export async function getBudget(month?: string): Promise<BudgetView> {
+  const r = await fetch(`/api/budget${month ? `?month=${month}` : ""}`);
+  if (!r.ok) await fail(r);
+  return r.json();
+}
+
+export type Preset = "auto" | "td" | "rbc" | "cibc" | "scotiabank" | "bmo" | "tangerine" | "amex" | "simplii" | "eq" | "generic" | "ofx";
+export interface ImportPreview {
+  preset: Preset; preset_label: string; presets: [Preset, string][]; sign_guessed: boolean; flipped: boolean;
+  rows: { date: string; amount: string; description: string; category: string; duplicate: boolean }[];
+  skipped: [number, string][]; new_rows: number; duplicates: number; money_out: string; money_in: string;
+  from: string | null; to: string | null;
+}
+export interface ImportRequest { account: string; text: string; preset: Preset; flip: boolean }
+async function post<T>(url: string, body?: unknown): Promise<T> {
+  const r = await fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (!r.ok) await fail(r);
+  return r.json();
+}
+export const previewImport = (req: ImportRequest) => post<ImportPreview>("/api/budget/import/preview", req);
+export const importStatement = (req: ImportRequest) => post<{ added: number; duplicates: number }>("/api/budget/import", req);
+export const setCategory = (id: string, category: string | null) => post<{ ok: boolean }>("/api/budget/category", { id, category });
+
+// ---- Settings (GET /api/settings) ----
+export interface FeedStatus {
+  dir: string | null; found: boolean; files: number; not_downloaded: string[];
+  last_scan: string | null; last_added: string | null; errors: string[];
+}
+export interface SettingsView {
+  mode: FeedMode; token: string; ingest_path: string; icloud_dir: string | null; icloud: FeedStatus;
+  tailscale_url: string | null; tailscale_detected: boolean; can_sign: boolean; shortcut_file: string | null;
+  last_tap: string | null; taps: number;
+}
+export async function getSettings(): Promise<SettingsView> {
+  const r = await fetch("/api/settings");
+  if (!r.ok) await fail(r);
+  return r.json();
+}
+export const rotateToken = () => post<SettingsView>("/api/settings/token");
+export const makeShortcut = () => post<SettingsView>("/api/settings/shortcut");
 
 // ---- Plan (GET /api/plan) ----
 export type Every = "week" | "two_weeks" | "month" | "year";

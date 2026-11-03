@@ -14,6 +14,8 @@
   import Plan from "./screens/Plan.svelte";
   import Wall from "./screens/Wall.svelte";
   import Backups from "./screens/Backups.svelte";
+  import Budget from "./screens/Budget.svelte";
+  import Settings from "./screens/Settings.svelte";
   import Palette from "./lib/components/Palette.svelte";
 
   let palette = $state(false);
@@ -63,6 +65,10 @@
         <Chat view={view.current} />
       {:else if route.current.name === "plan"}
         <Plan view={view.current} />
+      {:else if route.current.name === "budget"}
+        <Budget view={view.current} month={route.current.month} importing={route.current.import ?? false} />
+      {:else if route.current.name === "settings"}
+        <Settings view={view.current} />
       {:else if route.current.name === "backups"}
         <Backups view={view.current} />
       {:else if route.current.name === "account"}

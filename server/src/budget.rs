@@ -279,7 +279,8 @@ pub struct BudgetView {
     pub month: budget::MonthView,
     /// First month anything is recorded, for the month picker.
     pub first_month: Option<NaiveDate>,
-    pub categories: Vec<CategoryOption>,
+    /// Every category you can pick (built-in, budgeted, from rules).
+    pub options: Vec<CategoryOption>,
     pub accounts: Vec<AccountFeed>,
     pub settings: ledger::Budget,
     pub feed: FeedSummary,
@@ -336,7 +337,7 @@ pub fn build_budget(s: &AppState, q: &MonthQuery, today: NaiveDate) -> BudgetVie
     let rate = |c: &str, d: NaiveDate| market.rate_at(&base, c, d).map(|r| r.rate);
     let view = budget::month(l, &txns, month, today, &rate);
 
-    let mut categories: Vec<CategoryOption> = budget::CATEGORIES
+    let mut options: Vec<CategoryOption> = budget::CATEGORIES
         .iter()
         .map(|(id, label)| CategoryOption { id: id.to_string(), label: label.to_string() })
         .collect();
@@ -347,8 +348,8 @@ pub fn build_budget(s: &AppState, q: &MonthQuery, today: NaiveDate) -> BudgetVie
         .chain(l.budget.rules.iter().map(|r| &r.category))
         .chain(store.overrides.values());
     for c in extra {
-        if !categories.iter().any(|o| o.id == *c) {
-            categories.push(CategoryOption { id: c.clone(), label: budget::label(c) });
+        if !options.iter().any(|o| o.id == *c) {
+            options.push(CategoryOption { id: c.clone(), label: budget::label(c) });
         }
     }
     let accounts = l
@@ -379,7 +380,7 @@ pub fn build_budget(s: &AppState, q: &MonthQuery, today: NaiveDate) -> BudgetVie
         base_currency: base,
         month: view,
         first_month,
-        categories,
+        options,
         accounts,
         settings: l.budget.clone(),
         feed: FeedSummary { mode: l.budget.feed.mode, last_tap: store.last_tap(), taps: store.taps.len() },

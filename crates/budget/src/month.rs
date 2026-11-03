@@ -27,8 +27,10 @@ pub struct MonthView {
     pub income: Decimal,
     /// Sum of the category limits.
     pub budget: Decimal,
-    /// Where an even pace through the month would be today.
+    /// Where the budget says you'd be today: bills on their day, the rest evenly.
     pub pace: Decimal,
+    /// The same, for every day of the month.
+    pub pace_by_day: Vec<Decimal>,
     pub categories: Vec<CategoryLine>,
     /// Spending per day of the month (index 0 is the 1st); `None` after today.
     pub daily: Vec<Option<Decimal>>,
@@ -208,32 +210,8 @@ pub fn month(
     });
 
     let budget: Decimal = l.budget.limits.values().copied().sum();
-    let pace = if days == 0 {
-        Decimal::ZERO
-    } else {
-        (budget * Decimal::from(day) / Decimal::from(days)).round_dp(2)
-    };
-    let mut run = Decimal::ZERO;
-    let mut run_prov = Decimal::ZERO;
-    let mut cumulative = Vec::with_capacity(days as usize);
-    let mut cumulative_provisional = Vec::with_capacity(days as usize);
-    let mut daily_out = Vec::with_capacity(days as usize);
-    for i in 0..days as usize {
-        if (i as u32) < day {
-            run += daily[i];
-            run_prov += daily_prov[i];
-            cumulative.push(Some(run));
-            cumulative_provisional.push(Some(run_prov));
-            daily_out.push(Some(daily[i]));
-        } else {
-            cumulative.push(None);
-            cumulative_provisional.push(None);
-            daily_out.push(None);
-        }
-    }
-
     // A bill is paid when a statement row this month names it and is within 10% of it.
-    let bills = l
+    let bills: Vec<BillStatus> = l
         .budget
         .bills
         .iter()
@@ -257,6 +235,45 @@ pub fn month(
             }
         })
         .collect();
+
+    // Pace: bills land on their day (paid, or due), the rest of the budget evenly, so
+    // rent on the 1st doesn't read as "over pace" for the whole first week.
+    let mut fixed_by_day = vec![Decimal::ZERO; days as usize];
+    let mut fixed = Decimal::ZERO;
+    for bill in &bills {
+        if let Some(at) = bill.paid_on.map(|d| d.day()).or(bill.due_day.map(|d| d.clamp(1, days))) {
+            let amount = bill.paid_amount.unwrap_or(bill.amount);
+            fixed_by_day[(at - 1) as usize] += amount;
+            fixed += amount;
+        }
+    }
+    let flexible = (budget - fixed).max(Decimal::ZERO);
+    let mut pace_by_day = Vec::with_capacity(days as usize);
+    let mut so_far = Decimal::ZERO;
+    for (i, f) in fixed_by_day.iter().enumerate() {
+        so_far += *f;
+        pace_by_day.push((so_far.min(budget) + flexible * Decimal::from(i as u32 + 1) / Decimal::from(days)).round_dp(2));
+    }
+    let pace = if day == 0 { Decimal::ZERO } else { pace_by_day[(day - 1) as usize] };
+    let mut run = Decimal::ZERO;
+    let mut run_prov = Decimal::ZERO;
+    let mut cumulative = Vec::with_capacity(days as usize);
+    let mut cumulative_provisional = Vec::with_capacity(days as usize);
+    let mut daily_out = Vec::with_capacity(days as usize);
+    for i in 0..days as usize {
+        if (i as u32) < day {
+            run += daily[i];
+            run_prov += daily_prov[i];
+            cumulative.push(Some(run));
+            cumulative_provisional.push(Some(run_prov));
+            daily_out.push(Some(daily[i]));
+        } else {
+            cumulative.push(None);
+            cumulative_provisional.push(None);
+            daily_out.push(None);
+        }
+    }
+
 
     let review = txns
         .iter()
@@ -289,6 +306,7 @@ pub fn month(
         income,
         budget,
         pace,
+        pace_by_day,
         categories,
         daily: daily_out,
         cumulative,
@@ -351,7 +369,11 @@ mod tests {
         assert_eq!(v.provisional, dec!(52.18));
         assert_eq!(v.income, dec!(2850));
         assert_eq!(v.budget, dec!(1200));
-        assert_eq!(v.pace, dec!(600));
+        // Rogers lands on the 4th; the other 1105 spreads evenly.
+        assert_eq!(v.pace, dec!(647.50));
+        assert_eq!(v.pace_by_day[2], dec!(110.50));
+        assert_eq!(v.pace_by_day[3], dec!(95) + dec!(147.33));
+        assert_eq!(v.pace_by_day[29], dec!(1200));
         assert_eq!(v.cumulative[14], Some(v.spent - dec!(1204.55) + dec!(1204.55) - dec!(0)));
         assert_eq!(v.cumulative[15], None);
         assert_eq!(v.cumulative_provisional[14], Some(dec!(52.18)));

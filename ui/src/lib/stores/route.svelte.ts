@@ -1,4 +1,4 @@
-// Hash router: #/ (home), #/check-in, #/portfolio[/look-through|/exposure|/overlap], #/changes, #/chat, #/plan, #/wall, #/backups, #/accounts/<id>
+// Hash router: #/ (home), #/check-in, #/budget[/YYYY-MM], #/settings, #/portfolio[/look-through|/exposure|/overlap], #/changes, #/chat, #/plan, #/wall, #/backups, #/accounts/<id>
 export type PortfolioTab = "positions" | "lookthrough" | "exposure" | "overlap";
 export type Route =
   | { name: "home" }
@@ -7,6 +7,8 @@ export type Route =
   | { name: "changes" }
   | { name: "chat" }
   | { name: "plan" }
+  | { name: "budget"; month: string | null; import?: boolean }
+  | { name: "settings" }
   | { name: "wall" }
   | { name: "backups" }
   | { name: "account"; id: string };
@@ -23,6 +25,8 @@ function parse(hash: string): Route {
   if (p[0] === "changes") return { name: "changes" };
   if (p[0] === "chat") return { name: "chat" };
   if (p[0] === "plan") return { name: "plan" };
+  if (p[0] === "budget") return { name: "budget", month: p[1] && /^\d{4}-\d{2}$/.test(p[1]) ? p[1] : null, import: p[1] === "import" };
+  if (p[0] === "settings") return { name: "settings" };
   if (p[0] === "wall") return { name: "wall" };
   if (p[0] === "backups") return { name: "backups" };
   if (p[0] === "accounts" && p[1]) return { name: "account", id: decodeURIComponent(p[1]) };
@@ -37,6 +41,8 @@ export function hashFor(to: Route): string {
     case "changes": return "#/changes";
     case "chat": return "#/chat";
     case "plan": return "#/plan";
+    case "budget": return to.month ? `#/budget/${to.month}` : "#/budget";
+    case "settings": return "#/settings";
     case "wall": return "#/wall";
     case "backups": return "#/backups";
     case "account": return `#/accounts/${encodeURIComponent(to.id)}`;

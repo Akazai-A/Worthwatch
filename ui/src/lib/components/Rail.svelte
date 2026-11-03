@@ -15,10 +15,12 @@
   <a class="nav" class:on={name === "portfolio"} href="#/portfolio"><span class="dot"></span>Portfolio</a>
   <a class="nav" class:on={name === "changes"} href="#/changes"><span class="dot"></span>Changes</a>
   <a class="nav" class:on={name === "plan"} href="#/plan"><span class="dot"></span>Plan</a>
+  <a class="nav" class:on={name === "budget"} href="#/budget"><span class="dot"></span>Budget</a>
   <a class="nav" class:on={name === "chat"} href="#/chat"><span class="dot"></span>Chat{#if waiting}<span class="badge" title="{waiting} proposal{waiting === 1 ? '' : 's'} waiting">{waiting}</span>{/if}</a>
   <div class="spacer"></div>
   <button class="foot" type="button" onclick={() => onPalette?.()} title="Jump anywhere (⌘K)">Go to… <kbd>⌘K</kbd></button>
   <a class="foot" href="#/wall">Wall view</a>
+  <a class="foot" class:cur={name === "settings"} href="#/settings">Settings</a>
   <a class="foot" class:cur={name === "backups"} href="#/backups">Backups</a>
   <button class="foot" type="button" onclick={() => prefs.toggleBlur()} title="Blur amounts (⌘⇧H)">
     {prefs.blur ? "Unblur" : "Blur"} amounts <kbd>⌘⇧H</kbd>

@@ -4,6 +4,7 @@ mod chat;
 mod mcp;
 mod routes;
 mod seed;
+mod seed_budget;
 mod seed_holdings;
 mod state;
 mod ui;
