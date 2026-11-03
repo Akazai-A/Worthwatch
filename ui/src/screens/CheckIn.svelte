@@ -214,7 +214,7 @@
   .locked { margin: 0; color: var(--warn); font-size: 13px; }
   .table { display: flex; flex-direction: column; }
   .ci { display: grid; grid-template-columns: 1fr 110px 80px 170px 110px; gap: 12px; align-items: center; padding: 7px 0; border-top: 1px solid var(--border); }
-  .ci.h { border-top: 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); padding: 0 0 6px; }
+  .ci.h { border-top: 0; font-size: 12px; color: var(--text-3); padding: 0 0 6px; }
   .ci.pos { padding-left: 18px; font-size: 13px; }
   h2 { margin: 12px 0 4px; font-weight: 500; }
   h2:first-of-type { margin-top: 4px; }

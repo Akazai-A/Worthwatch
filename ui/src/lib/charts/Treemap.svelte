@@ -109,7 +109,7 @@
 <style>
   .treemap { position: relative; width: 100%; overflow: hidden; border-radius: 6px; background: var(--surface-2); }
   .block { position: absolute; border-radius: 4px; background: color-mix(in oklab, var(--hue) 7%, var(--surface-2)); }
-  .head { position: absolute; left: 6px; right: 6px; top: 0; height: 18px; display: flex; justify-content: space-between; align-items: center; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: color-mix(in oklab, var(--hue) 70%, var(--text)); white-space: nowrap; overflow: hidden; }
+  .head { position: absolute; left: 6px; right: 6px; top: 0; height: 18px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: color-mix(in oklab, var(--hue) 70%, var(--text)); white-space: nowrap; overflow: hidden; }
   .head .bn { overflow: hidden; text-overflow: ellipsis; }
   .cell { position: absolute; overflow: hidden; border: 0; border-radius: 3px; padding: 5px 6px; font: inherit; font-size: 11px; line-height: 1.25; text-align: left; cursor: pointer; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; color: var(--text); background: color-mix(in oklab, var(--hue) var(--tone), var(--surface-2)); }
   .cell b { display: block; max-width: 100%; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

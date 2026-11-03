@@ -31,7 +31,7 @@
       ["Plan", "#/plan", "projections contribution room"],
       ["Budget", "#/budget", "spending this month apple pay"],
       ["Budget › Import a statement", "#/budget/import", "csv ofx bank export"],
-      ["Chat", "#/chat", "update by text"],
+      ["Ask or update", "#/chat", "chat · type balances and trades, ⌘J"],
       ["Settings", "#/settings", "apple pay shortcut icloud tailscale"],
       ["Wall view", "#/wall", "full screen, for a spare tablet"],
       ["Backups", "#/backups", "download restore"],
@@ -100,7 +100,7 @@
   .q input { flex: 1; background: none; border: 0; outline: 0; color: var(--text); font: inherit; font-size: 16px; caret-color: var(--accent); }
   kbd { font-family: var(--mono); font-size: 10px; border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; color: var(--text-3); }
   .list { max-height: min(60vh, 460px); overflow-y: auto; padding-bottom: 4px; }
-  .sec { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-3); padding: 10px 16px 4px; }
+  .sec { font-size: 12px; color: var(--text-3); padding: 10px 16px 4px; }
   .r { display: grid; grid-template-columns: 16px 1fr auto; gap: 10px; align-items: center; padding: 8px 16px; font-size: 14px; color: var(--text-2); cursor: pointer; }
   .r.on { background: var(--accent-soft); color: var(--text); }
   .i { width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); margin-left: 4px; }

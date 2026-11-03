@@ -2,11 +2,12 @@
   // Net worth over time (uPlot). Plain arrays in, one line or stacked groups out.
   import uPlot from "uplot";
   import { onMount } from "svelte";
-  import { GROUPS, GROUP_LABEL, type Group, type Point } from "../api";
-  import { formatCompact, formatDate, formatMoney } from "../money";
+  import { GROUPS, GROUP_LABEL, type Group, type GrowthPoint, type Point } from "../api";
+  import { addedLine as addedLineOf, windowTotals } from "../growth";
+  import { formatCompact, formatDate, formatMoney, formatSigned } from "../money";
 
   type Range = "3m" | "1y" | "all";
-  type Mode = "line" | "groups";
+  type Mode = "line" | "groups" | "added";
 
   let {
     series,
@@ -14,10 +15,14 @@
     currency = "CAD",
     blur = false,
     groups = true,
-  }: { series: Point[]; events?: { date: string; note: string }[]; currency?: string; blur?: boolean; groups?: boolean } = $props();
+    growth = null,
+    range = $bindable("1y"),
+  }: { series: Point[]; events?: { date: string; note: string }[]; currency?: string; blur?: boolean; groups?: boolean; growth?: GrowthPoint[] | null; range?: Range } = $props();
 
-  let range = $state<Range>("1y");
-  let mode = $state<Mode>("line");
+  // Added vs grown is the default view once the growth series has loaded: it is the
+  // net worth line plus where the change came from. Line and By group are one click away.
+  let chosen = $state<Mode | null>(null);
+  const mode = $derived<Mode>(chosen ?? (growth?.length ? "added" : "line"));
   let host: HTMLDivElement;
   let plot: uPlot | null = null;
   let hover = $state<{ i: number; left: number } | null>(null);
@@ -42,9 +47,13 @@
 
   const g = (p: Point, k: Group) => Number(p.by_group[k] ?? 0);
 
+  // Added vs grown: a dashed line of where you would be on what you put in alone.
+  const addedLine = $derived(addedLineOf(visible, growth ?? []));
+
   function data(): uPlot.AlignedData {
     const xs = visible.map((p) => toSec(p.date));
     if (mode === "line") return [xs, visible.map((p) => Number(p.net_worth))];
+    if (mode === "added") return [xs, visible.map((p) => Number(p.net_worth)), addedLine];
     const cash = visible.map((p) => g(p, "cash"));
     const inv = visible.map((p, i) => cash[i] + g(p, "investments"));
     const prop = visible.map((p, i) => inv[i] + g(p, "property"));
@@ -80,11 +89,16 @@
           const i = u.cursor.idx;
           hover = i == null ? null : { i, left: u.valToPos(u.data[0][i], "x") };
         }],
-        draw: [(u) => drawEvents(u)],
+        draw: [(u) => { if (mode === "added") drawGap(u); drawEvents(u); }],
       },
     };
     if (mode === "line") {
       base.series.push({ stroke: accent, width: 2, fill: withAlpha(accent, 0.1), points: { show: false } });
+    } else if (mode === "added") {
+      base.series.push(
+        { stroke: accent, width: 2, points: { show: false } },
+        { stroke: css("--g-cash"), width: 1.5, dash: [5, 4], points: { show: false } },
+      );
     } else {
       const c = (k: Group) => css(`--g-${k}`);
       base.series.push(
@@ -131,6 +145,30 @@
     ctx.restore();
   }
 
+  /** Shade between net worth and the added line: brass where the market helped, red where it hurt. */
+  function drawGap(u: uPlot) {
+    const [xs, nw, ad] = u.data as [number[], number[], number[]];
+    const ctx = u.ctx;
+    const up = withAlpha(css("--accent"), 0.22), down = withAlpha(css("--negative"), 0.28);
+    ctx.save();
+    // One path per run of the same sign, so neighbouring slices leave no seams.
+    const sign = (i: number) => nw[i] + nw[i + 1] >= ad[i] + ad[i + 1];
+    let i = 0;
+    while (i < xs.length - 1) {
+      const up0 = sign(i);
+      let j = i;
+      while (j < xs.length - 1 && sign(j) === up0) j++;
+      ctx.fillStyle = up0 ? up : down;
+      ctx.beginPath();
+      for (let k = i; k <= j; k++) ctx.lineTo(u.valToPos(xs[k], "x", true), u.valToPos(nw[k], "y", true));
+      for (let k = j; k >= i; k--) ctx.lineTo(u.valToPos(xs[k], "x", true), u.valToPos(ad[k], "y", true));
+      ctx.closePath();
+      ctx.fill();
+      i = j;
+    }
+    ctx.restore();
+  }
+
   function withAlpha(hex: string, a: number): string {
     const m = /^#([0-9a-f]{6})$/i.exec(hex);
     if (!m) return hex;
@@ -160,9 +198,12 @@
 
   $effect(() => {
     // re-render when inputs change
-    void visible; void mode; void blur; void events;
+    void visible; void mode; void blur; void events; void addedLine;
     if (host) build();
   });
+
+  // The window's totals, shown under the chart: what you put in, and what the market and FX did.
+  const totals = $derived(mode === "added" ? windowTotals(visible, addedLine) : null);
 
   const hovered = $derived(hover ? visible[hover.i] : null);
   const hoverEvents = $derived(hovered ? events.filter((e) => e.date === hovered.date) : []);
@@ -181,8 +222,9 @@
       <button type="button" class:on={range === "all"} onclick={() => (range = "all")}>All</button>
     </div>
     {#if groups}<div class="seg" role="group" aria-label="View">
-      <button type="button" class:on={mode === "line"} onclick={() => (mode = "line")}>Line</button>
-      <button type="button" class:on={mode === "groups"} onclick={() => (mode = "groups")}>By group</button>
+      <button type="button" class:on={mode === "line"} onclick={() => (chosen = "line")}>Line</button>
+      <button type="button" class:on={mode === "groups"} onclick={() => (chosen = "groups")}>By group</button>
+      {#if growth?.length}<button type="button" class:on={mode === "added"} onclick={() => (chosen = "added")} title="Net worth against what you put in; the gap is the market">Added vs grown</button>{/if}
     </div>{/if}
   </div>
 
@@ -190,7 +232,14 @@
     {#if hovered}
       <div class="tip" style="left:{tipLeft}px">
         <div class="top"><b class="money num">{formatMoney(hovered.net_worth, currency)}</b><span>{formatDate(hovered.date, "long")}</span></div>
-        {#each groups ? GROUPS : [] as k}
+        {#if mode === "added" && hover}
+          {@const added = addedLine[hover.i] - Number(visible[0].net_worth)}
+          {@const grown = Number(hovered.net_worth) - addedLine[hover.i]}
+          <div class="row"><span><i style="background:var(--g-cash)"></i>You added</span><span class="money num">{formatSigned(added, currency)}</span></div>
+          <div class="row"><span><i style="background:{grown < 0 ? 'var(--negative)' : 'var(--accent)'}"></i>Market and other</span><span class="money num">{formatSigned(grown, currency)}</span></div>
+          <div class="ev">since {formatDate(visible[0].date)}</div>
+        {/if}
+        {#each groups && mode !== "added" ? GROUPS : [] as k}
           <div class="row"><span><i style="background:var(--g-{k})"></i>{GROUP_LABEL[k]}</span><span class="money num">{formatMoney(k === "debt" ? -Number(hovered.by_group[k] ?? 0) : hovered.by_group[k] ?? 0, currency)}</span></div>
         {/each}
         {#each hoverEvents as e}<div class="ev">· {e.note}</div>{/each}
@@ -201,7 +250,20 @@
     {/if}
   </div>
 
-  {#if mode === "groups"}
+  {#if mode === "added"}
+    {#if totals}
+      <p class="totals">
+        Since {formatDate(totals.from, "long")}: you added <b class="money num">{formatSigned(totals.added, currency)}</b>,
+        the market and other changes <b class="money num" class:neg={totals.grown < 0}>{formatSigned(totals.grown, currency)}</b>{#if totals.fromYou != null}<span class="faint">&nbsp;· {totals.fromYou}% came from you</span>{/if}
+      </p>
+    {/if}
+    <div class="legend">
+      <span><i class="line" style="background:var(--accent)"></i>Net worth</span>
+      <span><i class="line dash"></i>What you added (saving, contributions, debt paid down)</span>
+      <span><i style="background:var(--accent);opacity:.45"></i>Market helped</span>
+      <span><i style="background:var(--negative);opacity:.5"></i>Market hurt</span>
+    </div>
+  {:else if mode === "groups"}
     <div class="legend">
       {#each GROUPS as k}<span><i style="background:var(--g-{k})"></i>{GROUP_LABEL[k]}</span>{/each}
       <span><i class="line"></i>Net worth</span>
@@ -227,8 +289,12 @@
   .tip i { display: inline-block; width: 10px; height: 2px; vertical-align: middle; margin-right: 6px; border-radius: 1px; }
   .tip .ev { color: var(--text-3); margin-top: 4px; }
   .empty { color: var(--text-3); font-size: 13px; padding: 90px 0; text-align: center; margin: 0; }
-  .legend { display: flex; gap: 14px; margin-top: 8px; font-size: 11px; color: var(--text-2); flex-wrap: wrap; }
+  .legend { display: flex; gap: 14px; margin-top: 8px; font-size: 12px; color: var(--text-2); flex-wrap: wrap; }
   .legend i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
   .legend i.line { height: 2px; width: 10px; background: var(--text); vertical-align: 2px; }
+  .legend i.dash { background: repeating-linear-gradient(90deg, var(--g-cash) 0 4px, transparent 4px 7px); width: 14px; }
+  .totals { margin: 10px 0 0; font-size: 13px; color: var(--text-2); }
+  .totals b { color: var(--text); font-weight: 600; }
+  .totals b.neg { color: var(--negative); }
   .num { font-variant-numeric: tabular-nums; }
 </style>

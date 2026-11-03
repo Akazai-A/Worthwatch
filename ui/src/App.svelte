@@ -10,13 +10,14 @@
   import AccountDetail from "./screens/AccountDetail.svelte";
   import Portfolio from "./screens/Portfolio.svelte";
   import Changes from "./screens/Changes.svelte";
-  import Chat from "./screens/Chat.svelte";
   import Plan from "./screens/Plan.svelte";
   import Wall from "./screens/Wall.svelte";
   import Backups from "./screens/Backups.svelte";
   import Budget from "./screens/Budget.svelte";
   import Settings from "./screens/Settings.svelte";
   import Palette from "./lib/components/Palette.svelte";
+  import ChatDrawer from "./lib/components/ChatDrawer.svelte";
+  import { drawer } from "./lib/stores/drawer.svelte";
 
   let palette = $state(false);
 
@@ -29,10 +30,26 @@
     return () => view.disconnect();
   });
 
+  // #/chat (links, the palette, old bookmarks) opens the drawer over the screen you came from.
+  let lastScreen = "#/";
+  $effect(() => {
+    if (route.current.name === "chat") {
+      drawer.show();
+      location.replace(lastScreen);
+    } else {
+      lastScreen = location.hash || "#/";
+    }
+  });
+
   function onKey(e: KeyboardEvent) {
     if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "h") {
       e.preventDefault();
       prefs.toggleBlur();
+    } else if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === "j") {
+      e.preventDefault();
+      drawer.toggle();
+    } else if (e.key === "Escape" && drawer.open && !palette) {
+      drawer.hide();
     } else if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === "k") {
       e.preventDefault();
       palette = !palette;
@@ -48,7 +65,7 @@
 {:else}
 <div class="app">
   <Rail onPalette={() => (palette = true)} />
-  <main class:tight={route.current.name === "chat"}>
+  <main class:docked={drawer.open}>
     <div class="col" class:wide={route.current.name === "changes"}>
       {#if view.current?.problem}
         <ProblemBanner problem={view.current.problem} path={view.current.ledger_path} />
@@ -63,8 +80,6 @@
         <Portfolio view={view.current} tab={route.current.tab} />
       {:else if route.current.name === "changes"}
         <Changes view={view.current} />
-      {:else if route.current.name === "chat"}
-        <Chat view={view.current} />
       {:else if route.current.name === "plan"}
         <Plan view={view.current} />
       {:else if route.current.name === "budget"}
@@ -81,14 +96,15 @@
     </div>
   </main>
 </div>
+{#if drawer.open && view.current}<ChatDrawer view={view.current} />{/if}
 {/if}
 
 <style>
   .app { display: flex; min-height: 100vh; }
   main { flex: 1; min-width: 0; padding: 28px 28px 48px; }
-  main.tight { padding-bottom: 16px; }
-  .col { max-width: 820px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+  main.docked { margin-right: 420px; }
+  .col { max-width: 960px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
   .col.wide { max-width: 1360px; }
   .error { color: var(--negative); }
-  @media (max-width: 760px) { .app { flex-direction: column; } main { padding: 16px 16px 40px; } }
+  @media (max-width: 760px) { .app { flex-direction: column; } main { padding: 16px 16px 84px; } main.docked { margin-right: 0; } }
 </style>

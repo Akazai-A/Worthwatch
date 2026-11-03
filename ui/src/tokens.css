@@ -1,6 +1,7 @@
 /* Design tokens: the only place colours and faces are defined. Direction "Graphite & Brass":
    warm charcoal, bone text, one brass accent (net worth line and current state only),
-   figures in a mono face. Dark first; light follows the OS unless <html data-theme> says
+   a ruled ledger rather than cards, headline figures in a serif display face, every
+   other figure in a mono face. Every text colour passes WCAG AA on every surface. Dark first; light follows the OS unless <html data-theme> says
    otherwise. Group colours are fixed so a colour means the same thing on every chart. */
 :root {
   --bg: #131210;
@@ -9,7 +10,7 @@
   --border: #2a2823;
   --text: #ece7dc;
   --text-2: #a39d90;
-  --text-3: #6a655a;
+  --text-3: #8f897c;
   --accent: #d4a853;
   --accent-soft: rgba(212, 168, 83, 0.12);
   --negative: #d98b7a;
@@ -29,7 +30,8 @@
   --fill: color-mix(in oklab, var(--text) 42%, var(--surface-2));
   --fill-soft: color-mix(in oklab, var(--text) 22%, var(--surface-2));
   --radius: 8px;
-  --font: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --font: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --display: "Newsreader", Georgia, "Times New Roman", serif;
   --figures: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   color-scheme: dark;
@@ -37,29 +39,32 @@
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
     --bg: #f3efe6; --surface: #faf7f0; --surface-2: #ece6d9; --border: #ddd6c7;
-    --text: #1e1c18; --text-2: #635e52; --text-3: #9b9484;
-    --accent: #9a7420; --accent-soft: rgba(154, 116, 32, 0.1);
-    --negative: #b4523f; --positive: #4f7f52; --warn: #9a7420;
+    --text: #1e1c18; --text-2: #4f4a40; --text-3: #696353;
+    --accent: #7f5f14; --accent-soft: rgba(127, 95, 20, 0.1);
+    --negative: #a1442f; --positive: #3f6b42; --warn: #7f5f14;
     --g-cash: #2a78d6; --g-investments: #eb6834; --g-property: #1baf7a; --g-debt: #6250d6;
     --f-tech: #3f78c8; --f-fin: #b8506e; --f-cons: #1f8f74; --f-ind: #8b5bb3;
     color-scheme: light;
   }
 }
+/* Same values as above; repeated because a forced theme must win over the OS setting. */
 :root[data-theme="light"] {
   --bg: #f3efe6; --surface: #faf7f0; --surface-2: #ece6d9; --border: #ddd6c7;
-  --text: #1e1c18; --text-2: #635e52; --text-3: #9b9484;
-  --accent: #9a7420; --accent-soft: rgba(154, 116, 32, 0.1);
-  --negative: #b4523f; --positive: #4f7f52; --warn: #9a7420;
+  --text: #1e1c18; --text-2: #4f4a40; --text-3: #696353;
+  --accent: #7f5f14; --accent-soft: rgba(127, 95, 20, 0.1);
+  --negative: #a1442f; --positive: #3f6b42; --warn: #7f5f14;
   --g-cash: #2a78d6; --g-investments: #eb6834; --g-property: #1baf7a; --g-debt: #6250d6;
---f-tech: #3f78c8; --f-fin: #b8506e; --f-cons: #1f8f74; --f-ind: #8b5bb3;
+  --f-tech: #3f78c8; --f-fin: #b8506e; --f-cons: #1f8f74; --f-ind: #8b5bb3;
   color-scheme: light;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; line-height: 1.45; }
 a { color: var(--accent); }
 .num, .money { font-family: var(--figures); font-variant-numeric: tabular-nums; }
-.label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-3); }
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+/* Section names: sentence case, set like a ledger heading, not a micro-label. */
+.label { font-size: 13px; font-weight: 600; color: var(--text); }
+/* A ledger section: a hairline rule above, no box. */
+.card { border-top: 1px solid var(--border); padding: 16px 0 18px; }
 .muted { color: var(--text-2); }
 .faint { color: var(--text-3); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }

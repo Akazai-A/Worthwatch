@@ -29,8 +29,9 @@
 <style>
   .s { font-size: 0.875rem; }
   .l { font-size: 1.25rem; font-weight: 500; }
-  .xl { font-size: 3.5rem; font-weight: 500; letter-spacing: -0.04em; line-height: 1.05; font-variant-numeric: normal; }
+  /* Headline figures: the serif display face, lining tabular numerals, no tight tracking (it read "$279 , 877"). */
+  .xl { font-family: var(--display); font-size: 4.25rem; font-weight: 500; letter-spacing: -0.01em; line-height: 1; font-variant-numeric: lining-nums tabular-nums; }
   .neg, .down { color: var(--negative); }
   .up { color: var(--positive); }
-  @media (max-width: 760px) { .xl { font-size: 2.75rem; } }
+  @media (max-width: 760px) { .xl { font-size: 3.25rem; } }
 </style>

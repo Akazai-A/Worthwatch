@@ -152,7 +152,7 @@
   .side { display: flex; flex-direction: column; gap: 20px; position: sticky; top: 16px; }
   h2.label { margin: 0 0 8px; font-weight: 500; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th { text-align: left; font-weight: 500; color: var(--text-3); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; padding: 4px 0; }
+  th { text-align: left; font-weight: 500; color: var(--text-3); font-size: 12px; padding: 4px 0; }
   td { padding: 7px 0; border-top: 1px solid var(--border); vertical-align: top; }
   th.r, td.r { white-space: nowrap; padding-left: 14px; }
   th.bar, td.bar { width: 64px; padding-left: 14px; }

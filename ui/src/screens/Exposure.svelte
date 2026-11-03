@@ -1,9 +1,10 @@
 <script lang="ts">
-  // Portfolio › Exposure: sector, region, country, asset class and currency bars,
-  // through funds or as held. One neutral fill; the labels carry identity.
+  // Portfolio › Exposure: one readout per question (country, asset class, currency,
+  // sector): the biggest share as a number, one bar with the next three, and the full
+  // list on demand. Region is left out: it repeats country. Through funds or as held.
   import type { Bucket, LookThroughView } from "../lib/api";
   import { formatDate, formatMoney } from "../lib/money";
-  import { compactMoney, topBuckets } from "../lib/lookthrough";
+  import { compactMoney } from "../lib/lookthrough";
   import Money from "../lib/components/Money.svelte";
 
   let { lt }: { lt: LookThroughView } = $props();
@@ -13,12 +14,12 @@
   const anyResolved = $derived(lt.lookthrough.funds.some((f) => f.resolved));
   type Set = { title: string; sub?: string; rows: Bucket[] };
   const sets = $derived<Set[]>([
-    { title: "Sector", rows: x.by_sector },
-    { title: "Region", rows: x.by_region },
-    { title: "Country", sub: x.by_country.length > 8 ? "top 8" : undefined, rows: topBuckets(x.by_country, 8) },
+    { title: "Country", rows: x.by_country },
     { title: "Asset class", rows: x.by_asset_class },
-    { title: "Currency", sub: mode === "lookthrough" ? "of the underlying" : "traded in", rows: topBuckets(x.by_currency, 6) },
+    { title: mode === "lookthrough" ? "Currency of the underlying" : "Currency traded in", rows: x.by_currency },
+    { title: "Sector", rows: x.by_sector },
   ]);
+  let open = $state<Record<string, boolean>>({});
   const muted = (label: string) => label === "Undisclosed" || label === "Unknown" || label === "Unclassified" || label.endsWith("others");
 </script>
 
@@ -36,20 +37,42 @@
 {#if lt.holdings.length === 0}
   <section class="card empty"><p class="muted">Nothing to break down yet: add positions on <a href="#/check-in">Check-in</a>.</p></section>
 {:else}
-  <div class="bars">
+  <div class="reads">
     {#each sets as s (s.title)}
-      {@const max = Math.max(...s.rows.map((r) => Number(r.pct)), 0.01)}
-      <section class="card barset">
-        <h2>{s.title}{#if s.sub}<small>{s.sub}</small>{/if}</h2>
-        {#each s.rows as r (r.label)}
-          <div class="row" class:faint={muted(r.label)} title="{r.label}: {formatMoney(r.value, cur)} ({r.pct}%)">
-            <span class="name">{r.label}</span>
-            <span class="track"><i style="width:{(Number(r.pct) / max) * 100}%" class:soft={muted(r.label)}></i></span>
-            <span class="pct num">{Number(r.pct).toFixed(1)}%</span>
-            <span class="amt money">{compactMoney(r.value)}</span>
+      {@const top = s.rows[0]}
+      {@const next = s.rows.slice(1, 4)}
+      {#if top}
+        <section class="read">
+          <div class="big">
+            <div class="faint t">{s.title}</div>
+            <div class="pc">{Math.round(Number(top.pct))}%</div>
+            <div class="nm">{top.label}</div>
           </div>
-        {/each}
-      </section>
+          <div class="rest">
+            <div class="one" title="{s.rows.map((r) => `${r.label} ${Number(r.pct).toFixed(1)}%`).join(' · ')}">
+              <i style="width:{top.pct}%"></i>
+              {#each next as r, i (r.label)}<i class="n" style="width:{r.pct}%;opacity:{0.7 - i * 0.18}"></i>{/each}
+            </div>
+            <div class="nx">
+              {#each next as r (r.label)}<span>{r.label} <b class="num">{Number(r.pct).toFixed(1)}%</b></span>{/each}
+              {#if s.rows.length > 1}<button type="button" class="all" aria-expanded={!!open[s.title]} onclick={() => (open[s.title] = !open[s.title])}>{open[s.title] ? "Hide" : `All ${s.rows.length}`}</button>{/if}
+            </div>
+            {#if open[s.title]}
+              {@const max = Math.max(...s.rows.map((r) => Number(r.pct)), 0.01)}
+              <div class="list">
+                {#each s.rows as r (r.label)}
+                  <div class="row" class:faint={muted(r.label)} title="{r.label}: {formatMoney(r.value, cur)} ({r.pct}%)">
+                    <span class="name">{r.label}</span>
+                    <span class="track"><i style="width:{(Number(r.pct) / max) * 100}%" class:soft={muted(r.label)}></i></span>
+                    <span class="pct num">{Number(r.pct).toFixed(1)}%</span>
+                    <span class="amt money">{compactMoney(r.value)}</span>
+                  </div>
+                {/each}
+              </div>
+            {/if}
+          </div>
+        </section>
+      {/if}
     {/each}
   </div>
   <p class="faint note">
@@ -66,9 +89,20 @@
   .toggle button:disabled { opacity: 0.5; cursor: default; }
   .toggle button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
   .empty p { margin: 0; }
-  .bars { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-  .barset h2 { margin: 0 0 10px; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-3); display: flex; justify-content: space-between; }
-  .barset h2 small { text-transform: none; letter-spacing: 0; font-size: 11px; }
+  .reads { display: flex; flex-direction: column; }
+  .read { display: grid; grid-template-columns: 200px 1fr; gap: 24px; padding: 14px 0; border-top: 1px solid var(--border); }
+  .t { font-size: 12px; }
+  .pc { font-family: var(--display); font-size: 2.25rem; line-height: 1.1; font-variant-numeric: lining-nums; }
+  .nm { font-size: 14px; }
+  .rest { min-width: 0; padding-top: 22px; }
+  .one { display: flex; gap: 2px; height: 14px; border-radius: 3px; overflow: hidden; background: var(--surface-2); }
+  .one i { display: block; height: 100%; background: var(--fill); }
+  .nx { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 8px; font-size: 12px; color: var(--text-2); align-items: baseline; }
+  .nx b { color: var(--text); font-weight: 500; }
+  .all { margin-left: auto; background: none; border: 0; padding: 0; font: inherit; font-size: 12px; color: var(--text-2); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+  .all:hover { color: var(--text); }
+  .all:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .list { margin-top: 10px; }
   .row { display: grid; grid-template-columns: minmax(96px, 128px) 1fr 48px 60px; gap: 10px; align-items: center; font-size: 12px; padding: 3px 0; }
   .row .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .track { height: 10px; background: var(--surface-2); border-radius: 3px; overflow: hidden; position: relative; }
@@ -77,5 +111,5 @@
   .pct { text-align: right; }
   .amt { text-align: right; color: var(--text-2); }
   .note { font-size: 12px; margin: 0; }
-  @media (max-width: 760px) { .bars { grid-template-columns: 1fr; } .row { grid-template-columns: 96px 1fr 44px 52px; } }
+  @media (max-width: 760px) { .read { grid-template-columns: 1fr; gap: 6px; } .rest { padding-top: 0; } .row { grid-template-columns: 96px 1fr 44px 52px; } }
 </style>

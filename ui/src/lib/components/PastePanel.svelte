@@ -93,7 +93,7 @@
   textarea { width: 100%; min-height: 96px; background: var(--bg); border: 1px solid var(--border); border-radius: 7px; padding: 8px 10px; color: var(--text); font: inherit; font-family: var(--mono); font-size: 12px; resize: vertical; }
   textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
   .prev { display: grid; grid-template-columns: 1fr 100px 100px 110px 150px; gap: 12px; font-size: 13px; padding: 6px 0; border-top: 1px solid var(--border); }
-  .prev.h { border-top: 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); padding-bottom: 2px; }
+  .prev.h { border-top: 0; font-size: 12px; color: var(--text-3); padding-bottom: 2px; }
   .r { text-align: right; }
   .up { color: var(--positive); }
   .down { color: var(--negative); }

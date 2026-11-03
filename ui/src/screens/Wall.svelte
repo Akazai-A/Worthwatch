@@ -78,7 +78,7 @@
   .top { display: flex; justify-content: space-between; align-items: baseline; color: var(--text-3); font-size: 14px; gap: 16px; }
   .top a { color: var(--text-3); text-decoration: none; }
   .clock { font-family: var(--figures); color: var(--text-2); font-size: 22px; }
-  .big { font-size: clamp(64px, 10vw, 128px); letter-spacing: -0.03em; line-height: 1; }
+  .big { font-family: var(--display); font-weight: 500; font-size: clamp(96px, 13vw, 176px); letter-spacing: -0.015em; line-height: 1; font-variant-numeric: lining-nums tabular-nums; }
   .chips { display: flex; gap: 28px; font-family: var(--figures); font-size: clamp(16px, 1.8vw, 22px); margin-top: 12px; color: var(--text-2); flex-wrap: wrap; }
   .chips b { font-weight: 400; color: var(--positive); }
   .chips b.down { color: var(--negative); }

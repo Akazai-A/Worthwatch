@@ -138,14 +138,14 @@
 {/if}
 
 <style>
-  .plan { display: flex; flex-direction: column; padding: 10px 14px; border-radius: 12px 12px 12px 2px; }
+  .plan { container-type: inline-size; display: flex; flex-direction: column; padding: 10px 14px; border-radius: 12px 12px 12px 2px; }
   .plan.failed { border-color: var(--negative); }
   .top { display: flex; align-items: center; gap: 10px; padding-bottom: 6px; flex-wrap: wrap; }
   .top b { font-weight: 600; }
   .net { font-size: 13px; }
   .sp { flex: 1; }
   .acts { display: flex; align-items: center; gap: 10px; }
-  .pill { font-size: 10px; padding: 1px 6px; border-radius: 9px; background: var(--surface-2); color: var(--text-2); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+  .pill { font-size: 12px; padding: 1px 6px; border-radius: 9px; background: var(--surface-2); color: var(--text-2); font-weight: 600; }
   .pill.mcp { background: color-mix(in oklab, var(--g-cash) 18%, transparent); color: var(--g-cash); }
   .row { display: grid; grid-template-columns: minmax(0, 1fr) 96px 14px 104px 116px 56px; gap: 10px; align-items: center; padding: 5px 0; border-top: 1px solid var(--border); font-size: 13px; }
   .row.same { opacity: 0.6; }
@@ -171,7 +171,7 @@
   .link:hover { color: var(--text); }
   .link:disabled { color: var(--text-3); cursor: default; }
   button:focus-visible { outline: 2px solid var(--text-2); outline-offset: 2px; }
-  @media (max-width: 700px) {
+  @container (max-width: 640px) {
     .row { grid-template-columns: minmax(0, 1fr) 96px 104px; }
     .row > :nth-child(2), .row > :nth-child(3), .row > :nth-child(6) { display: none; }
     .rejrow { grid-template-columns: 14px minmax(0, 1fr); }

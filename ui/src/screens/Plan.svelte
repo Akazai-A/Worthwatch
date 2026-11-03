@@ -18,6 +18,7 @@
 
   const p = $derived(plan.current);
   const P = $derived(p?.projection);
+  const colMax = $derived(Math.max(1, ...(P?.milestones ?? []).map((m) => Number(m.net_worth))));
   const ledgerReturn = $derived(p ? Number(p.settings.return_pct) : 5);
   const ret = $derived(plan.returnPct != null ? Number(plan.returnPct) : ledgerReturn);
   const tgt = $derived(plan.target != null ? Number(plan.target) : p?.settings.target != null ? Number(p.settings.target) : null);
@@ -26,6 +27,7 @@
   const headline = $derived(P ? (P.milestones.find((m) => m.years === 10) ?? P.milestones[P.milestones.length - 1]) : null);
   const money = (v: number | string) => (prefs.blur ? "*****" : formatMoney(v, cur));
   const compact = (v: number | string) => (prefs.blur ? "*****" : formatCompact(Number(v)));
+  const COLH = 180;
   const maxDebt = $derived(P ? Math.max(1, ...P.debts.map((d) => Number(d.balance))) : 1);
   const groupOf = (id: string) => view.accounts.find((a) => a.id === id)?.group ?? "cash";
 
@@ -163,16 +165,20 @@
       {#if P.skipped.length}<p class="warn small">Left out (no FX rate): {P.skipped.join(", ")}</p>{/if}
     </section>
 
-    <section class="tiles">
-      {#each P.milestones as m}
-        {@const s = milestoneSplit(P.start_net_worth, m)}
-        <div class="card tile">
-          <div class="label">{m.years} year{m.years > 1 ? "s" : ""} · {monthYear(m.date)}</div>
-          <div class="v money">{compact(m.net_worth)}</div>
-          <div class="r money">{compact(m.low)} – {compact(m.high)}</div>
-          <div class="split" title="today {money(s.today)} · put in {money(s.putIn)} · growth and paydown {money(s.growth)}">
-            <i style="width:{(s.today / s.total) * 100}%;background:var(--fill)"></i><i style="width:{(s.putIn / s.total) * 100}%;background:var(--fill-soft)"></i><i style="width:{(s.growth / s.total) * 100}%;background:var(--accent)"></i>
+    <!-- One column per milestone, stacked: today's net worth, money put in, growth. Compounding shows as the brass taking over. -->
+    <section class="cols" aria-label="What each milestone is made of">
+      {#each P.milestones as m, i}
+        {@const sp = milestoneSplit(P.start_net_worth, m)}
+        {@const h = (Number(m.net_worth) / colMax) * COLH}
+        <div class="col" style="width:{100 / P.milestones.length}%" title="today {money(sp.today)} · put in {money(sp.putIn)} · growth and paydown {money(sp.growth)}">
+          <div class="cv"><span class="money">{compact(m.net_worth)}</span><span class="cg">{Math.round((sp.growth / sp.total) * 100)}% growth</span></div>
+          <div class="stack" style="height:{Math.max(4, h)}px">
+            <i style="flex:{sp.growth};background:var(--accent)"></i>
+            <i style="flex:{sp.putIn};background:var(--fill-soft)"></i>
+            <i style="flex:{sp.today};background:var(--fill)"></i>
           </div>
+          <div class="cl">{m.years} year{m.years > 1 ? "s" : ""} · {monthYear(m.date)}</div>
+          <div class="cr faint money">{compact(m.low)} – {compact(m.high)}</div>
         </div>
       {/each}
     </section>
@@ -293,17 +299,22 @@
   .link { background: none; border: 0; color: var(--text-2); font: inherit; font-size: 12px; cursor: pointer; padding: 0; text-decoration: underline; text-decoration-color: var(--border); text-underline-offset: 3px; }
   .link:hover { color: var(--text); }
   .legend { display: flex; gap: 16px; font-size: 11px; color: var(--text-2); margin-top: 8px; flex-wrap: wrap; }
-  .legend.under { margin-top: -12px; }
+  .legend.under { margin-top: 0; }
   .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
   .sw.past { background: var(--accent); height: 2px; vertical-align: 3px; }
   .sw.band { background: var(--accent-soft); outline: 1px dashed var(--accent); }
   .sw.floor { background: var(--fill-soft); }
   .sw.target { border-top: 1px dotted var(--text-2); height: 0; background: none; vertical-align: 3px; }
-  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-  .tile .v { font-size: 20px; margin: 4px 0 2px; }
-  .tile .r { font-size: 11px; color: var(--text-3); }
-  .split { display: flex; height: 6px; border-radius: 3px; overflow: hidden; margin-top: 10px; background: var(--surface-2); }
-  .split i, .bar i { display: block; height: 100%; }
+  .cols { display: flex; align-items: flex-end; border-top: 1px solid var(--border); padding-top: 16px; }
+  .col { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 0 12px; }
+  .cv { display: flex; flex-direction: column; align-items: center; }
+  .cv .money { font-family: var(--display); font-size: 1.4rem; line-height: 1.1; font-variant-numeric: lining-nums; }
+  .cg { font-size: 12px; color: var(--accent); }
+  .stack { width: min(120px, 100%); display: flex; flex-direction: column; gap: 1px; }
+  .stack i { display: block; min-height: 0; }
+  .cl { font-size: 12px; color: var(--text-2); text-align: center; }
+  .cr { font-size: 12px; }
+  .bar i { display: block; height: 100%; }
   .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
   h2.label { margin: 0 0 12px; font-weight: 500; }
   .debt { display: grid; grid-template-columns: 110px 1fr; gap: 10px; align-items: center; padding: 6px 0; }
@@ -337,7 +348,8 @@
   code { font-family: var(--mono); font-size: 11px; }
   @media (max-width: 760px) {
     .knobs { grid-template-columns: 1fr; }
-    .tiles { grid-template-columns: repeat(2, 1fr); }
+    .col { padding: 0 4px; }
+    .cv .money { font-size: 1.1rem; }
     .two { grid-template-columns: 1fr; }
     .rules .r { grid-template-columns: 10px 1fr auto 18px; }
     .rules .m { display: none; }
