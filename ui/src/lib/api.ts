@@ -131,7 +131,7 @@ export interface LedgerView {
 
 // ---- Chat (POST /api/chat) and pending proposals (MCP) ----
 export interface AssistantView { provider: "ollama" | "cloud" | "shorthand"; model: string | null; url: string | null; key_present: boolean; offline: boolean }
-export type RowKind = "balance" | "trade" | "price" | "new_account" | "note";
+export type RowKind = "balance" | "trade" | "price" | "new_account" | "note" | "spend";
 export interface PlanRow2 {
   kind: RowKind;
   account: string | null;
@@ -152,6 +152,8 @@ export interface Plan {
   date: string;
   rows: PlanRow2[];
   mutations: Mutation[];
+  /** Purchases for the budget. They never change a balance or net worth. */
+  spends: Spend[];
   rejected: Rejected[];
   net_change: string | null;
   net_worth_after: string | null;
@@ -452,12 +454,14 @@ export interface BudgetSettings {
   bills?: Bill[];
   feed?: Feed;
 }
-export type TxnStatus = "provisional" | "confirmed" | "posted" | "review" | "tap_only" | "unlinked";
+export type TxnStatus = "provisional" | "confirmed" | "posted" | "review" | "tap_only" | "unlinked" | "manual";
 export interface Txn {
   id: string; account: string | null; card: string | null; date: string; amount: string; currency: string;
   merchant: string; description: string | null; category: string; status: TxnStatus;
   tap_id: string | null; tap_amount: string | null; tap_currency: string | null; tap_date: string | null;
   base_amount: string | null;
+  /** Set when you added it by hand; removable by this id. */
+  manual_id?: string;
 }
 export interface CategoryLine { category: string; label: string; spent: string; provisional: string; limit: string | null; history: string[]; count: number }
 export interface BillStatus { name: string; amount: string; category: string; paid_on: string | null; paid_amount: string | null; due_day: number | null }
@@ -501,6 +505,11 @@ async function post<T>(url: string, body?: unknown): Promise<T> {
 export const previewImport = (req: ImportRequest) => post<ImportPreview>("/api/budget/import/preview", req);
 export const importStatement = (req: ImportRequest) => post<{ added: number; duplicates: number }>("/api/budget/import", req);
 export const setCategory = (id: string, category: string | null) => post<{ ok: boolean }>("/api/budget/category", { id, category });
+
+/** A purchase added by hand. `account` null means cash; `category` null lets the rules pick. */
+export interface Spend { date: string; merchant: string; amount: string; account: string | null; category: string | null; source?: string | null }
+export const addSpends = (spends: Spend[]) => post<{ added: string[] }>("/api/budget/spend", spends);
+export const removeSpend = (id: string) => post<{ ok: boolean }>("/api/budget/spend/remove", { id });
 
 // ---- Budget game (GET /api/game) ----
 export type CardRule =

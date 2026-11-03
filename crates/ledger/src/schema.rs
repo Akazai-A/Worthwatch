@@ -516,6 +516,11 @@ impl AccountKind {
         matches!(self, Self::Tfsa | Self::Rrsp | Self::Fhsa | Self::Resp)
     }
 
+    /// Something you pay for things from: a bank account, a card or a line of credit.
+    pub fn pays(self) -> bool {
+        matches!(self, Self::Chequing | Self::Savings | Self::CreditCard | Self::LineOfCredit)
+    }
+
     pub fn group(self) -> Group {
         match self {
             Self::Chequing | Self::Savings => Group::Cash,

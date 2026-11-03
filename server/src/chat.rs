@@ -10,6 +10,24 @@ use serde::{Deserialize, Serialize};
 
 use crate::state::Snapshot;
 
+/// [`assistant::resolve`], with a category on every purchase from the budget's rules,
+/// so the card shows where it will land.
+pub fn resolve(l: &ledger::Ledger, ctx: &Context, p: &Proposal) -> Plan {
+    let mut plan = assistant::resolve(l, ctx, p);
+    for sp in plan.spends.iter_mut().filter(|sp| sp.category.is_none()) {
+        let liability =
+            sp.account.as_deref().and_then(|a| l.account(a)).is_some_and(|a| a.kind.is_liability());
+        sp.category = Some(budget::categorize(
+            &sp.merchant,
+            sp.account.as_deref(),
+            sp.amount,
+            liability,
+            &l.budget.rules,
+        ));
+    }
+    plan
+}
+
 pub fn context(snap: &Snapshot, today: NaiveDate) -> Context {
     let l = &snap.ledger;
     let m = snap.market();
@@ -186,7 +204,7 @@ pub fn chat(snap: &Snapshot, offline: bool, req: &ChatRequest, today: NaiveDate)
             provider: view.provider.clone(),
             used: used.into(),
             note,
-            plan: Some(assistant::resolve(l, &ctx, &p)),
+            plan: Some(resolve(l, &ctx, &p)),
             preview: None,
         }
     };

@@ -372,7 +372,7 @@ pub fn build_budget(s: &AppState, q: &MonthQuery, today: NaiveDate) -> BudgetVie
     let market = snap.market();
     let base = l.settings.base_currency.clone();
     let store = s.txns.read().expect("txn lock");
-    let txns = budget::reconcile(l, &store.taps, &store.rows, &store.overrides, today);
+    let txns = store.reconcile(l, today);
     let month = q.month.as_deref().and_then(parse_month).unwrap_or(today);
     let rate = |c: &str, d: NaiveDate| market.rate_at(&base, c, d).map(|r| r.rate);
     let view = budget::month(l, &txns, month, today, &rate);
@@ -577,6 +577,93 @@ async fn set_category(
         .expect("txn lock")
         .set_category(&req.id, req.category.as_deref().filter(|c| !c.trim().is_empty()))
         .map_err(|e| bad(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    s.bump();
+    Ok(Json(serde_json::json!({ "ok": true })))
+}
+
+// ------------------------------------------------------------------ added by hand
+
+/// Check and store purchases added by hand (the + Add form, Play, or an approved chat
+/// card). All or nothing: one bad entry stores none. Returns the new ids.
+pub fn add_spends(
+    s: &AppState,
+    spends: &[assistant::Spend],
+    now: chrono::DateTime<chrono::Utc>,
+) -> Result<Vec<String>, String> {
+    if spends.is_empty() {
+        return Err("nothing to add".into());
+    }
+    let snap = s.snapshot();
+    let l = &snap.ledger;
+    let tomorrow = Local::now().date_naive() + chrono::Days::new(1);
+    let mut records = Vec::with_capacity(spends.len());
+    for (i, sp) in spends.iter().enumerate() {
+        let merchant = sp.merchant.trim();
+        if merchant.is_empty() || merchant.chars().count() > 120 {
+            return Err("say what it was, in up to 120 characters".into());
+        }
+        if sp.amount.is_zero() || sp.amount.abs() > Decimal::from(1_000_000) {
+            return Err(format!("{merchant}: the amount must be more than 0"));
+        }
+        if sp.date > tomorrow {
+            return Err(format!("{merchant}: {} is in the future", sp.date));
+        }
+        if let Some(a) = sp.account.as_deref() {
+            match l.account(a) {
+                Some(acct) if acct.kind.pays() => {}
+                Some(acct) => return Err(format!("{} isn't something you pay with", acct.name)),
+                None => return Err(format!("no account \"{a}\"")),
+            }
+        }
+        let category = sp.category.as_deref().map(str::trim).filter(|c| !c.is_empty()).map(str::to_string);
+        records.push(budget::store::Record::Manual(budget::Manual::new(
+            sp.date,
+            merchant,
+            sp.amount.round_dp(2),
+            sp.account.clone(),
+            category,
+            now,
+            i,
+        )));
+    }
+    let ids: Vec<String> = records.iter().map(|r| r.id().to_string()).collect();
+    s.txns.write().expect("txn lock").append(records).map_err(|e| e.to_string())?;
+    s.bump();
+    Ok(ids)
+}
+
+#[derive(Serialize)]
+pub struct SpendReply {
+    pub added: Vec<String>,
+}
+
+async fn add_spend(
+    State(s): State<AppState>,
+    Json(spends): Json<Vec<assistant::Spend>>,
+) -> ApiResult<SpendReply> {
+    add_spends(&s, &spends, chrono::Utc::now())
+        .map(|added| Json(SpendReply { added }))
+        .map_err(|e| bad(StatusCode::UNPROCESSABLE_ENTITY, e))
+}
+
+#[derive(Deserialize)]
+pub struct RemoveRequest {
+    pub id: String,
+}
+
+async fn remove_spend(
+    State(s): State<AppState>,
+    Json(req): Json<RemoveRequest>,
+) -> ApiResult<serde_json::Value> {
+    let removed = s
+        .txns
+        .write()
+        .expect("txn lock")
+        .remove_manual(&req.id, chrono::Utc::now())
+        .map_err(|e| bad(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    if !removed {
+        return Err(bad(StatusCode::NOT_FOUND, format!("no entry added by hand with id {}", req.id)));
+    }
     s.bump();
     Ok(Json(serde_json::json!({ "ok": true })))
 }
@@ -816,6 +903,8 @@ pub fn router(state: AppState) -> Router {
         .route("/api/budget/import/preview", post(import_preview))
         .route("/api/budget/import", post(import))
         .route("/api/budget/category", post(set_category))
+        .route("/api/budget/spend", post(add_spend))
+        .route("/api/budget/spend/remove", post(remove_spend))
         .route("/api/settings", get(get_settings))
         .route("/api/settings/token", post(rotate_token))
         .route("/api/settings/token/reveal", post(reveal_token))
@@ -952,6 +1041,82 @@ mod tests {
         let Json(r) = import(State(s.clone()), Json(clone_req(&req))).await.unwrap();
         assert_eq!((r.added, r.duplicates), (0, 2));
         assert_eq!(v.accounts[0].last_statement, NaiveDate::from_ymd_opt(2026, 11, 4));
+    }
+
+    async fn send(s: &AppState, path: &str, body: serde_json::Value) -> (StatusCode, serde_json::Value) {
+        let req =
+            Request::post(path).header("content-type", "application/json").body(Body::from(body.to_string()));
+        let res = router(s.clone()).oneshot(req.unwrap()).await.unwrap();
+        let status = res.status();
+        let bytes = axum::body::to_bytes(res.into_body(), 1 << 20).await.unwrap();
+        (status, serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null))
+    }
+
+    #[tokio::test]
+    async fn a_cash_spend_counts_at_once_and_removing_it_takes_it_back_out() {
+        let (_dir, s) = app();
+        let today = Local::now().date_naive();
+        let before = s.snapshot().version;
+        let (st, body) = send(
+            &s,
+            "/api/budget/spend",
+            serde_json::json!([{ "date": today, "merchant": "Farmers market", "amount": "18.50", "category": "Groceries" }]),
+        )
+        .await;
+        assert_eq!(st, StatusCode::OK, "{body}");
+        let id = body["added"][0].as_str().unwrap().to_string();
+        assert!(id.starts_with("man-"));
+        assert!(s.snapshot().version > before, "open pages hear about it");
+
+        let v = build_budget(&s, &MonthQuery::default(), today);
+        let t = &v.month.txns[0].txn;
+        assert_eq!(
+            (t.status, t.manual_id.as_deref(), t.category.as_str()),
+            (budget::Status::Manual, Some(id.as_str()), "groceries")
+        );
+        assert_eq!(v.month.spent, Decimal::new(1850, 2));
+        assert_eq!(v.month.provisional, Decimal::ZERO, "cash never waits for a statement");
+
+        let (st, _) = send(&s, "/api/budget/spend/remove", serde_json::json!({ "id": id })).await;
+        assert_eq!(st, StatusCode::OK);
+        assert!(build_budget(&s, &MonthQuery::default(), today).month.txns.is_empty());
+        let (st, _) = send(&s, "/api/budget/spend/remove", serde_json::json!({ "id": id })).await;
+        assert_eq!(st, StatusCode::NOT_FOUND, "already gone");
+        // Reopening reads the void from disk, so the entry stays removed.
+        let again = AppState::open(_dir.path()).unwrap();
+        assert!(again.txns.read().unwrap().manual.is_empty());
+    }
+
+    #[tokio::test]
+    async fn bad_entries_are_422_and_one_bad_entry_stores_none() {
+        let (_dir, s) = app();
+        let today = Local::now().date_naive();
+        let ok = serde_json::json!({ "date": today, "merchant": "Lunch", "amount": "14" });
+        for (bad, says) in [
+            (serde_json::json!({ "date": today, "merchant": "  ", "amount": "5" }), "say what it was"),
+            (serde_json::json!({ "date": today, "merchant": "Lunch", "amount": "0" }), "more than 0"),
+            (
+                serde_json::json!({ "date": today + chrono::Days::new(5), "merchant": "Lunch", "amount": "5" }),
+                "future",
+            ),
+            (
+                serde_json::json!({ "date": today, "merchant": "Lunch", "amount": "5", "account": "nope" }),
+                "no account",
+            ),
+        ] {
+            let (st, body) = send(&s, "/api/budget/spend", serde_json::json!([ok, bad])).await;
+            assert_eq!(st, StatusCode::UNPROCESSABLE_ENTITY);
+            assert!(body["message"].as_str().unwrap_or_default().contains(says), "{body}");
+        }
+        assert!(s.txns.read().unwrap().manual.is_empty());
+        // On a card you import, the entry is stored against the card.
+        let (st, _) = send(
+            &s,
+            "/api/budget/spend",
+            serde_json::json!([{ "date": today, "merchant": "Lunch", "amount": "14", "account": "amex" }]),
+        )
+        .await;
+        assert_eq!(st, StatusCode::OK);
     }
 
     fn clone_req(r: &ImportRequest) -> ImportRequest {

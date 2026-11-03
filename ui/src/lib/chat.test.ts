@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { editPlan, providerLine, rowHint } from "./chat";
+import { editable, editPlan, hasWork, onlySpends, providerLine, rowHint, rowTitle, spendOf } from "./chat";
 import type { Plan, PlanRow2 } from "./api";
 
 const row = (over: Partial<PlanRow2>): PlanRow2 => ({
@@ -19,6 +19,7 @@ const plan = (): Plan => ({
     { op: "set_balance", date: "2026-11-02", account: "td-visa", value: "640" },
     { op: "record_position_change", change: { date: "2026-11-02", account: "ws-tfsa", symbol: "XEQT.TO", units: "-20", price: null, note: null } },
   ],
+  spends: [],
   rejected: [],
   net_change: "731.4",
   net_worth_after: "413681.4",
@@ -65,5 +66,34 @@ describe("providerLine", () => {
     expect(providerLine({ provider: "ollama", model: "llama3.1", url: null, key_present: false, offline: false }).text).toContain("nothing leaves");
     expect(providerLine({ provider: "cloud", model: "m", url: null, key_present: false, offline: false }).text).toContain("ANTHROPIC_API_KEY not set");
     expect(providerLine({ provider: "cloud", model: "m", url: null, key_present: true, offline: true }).dot).toBe("off");
+  });
+});
+
+describe("purchases", () => {
+  const coffee = row({ kind: "spend", account: null, account_name: "Cash", detail: "Coffee", from: null, to: "6", delta: null, effect: "0", source: "coffee 6 cash" });
+  const lunch = row({ kind: "spend", account: "td-visa", account_name: "TD Visa", detail: "Lunch", from: null, to: "14", delta: null, effect: "0" });
+  const spends: Plan["spends"] = [
+    { date: "2026-11-02", merchant: "Coffee", amount: "6", account: null, category: "coffee" },
+    { date: "2026-11-02", merchant: "Lunch", amount: "14", account: "td-visa", category: "dining" },
+  ];
+
+  it("a card of only purchases is about the budget and can be approved with no ledger change", () => {
+    const p: Plan = { ...plan(), rows: [coffee, lunch], mutations: [], spends, net_change: "0" };
+    expect(onlySpends(p)).toBe(true);
+    expect(hasWork(p)).toBe(true);
+    expect(rowTitle(coffee)).toBe("Coffee");
+    expect(editable(coffee)).toBe(false);
+    expect(spendOf(p, 1)?.category).toBe("dining");
+  });
+
+  it("finds the purchase behind a row when balances come first", () => {
+    const p: Plan = { ...plan(), rows: [row({}), lunch], spends: [spends[1]] };
+    expect(onlySpends(p)).toBe(false);
+    expect(spendOf(p, 0)).toBeNull();
+    expect(spendOf(p, 1)?.merchant).toBe("Lunch");
+  });
+
+  it("a plan with nothing to save can't be approved", () => {
+    expect(hasWork({ ...plan(), mutations: [], spends: [] })).toBe(false);
   });
 });

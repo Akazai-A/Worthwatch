@@ -76,6 +76,7 @@ Chat lets you update balances the way you would text a friend. It opens as a dra
 
 - `td chq 5102, visa down to 640, sold 20 XEQT in the TFSA`
 - `eq savings 18.5k`
+- `coffee 6 cash` or `lunch 18.40 on td visa`
 - `what is my net worth?`
 
 Each message becomes a card. The card lists every change with the current value, the new value, and the effect on net worth.
@@ -85,6 +86,13 @@ Each message becomes a card. The card lists every change with the current value,
 - Select **Cancel** to discard the card.
 
 Nothing is saved until you approve. If part of a message doesn't match your accounts, that line is shown as rejected with the reason.
+
+A purchase, such as `coffee 6 cash`, goes to your budget instead of a balance. Its card says **budget only · net worth unchanged**, and approving it adds the purchase as if you'd used **+ Add** on **Budget**. Use `cash`, or the name of a bank account or card you paid with.
+
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="screenshots/chat-spend-light.png">
+  <img src="screenshots/chat-spend-dark.png" alt="Chat card for coffee 6 cash, lunch 18.40 on td visa: 2 purchases, budget only, net worth unchanged, with Approve 2" width="420">
+</picture>
 
 Chat works without any model. To choose a local model or Claude, see [Configure Worthwatch](configuration.md#choose-the-chat-model). Proposals from Claude Desktop and other MCP clients also appear here as cards. See [Connect an AI assistant](mcp.md).
 
@@ -111,9 +119,9 @@ Budget shows one month of spending against your category limits.
 - The running total compares your spending with your pace. Bills count on their due day, and the rest of the budget is spread evenly.
 - Category bars show each limit, with a tick for today's pace. Select a limit to change it.
 - Bills show as paid once a statement row matches them.
-- Transactions are grouped by day. A hollow dot is an Apple Pay tap waiting for its statement row. Choose a new category from a row's menu to fix it.
+- Transactions are grouped by day. A hollow dot is an Apple Pay tap waiting for its statement row, and a pencil ✎ is an entry you added by hand. Choose a new category from a row's menu to fix it.
 
-Select **Import statement…** to bring in a CSV or OFX file. See [Budget your spending](budgeting.md).
+Select **Import statement…** to bring in a CSV or OFX file, or **+ Add** to add a cash purchase by hand. See [Budget your spending](budgeting.md).
 
 ## Settings
 

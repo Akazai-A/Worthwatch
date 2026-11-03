@@ -12,6 +12,11 @@
   import PlayingCard from "../lib/components/game/PlayingCard.svelte";
   import Glyph from "../lib/components/game/Glyph.svelte";
   import { glyph } from "../lib/game";
+  import AddSpend from "../lib/components/AddSpend.svelte";
+  import { addSpend } from "../lib/stores/addspend.svelte";
+  import { budget } from "../lib/stores/budget.svelte";
+  import { removeSpend } from "../lib/api";
+  import { savedLine } from "../lib/spend";
 
   let { view, month }: { view: LedgerView; month: string | null } = $props();
   $effect(() => { void game.ensure(view.version, month); });
@@ -49,6 +54,25 @@
   }
   const play = (c: GameCard) => save([{ op: "play_card", card: { id: c.id, week: c.week, from: c.from, rule: c.rule } }]);
   const pass = (c: GameCard) => save([{ op: "pass_card", id: c.id }]);
+  // ---- A cash spend from today's token ----
+  let note = $state<string | null>(null);
+  let formAt: HTMLElement | undefined = $state();
+  function openAdd() {
+    note = null;
+    addSpend.show();
+    // The form's categories come from the Budget view.
+    if (!budget.current) void budget.ensure(view.version, null);
+    queueMicrotask(() => formAt?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
+  }
+  function added() {
+    const l = addSpend.last;
+    if (l) note = `Added ${savedLine([l], (v) => formatMoney(v, cur, 2))}.`;
+  }
+  async function undo() {
+    const id = addSpend.last?.id;
+    if (!id) return;
+    try { await removeSpend(id); addSpend.forget(); note = null; } catch (e) { err = e instanceof ApiError ? e.message : String(e); }
+  }
   const nextMonday = $derived.by(() => {
     const d = new Date(todayIso() + "T00:00:00Z");
     d.setUTCDate(d.getUTCDate() + ((8 - d.getUTCDay()) % 7 || 7));
@@ -112,7 +136,7 @@
     </section>
   {:else}
     <section class="board">
-      <Track {g} {money} {mon} />
+      <Track {g} {money} {mon} onadd={g.today ? openAdd : undefined} />
       <aside class="jarbox">
         <Jar fraction={jarFraction(g)} goalLabel={goal != null ? money(goal) : null} id="coin-main" />
         <div class="jt">
@@ -126,6 +150,13 @@
         </div>
       </aside>
     </section>
+
+    <div bind:this={formAt}>
+      {#if addSpend.open}
+        <AddSpend accounts={view.accounts} options={budget.current?.options ?? []} onsaved={added} />
+      {/if}
+      {#if note}<p class="note small">{note} {#if addSpend.last}<button type="button" class="link" onclick={undo}>Undo</button>{" "}{/if}<button type="button" class="link" onclick={() => (note = null)}>OK</button></p>{/if}
+    </div>
 
     {#if goal == null}
       <section class="pick">
@@ -224,6 +255,8 @@
   .btn { border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 8px; padding: 7px 14px; font: inherit; font-size: 13px; cursor: pointer; text-decoration: none; display: inline-block; }
   .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 600; }
   .link { color: var(--text-3); font-size: 13px; }
+  .note { margin: 0; color: var(--text-2); }
+  .note button.link { background: none; border: 0; padding: 0; cursor: pointer; color: var(--accent); font: inherit; font-size: 12px; }
   .closed { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; }
   .kicker { font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-3); margin: 0; }
   .huge { font-family: var(--display); font-size: 4rem; line-height: 1; color: var(--accent); }

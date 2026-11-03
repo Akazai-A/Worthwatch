@@ -166,12 +166,18 @@ impl AppState {
             }
         };
         let outcome = if approve {
-            if plan.mutations.is_empty() {
+            if plan.mutations.is_empty() && plan.spends.is_empty() {
                 return Err(LedgerError::FileHasProblem(
                     "this proposal has nothing that can be applied".into(),
                 ));
             }
-            self.apply_many(plan.mutations)?;
+            if !plan.mutations.is_empty() {
+                self.apply_many(plan.mutations)?;
+            }
+            if !plan.spends.is_empty() {
+                crate::budget::add_spends(self, &plan.spends, Utc::now())
+                    .map_err(LedgerError::FileHasProblem)?;
+            }
             "approved"
         } else {
             "discarded"

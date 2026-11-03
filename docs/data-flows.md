@@ -176,6 +176,8 @@ Rules on top of the Stage 3 ones:
 | `GET /api/budget?month` | `BudgetView`: the month's spending, pace by day, categories with six-month history, bills, transactions with status, review list, unlinked cards, account sources and feed status |
 | `POST /api/budget/import/preview` · `POST /api/budget/import` | `{ account, text, preset, flip }` → the parsed statement with duplicates marked (writes nothing), or the rows appended to `transactions/` |
 | `POST /api/budget/category` | `{ id, category }` → one hand-picked category in `categories.json` |
+| `POST /api/budget/spend` | `[{ date, merchant, amount, account?, category? }]` → `{ added: [id] }`; all or nothing, 422 with a message on a bad entry. Appends `manual` records to `transactions/` |
+| `POST /api/budget/spend/remove` | `{ id }` → appends a `void` record for that entry; 404 if no entry added by hand has that id |
 | `GET /api/game?month` | `GameView`: the month as tiles (allowance, spent, net, coins, state), the jar, today's taps, this week's hand and offers, the shelf of won cards, the closed month's score and goal suggestions |
 | `GET /api/ingest/day` | The morning recap `{ text }` for the Worthwatch Day Shortcut; same Bearer token as the tap feed |
 | `GET /api/settings` · `POST /api/settings/token` · `POST /api/settings/shortcut` · `GET /api/settings/shortcut.plist` | feed status and setup checks; a new ingest token; sign and save the Shortcut to iCloud Drive (macOS); the unsigned Shortcut |
@@ -276,9 +278,11 @@ flowchart LR
   SC -- Tailscale mode: append queue.jsonl, POST it,<br/>delete only on worthwatch_saved --> IN[/POST /api/ingest/transaction<br/>Bearer ingest-token/]
   IC -- poll every 10 s,<br/>size + mtime --> RD[iCloud reader]
   CSV([bank CSV / OFX]) --> IMP[/POST /api/budget/import/<br/>parse_statement: presets,<br/>sign, dates, OFX FITID/]
+  HAND([+ Add · + cash spend ·<br/>approved Chat card]) --> SP[/POST /api/budget/spend/<br/>Manual · remove appends Void/]
+  SP -- Manual · Void --> ST
   RD & IN -- Tap --> ST[(transactions/YYYY-MM.jsonl<br/>append-only, deduped by id)]
   IMP -- CsvRow --> ST
-  ST --> RC[budget::reconcile<br/>same account, row 0–5 days after,<br/>equal or tipped ≤30% or FX]
+  ST --> RC[budget::reconcile_all<br/>same account, row 0–5 days after,<br/>equal or tipped ≤30% or FX<br/>cash entries count as entered]
   L[ledger.yaml<br/>budget: limits · cards · sources<br/>rules · bills · feed] --> RC
   CAT[(categories.json)] --> RC
   RC --> MV[budget::month<br/>spent · provisional · pace by day<br/>categories · bills · review]
@@ -288,6 +292,7 @@ flowchart LR
 ```
 
 - **Two records, one transaction.** A tap and a statement row are stored as they arrived and never edited. `reconcile` pairs them on every read, greedily by exact amount, then merchant similarity, then nearest date. Importing the same statement again or receiving the same tap again is a no-op, because ids are stable: `csv-` plus a hash of account, date, amount, description and occurrence (or `ofx-` plus the bank's FITID), and `tap-` plus a hash of time, card, amount and merchant.
+- **Entries added by hand behave like taps.** A `manual` record on an account you import statements for pairs with its row the same way a tap does, so it's never counted twice. A cash entry has no account and takes `Status::Manual`: it counts at once and never goes to Review. Its own category beats the rules, and a category picked later on the row beats both. Removal appends a `void` record; nothing is rewritten. Chat purchases come from `Item::Spend` in the assistant, land in `Plan.spends` (not `mutations`, so net worth never moves), and are written by `add_spends` when the card is approved, including a card proposed over MCP.
 - **Statements win.** A matched pair takes the statement's amount and date, so a tipped meal counts at its posted total. A tap with no row after 7 days moves to Review. An account set to Apple Pay only uses taps as the record.
 - **The card bill is a transfer.** Cards link only to credit card accounts. Payments between your own accounts are categorized `transfer`, which, like `income`, never counts as spending.
 - **The feed is narrow.** `/api/ingest/transaction` and `/api/ingest/day` are the only routes that accept the token. Both reject a missing or wrong one with 401 and write nothing, and the tap route answers 409 when the feed is off. `tailscale serve --set-path /api/ingest` exposes only that path. The token lives in `ingest-token` (mode 0600) and is compared in constant time.

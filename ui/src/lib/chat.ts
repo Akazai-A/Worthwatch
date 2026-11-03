@@ -1,7 +1,7 @@
 // Pure logic for the Chat screen: labels for diff rows, the edit step, and the
 // provider line. The server builds and checks every plan; this only reshapes one
 // when the user corrects a proposed figure, and the server checks it again on apply.
-import type { AssistantView, Mutation, Plan, PlanRow2 } from "./api";
+import type { AssistantView, Mutation, Plan, PlanRow2, Spend } from "./api";
 import { formatUnits, parseNumber } from "./money";
 
 /** The faint second line under a row's name. */
@@ -20,8 +20,22 @@ export function rowHint(r: PlanRow2): string {
 export function rowTitle(r: PlanRow2): string {
   if (r.kind === "trade" || r.kind === "price") return r.kind === "price" ? `${r.detail} price` : `${r.account_name} · ${r.detail}`;
   if (r.kind === "note") return "Note";
+  if (r.kind === "spend") return r.detail ?? "Purchase";
   return r.account_name;
 }
+
+/** The purchase behind spend row `i`: spend rows and `plan.spends` are in the same order. */
+export function spendOf(plan: Plan, i: number): Spend | null {
+  if (plan.rows[i]?.kind !== "spend") return null;
+  const k = plan.rows.slice(0, i).filter((r) => r.kind === "spend").length;
+  return plan.spends?.[k] ?? null;
+}
+
+/** Only purchases: the card talks about the budget, not net worth. */
+export const onlySpends = (plan: Plan) => plan.rows.length > 0 && plan.rows.every((r) => r.kind === "spend");
+
+/** Something on the card can be saved: a ledger change or a purchase. */
+export const hasWork = (plan: Plan) => plan.mutations.length > 0 || (plan.spends?.length ?? 0) > 0;
 
 export function fmtUnits(n: number): string {
   return formatUnits(n);
@@ -109,4 +123,4 @@ export function providerLine(a: AssistantView): { dot: "local" | "cloud" | "off"
   }
 }
 
-export const EXAMPLES = ["td chq 5102, visa 640", "sold 20 XEQT in the TFSA", "visa down 200", "what is my net worth?"];
+export const EXAMPLES = ["td chq 5102, visa 640", "sold 20 XEQT in the TFSA", "coffee 6 cash", "what is my net worth?"];

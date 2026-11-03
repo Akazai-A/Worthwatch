@@ -1,6 +1,6 @@
 <script lang="ts">
   import PrivacyToggle from "../lib/components/PrivacyToggle.svelte";
-  import { apply, ApiError, setCategory, type LedgerView, type Mutation, type Txn } from "../lib/api";
+  import { apply, ApiError, removeSpend, setCategory, type LedgerView, type Mutation, type Txn } from "../lib/api";
   import { bullet, byDay, counts, monthLabel, paceLine, shiftMonth, STATUS_LABEL } from "../lib/budget";
   import { formatDate, formatMoney, parseAmount, todayIso } from "../lib/money";
   import { budget } from "../lib/stores/budget.svelte";
@@ -9,6 +9,9 @@
   import RunningTotal from "../lib/charts/RunningTotal.svelte";
   import ImportPanel from "../lib/components/ImportPanel.svelte";
   import Sparkline from "../lib/charts/Sparkline.svelte";
+  import AddSpend from "../lib/components/AddSpend.svelte";
+  import { addSpend } from "../lib/stores/addspend.svelte";
+  import { savedLine } from "../lib/spend";
 
   let { view, month, importing = false }: { view: LedgerView; month: string | null; importing?: boolean } = $props();
 
@@ -81,6 +84,33 @@
     if (await save([{ op: "set_category_rules", rules }])) { note = `“${remember.merchant}” is ${labels[remember.category] ?? remember.category} from now on.`; remember = null; }
   }
 
+  // ---- Added by hand ----
+  function openAdd() {
+    // On a past month, start on its last day so the entry lands where you're looking.
+    addSpend.toggle(b && shownMonth < thisMonth ? { date: `${shownMonth}-${String(b.days).padStart(2, "0")}` } : {});
+  }
+  function added() {
+    const l = addSpend.last;
+    if (l) note = `Added ${savedLine([l], (v) => money(v, 2))}.`;
+    void budget.ensure(view.version, month, true);
+  }
+  async function remove(t: Txn) {
+    if (!t.manual_id) return;
+    err = null;
+    try {
+      await removeSpend(t.manual_id);
+      if (addSpend.last?.id === t.manual_id) { addSpend.forget(); note = null; }
+      void budget.ensure(view.version, month, true);
+    } catch (e) {
+      err = e instanceof ApiError ? e.message : String(e);
+    }
+  }
+  const undoLast = () => {
+    const id = addSpend.last?.id;
+    const t = id ? b?.txns.find((x) => x.manual_id === id) : null;
+    if (t) void remove(t);
+  };
+
   const txns = $derived((b?.txns ?? []).filter((t) => filter == null || t.category === filter));
   const days = $derived(byDay(showAll ? txns : txns.slice(0, LIMIT), (t) => counts(t.category)));
   const lastTap = $derived(b?.feed.last_tap ? ago(b.feed.last_tap) : null);
@@ -99,6 +129,7 @@
       return tip > 0 ? `tapped ${money(t.tap_amount, 2)} + ${money(tip, 2)} tip` : `tapped ${money(t.tap_amount, 2)}`;
     }
     if (t.status === "review") return `tapped ${formatDate(t.date)} · no statement row yet`;
+    if (t.manual_id) return t.status === "manual" ? "by hand" : "by hand · on the statement";
     return "";
   }
 </script>
@@ -125,7 +156,7 @@
   </div>
 
   {#if err}<p class="err" role="alert">{err}</p>{/if}
-  {#if note}<p class="note">{note} <button type="button" class="link" onclick={() => (note = null)}>OK</button></p>{/if}
+  {#if note}<p class="note">{note} {#if addSpend.last && note.startsWith("Added")}<button type="button" class="link" onclick={undoLast}>Undo</button>{" "}{/if}<button type="button" class="link" onclick={() => (note = null)}>OK</button></p>{/if}
 
   {#if showImport}
     {#if importable.length}
@@ -263,26 +294,35 @@
       {/if}
     </section>
 
-    {#if b.txns.length}
-      <section class="card">
+    <section class="card">
         <div class="hrow">
           <h2 class="label">Transactions</h2>
-          {#if filter}<button type="button" class="link small" onclick={() => (filter = null)}>Showing {labels[filter] ?? filter} · show all</button>{/if}
+          <span class="tacts">
+            {#if filter}<button type="button" class="link small" onclick={() => (filter = null)}>Showing {labels[filter] ?? filter} · show all</button>{/if}
+            <button type="button" class="btn addbtn" class:on={addSpend.open} aria-expanded={addSpend.open} onclick={openAdd} title="Add a purchase by hand: cash, or anything that didn't come through Apple Pay">+ Add</button>
+          </span>
         </div>
+        {#if addSpend.open}<AddSpend accounts={view.accounts} options={b.options} onsaved={added} />{/if}
+        {#if b.txns.length === 0}<p class="faint small">No transactions yet this month. Import a statement, set up the Apple Pay feed, or add one by hand.</p>{/if}
         {#if remember}
           <p class="note small">Always put “{remember.merchant}” in {labels[remember.category] ?? remember.category}? <button type="button" class="link" onclick={rememberRule}>Yes, make it a rule</button> <button type="button" class="link faint" onclick={() => (remember = null)}>No</button></p>
         {/if}
         {#each days as d}
           <div class="day"><span>{dayLabel(d.date)}</span><span class="money">{d.total ? money(d.total) : ""}</span></div>
           {#each d.txns as t (t.id)}
-            <div class="tx" class:xfer={!counts(t.category)}>
-              <span class="st {t.status}" title={STATUS_LABEL[t.status]} aria-label={STATUS_LABEL[t.status]}></span>
+            <div class="tx" class:xfer={!counts(t.category)} class:new={t.manual_id != null && t.manual_id === addSpend.last?.id}>
+              {#if t.manual_id}
+                <span class="st pen" title={STATUS_LABEL.manual} aria-label={STATUS_LABEL.manual}>✎</span>
+              {:else}
+                <span class="st {t.status}" title={STATUS_LABEL[t.status]} aria-label={STATUS_LABEL[t.status]}></span>
+              {/if}
               <span class="m" title={t.description ?? ""}>{t.merchant}{#if sub(t)}<small>{sub(t)}</small>{/if}</span>
               <select class="cc" value={t.category} aria-label="Category for {t.merchant}" onchange={(e) => recategorize(t, e.currentTarget.value)}>
                 {#each b.options as o}<option value={o.id}>{o.label}</option>{/each}
               </select>
-              <span class="acct"><span class="gd" style="background:var(--g-{groupOf(t.account)})"></span>{t.account ? accountName(t.account) : t.card}</span>
+              <span class="acct"><span class="gd" style="background:var(--g-{t.account || t.card ? groupOf(t.account) : "cash"})"></span>{t.account ? accountName(t.account) : (t.card ?? "Cash")}</span>
               <span class="a money" class:in={Number(t.amount) < 0}>{Number(t.amount) < 0 ? "+" : ""}{t.currency !== cur ? formatMoney(Math.abs(Number(t.amount)), t.currency, 2) : money(Math.abs(Number(t.amount)), 2)}</span>
+              {#if t.manual_id}<button type="button" class="rm" onclick={() => remove(t)} aria-label="Remove {t.merchant}" title="Remove this entry">×</button>{:else}<span></span>{/if}
             </div>
           {/each}
         {/each}
@@ -292,9 +332,9 @@
           <span><span class="st confirmed"></span>Tap matched to statement</span>
           <span><span class="st posted"></span>From statement</span>
           <span><span class="st review"></span>Needs a look</span>
+          <span><span class="st pen">✎</span>Added by hand</span>
         </div>
       </section>
-    {/if}
   {/if}
 </div>
 
@@ -365,7 +405,7 @@
   .bd { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--text-3); }
   .bd.paid { background: var(--positive); border-color: var(--positive); }
   .day { font-size: 12px; color: var(--text-3); padding: 12px 0 4px; display: flex; justify-content: space-between; }
-  .tx { display: grid; grid-template-columns: 14px 1fr 124px 140px 96px; gap: 12px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .tx { display: grid; grid-template-columns: 14px 1fr 124px 140px 96px 16px; gap: 12px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
   .tx.xfer { color: var(--text-3); }
   .m { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .m small { color: var(--text-3); margin-left: 6px; font-size: 11px; }
@@ -380,6 +420,13 @@
   .st.provisional, .st.unlinked { border: 1.5px solid var(--accent); }
   .st.tap_only { background: var(--accent); }
   .st.review { background: var(--warn); box-shadow: 0 0 0 2px color-mix(in oklab, var(--warn) 30%, transparent); }
+  .st.pen { width: auto; height: auto; color: var(--accent); font-size: 12px; line-height: 1; text-align: center; }
+  .tx.new { background: color-mix(in oklab, var(--accent) 10%, transparent); border-radius: 6px; }
+  .rm { background: none; border: 0; color: var(--text-3); font: inherit; font-size: 15px; line-height: 1; padding: 0; cursor: pointer; }
+  .rm:hover { color: var(--negative); }
+  .tacts { display: flex; gap: 12px; align-items: center; }
+  .addbtn { border-style: dashed; border-color: var(--accent); color: var(--accent); border-radius: 999px; }
+  .addbtn.on { background: var(--accent); color: var(--bg); border-style: solid; }
   .tl { margin-top: 12px; }
   .more { margin-top: 10px; font-size: 13px; }
   @media (max-width: 760px) {
@@ -388,7 +435,7 @@
     .cats { grid-template-columns: 1fr; }
     .cat { grid-template-columns: 90px 1fr 110px; }
     .cat :global(.spark) { display: none; }
-    .tx { grid-template-columns: 12px 1fr 84px; }
+    .tx { grid-template-columns: 12px 1fr 84px 16px; }
     .tx .cc, .tx .acct { display: none; }
   }
 </style>

@@ -13,6 +13,7 @@
 
 pub mod category;
 pub mod game;
+pub mod manual;
 pub mod month;
 pub mod reconcile;
 pub mod shortcut;
@@ -22,8 +23,9 @@ pub mod tap;
 
 pub use category::{categorize, counts_as_spending, label, CATEGORIES};
 pub use game::GameView;
+pub use manual::{Manual, Void};
 pub use month::{month, BillStatus, CategoryLine, MonthView, UnlinkedCard};
-pub use reconcile::{reconcile, Status, Txn};
+pub use reconcile::{reconcile, reconcile_all, Status, Txn};
 pub use statement::{parse_statement, rows_for_account, CsvRow, ParsedStatement, Preset, StatementRow};
 pub use store::TxnStore;
 pub use tap::{parse_taps, Tap, TapParse};

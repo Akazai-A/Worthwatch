@@ -16,6 +16,8 @@ You have one goal: fill the jar to your monthly goal by the end of the month.
 3. **At midnight the day closes.** What you didn't spend drops into the jar as coins, and the day turns green. If you went over, the difference comes out of the jar, and the day turns red.
 4. **At the end of the month, the jar is scored against your goal.** Hit it three months in a row and Worthwatch offers a higher goal. Miss it twice in a row and it offers a lower one.
 
+Paid cash, or with a card that has no Apple Pay feed? Add it from today's token. See [Add a cash spend](#add-a-cash-spend).
+
 Cards are optional side quests. Each Monday Worthwatch deals up to three, such as **Coffee under $25** or **No-spend Saturday**, based on your last eight weeks. You can play up to two a week.
 
 ```text
@@ -66,7 +68,7 @@ The track has one stop per day of the month.
 |---|---|
 | Green stop with coins | You spent less than that day's allowance. More coins means more of the allowance was left, up to five. |
 | Red stop | You spent more than that day's allowance. The difference came out of the jar. |
-| Ring with an amount | Today. The green arc is what's left of today's allowance. |
+| Ring with an amount | Today. The green arc is what's left of today's allowance. **+ cash spend** under it adds a purchase by hand. |
 | House | A bill is due that day. Bills never count against the day. |
 | Gold coin | Your next payday, found from your income over the last two months. |
 | Dashed `$` at the end | The month closes there. |
@@ -78,6 +80,21 @@ Hover over a stop to see what you spent that day and what went into or out of th
 The daily allowance isn't your monthly budget divided by the number of days. Worthwatch looks at what you spent on each weekday over the last three months and gives heavier days a bigger share. A day never gets less than half or more than twice an average day. With less than four weeks of history, every day gets the same share.
 
 Bills, income and transfers between your own accounts never count. Only everyday spending drains the token.
+
+## Add a cash spend
+
+Taps arrive on their own, but cash doesn't. To count a cash purchase against today:
+
+1. Under today's token on the track, select **+ cash spend**.
+2. Enter the **Amount** and **What** it was. **Paid with** starts on **Cash**.
+3. Select **Add**.
+
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="screenshots/play-cash-form-light.png">
+  <img src="screenshots/play-cash-form-dark.png" alt="The track with a + cash spend button under today's token, and the add form open below it with Parking meter for $3" width="860">
+</picture>
+
+Today's token drains at once, and the purchase closes into the jar with the rest of the day. It's the same form as **+ Add** on **Budget**. See [Add a purchase by hand](budgeting.md#add-a-purchase-by-hand).
 
 ## Play a card
 
