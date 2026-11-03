@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="72" viewBox="0 0 360 72" role="img" aria-label="worthwatch">
+  <rect x="4" y="4" width="64" height="64" rx="14" fill="#faf7f0" stroke="#ddd6c7" stroke-width="2"/>
+  <path d="M16 50 H56" stroke="#9b9484" stroke-width="2" stroke-linecap="round"/>
+  <path d="M16 44 L27 36 L35 40 L45 26 L56 20" fill="none" stroke="#9a7420" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="56" cy="20" r="4.5" fill="#9a7420"/>
+  <text x="86" y="47" font-family="'Instrument Sans', -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="34" font-weight="600" letter-spacing="0.5" fill="#1e1c18">worthwatch</text>
+</svg>
