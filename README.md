@@ -27,9 +27,9 @@ Worthwatch tracks what you own and what you owe. You type balances in once a mon
 <table>
   <tr>
     <td width="50%" valign="top">
-      <img src="docs/screenshots/gif-home.gif" alt="Hovering the net worth chart, switching to the by-group view, then saving a new chequing balance on Check-in"><br>
+      <img src="docs/screenshots/gif-home.gif" alt="Hovering the added-vs-grown chart, switching to the by-group view and back, then saving a new chequing balance on Check-in"><br>
       <b>📈 <a href="docs/user-guide.md#home">Net worth at a glance</a></b><br>
-      A daily net worth line, assets against debt, and a monthly check-in.
+      Net worth against what you put in, so you see how much the market added. Plus a monthly check-in.
     </td>
     <td width="50%" valign="top">
       <img src="docs/screenshots/gif-portfolio.gif" alt="The look-through treemap with a tooltip, then the Exposure and Overlap tabs"><br>
@@ -56,9 +56,9 @@ Worthwatch tracks what you own and what you owe. You type balances in once a mon
       Each Apple Pay tap lands on Budget as you pay. Your statement confirms it later.
     </td>
     <td width="50%" valign="top">
-      <img src="docs/screenshots/gif-chat.gif" alt="Typing changes into Chat, approving the change card, and seeing net worth update"><br>
+      <img src="docs/screenshots/gif-chat.gif" alt="Opening the Ask or update drawer with Cmd+J over Home, typing three changes, approving the card, and seeing net worth update"><br>
       <b>💬 <a href="docs/user-guide.md#chat">Update it like a text</a></b><br>
-      Type <code>visa 640, bought 10 xeqt</code>, check the card, approve.
+      Press <kbd>⌘</kbd> <kbd>J</kbd>, type <code>visa 640, bought 10 xeqt</code>, check the card, approve.
     </td>
   </tr>
 </table>

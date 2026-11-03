@@ -9,8 +9,9 @@ This page explains what each screen shows and how to use it. Every screen reads 
 Home answers "what am I worth, and is it going up?"
 
 - The large figure is your net worth in your base currency. Below it are the change since your last check-in, this year, and over one year.
-- The chart shows net worth over time. Switch between **Line** and **By group** to see cash, investments, property and debt stacked.
-- The bar compares assets to debt, coloured by group. Each colour means the same group on every screen.
+- The strip under the figure splits the change since your last check-in into market moves, cash and property, debt paid down, and FX. Select **Why it moved** to open Changes.
+- The chart opens on **Added vs grown**. It draws your net worth against what you put in yourself (saving, contributions and debt paid down), so the gap between the lines is what the market added. Switch to **Line** for net worth alone, or **By group** to see cash, investments, property and debt stacked.
+- The group totals show investments, cash, debt and liquid net worth, each with its share of your assets. Each colour means the same group on every screen.
 - Each account row has a sparkline, its value, and how many days since you last updated it. Select a row to open the account's history.
 
 Stale accounts appear in a banner at the top. Select **Check in now** to update them.
@@ -69,9 +70,9 @@ Hover any bar for the exact figures. Moves smaller than the threshold are counte
 
 ## Chat
 
-![Chat with a change card](screenshots/chat-dark.png)
+![Ask or update drawer with a change card, open over Home](screenshots/chat-dark.png)
 
-Chat lets you update balances the way you would text a friend. For example:
+Chat lets you update balances the way you would text a friend. It opens as a drawer over any screen: select **Ask or update** in the sidebar, or press <kbd>⌘</kbd> <kbd>J</kbd> (<kbd>Ctrl</kbd> <kbd>J</kbd>). For example:
 
 - `td chq 5102, visa down to 640, sold 20 XEQT in the TFSA`
 - `eq savings 18.5k`
@@ -129,7 +130,8 @@ Open `#/wall`, or select **Wall view** in the sidebar, for a full-screen dashboa
 | Action | Shortcut |
 |---|---|
 | Go to any screen or account, or run an action | <kbd>⌘</kbd> <kbd>K</kbd> (<kbd>Ctrl</kbd> <kbd>K</kbd>) |
-| Blur all amounts, for screen sharing | <kbd>⌘</kbd> <kbd>⇧</kbd> <kbd>H</kbd> (<kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>H</kbd>) |
+| Open or close Ask or update (Chat) | <kbd>⌘</kbd> <kbd>J</kbd> (<kbd>Ctrl</kbd> <kbd>J</kbd>) |
+| Hide all amounts as `*****`, for screen sharing | <kbd>⌘</kbd> <kbd>⇧</kbd> <kbd>H</kbd> (<kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>H</kbd>) |
 
 ![Command palette](screenshots/palette-dark.png)
 
