@@ -3,6 +3,7 @@
   import type { LedgerView, SecurityRow } from "../lib/api";
   import { formatDate, formatPlain, formatUnits } from "../lib/money";
   import { providerLabel } from "../lib/market";
+  import { costByAccount } from "../lib/costgain";
   import Money from "../lib/components/Money.svelte";
   import MarketLine from "../lib/components/MarketLine.svelte";
   import HoldingsLine from "../lib/components/HoldingsLine.svelte";
@@ -23,8 +24,11 @@
   const p = $derived(view.portfolio);
   const STALE_DAYS = 4;
   let open = $state<Record<string, boolean>>({});
-  // Allocation slices step down in tone; the text line beside them names each slice.
-  const sliceFill = (i: number) => `color-mix(in oklab, var(--text) ${Math.max(50 - i * 11, 12)}%, var(--surface-2))`;
+  // Book cost vs gain per account; the gap to Home's investments total is accounts with no positions.
+  const costs = $derived(costByAccount(p.securities));
+  const maxCost = $derived(Math.max(1, ...costs.map((r) => Math.max(r.value, r.cost ?? 0))));
+  const gap = $derived(Number(view.totals.by_group.investments ?? 0) - Number(p.total));
+  const cashOnly = $derived(view.accounts.filter((a) => a.group === "investments" && a.positions == null).map((a) => a.name));
 
   function toggle(sym: string) {
     open[sym] = !open[sym];
@@ -84,18 +88,30 @@
       </div>
     </section>
 
-    <section class="card alloc">
-      {#each [{ title: "By currency", slices: p.by_currency }, { title: "By account", slices: p.by_account }] as group}
-        <div class="bar">
-          <div class="lab"><span>{group.title}</span><span class="muted">{group.slices.map((s) => `${s.label} ${Math.round(Number(s.pct))}%`).join(" · ")}</span></div>
-          <div class="track">
-            {#each group.slices as s, i}
-              {#if Number(s.pct) > 0}<i style="width:{s.pct}%;background:{sliceFill(i)}" title="{s.label} {s.pct}%"></i>{/if}
-            {/each}
+    {#if costs.length}
+      <section class="card cost" aria-label="What you put in and what it grew">
+        <div class="ch"><h2 class="label">What you put in, and what it grew</h2><span class="key"><span><i class="c"></i>book cost</span><span><i class="g"></i>gain</span>{#if costs.some((r) => (r.gain ?? 0) < 0)}<span><i class="l"></i>loss</span>{/if}</span></div>
+        {#each costs as r (r.account)}
+          {@const whole = Math.max(r.value, r.cost ?? 0)}
+          <div class="crow">
+            <span class="cn">{r.name}</span>
+            <span class="cb" style="width:{(whole / maxCost) * 100}%">
+              {#if r.cost != null && r.gain != null}
+                <!-- A gain extends past what you put in; a loss eats into it, shown in red at the end. -->
+                <i class="c" style="width:{(Math.min(r.cost, r.value) / whole) * 100}%"></i>
+                <i class={r.gain >= 0 ? "g" : "l"} style="width:{(Math.abs(r.gain) / whole) * 100}%"></i>
+              {:else}<i class="c" style="width:100%;opacity:.5" title="some holdings have no book cost"></i>{/if}
+            </span>
+            <span class="cv num">
+              {#if r.cost != null && r.gain != null}<Money value={r.cost} currency={cur} /> <Money value={r.gain} currency={cur} signed tone="delta" />{:else}<Money value={r.value} currency={cur} />{/if}
+            </span>
           </div>
-        </div>
-      {/each}
-    </section>
+        {/each}
+        {#if cashOnly.length && Math.abs(gap) >= 1}
+          <p class="faint small gap">Home counts <Money value={gap} currency={cur} /> more in investments: {cashOnly.join(", ")} {cashOnly.length === 1 ? "holds" : "hold"} cash, not positions.</p>
+        {/if}
+      </section>
+    {/if}
 
     <section class="card">
       <h2 class="label">Positions · grouped by security</h2>
@@ -160,11 +176,20 @@
   .hero .sub { margin-top: 8px; display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; }
   .chip { display: inline-flex; gap: 5px; align-items: baseline; }
   .warn { color: var(--warn); }
-  .alloc { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .bar .lab { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--text-2); margin-bottom: 6px; }
-  .bar .lab .muted { text-align: right; }
-  .track { height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; display: flex; gap: 2px; }
-  .track i { display: block; height: 100%; }
+  .ch { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
+  .ch h2 { margin: 0; }
+  .key { display: flex; gap: 14px; font-size: 12px; color: var(--text-2); }
+  .key i, .cb i { display: inline-block; }
+  .key i { width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; }
+  .crow { display: grid; grid-template-columns: 180px 1fr 210px; gap: 16px; align-items: center; padding: 7px 0; }
+  .cn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cb { display: flex; gap: 2px; height: 12px; }
+  .cb i { height: 100%; }
+  .c { background: var(--fill); }
+  .g { background: var(--positive); }
+  .l { background: var(--negative); }
+  .cv { text-align: right; display: flex; gap: 8px; justify-content: flex-end; }
+  .gap { margin: 8px 0 0; }
   h2 { margin: 0 0 8px; font-weight: 500; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th { text-align: left; font-weight: 500; color: var(--text-3); font-size: 12px; padding: 4px 0; }
@@ -183,7 +208,8 @@
   .note { font-size: 12px; margin: 12px 0 0; }
   code { font-family: var(--mono); font-size: 11px; }
   @media (max-width: 700px) {
-    .alloc { grid-template-columns: 1fr; }
+    .crow { grid-template-columns: 1fr 120px; }
+    .cb { grid-column: 1 / -1; grid-row: 2; }
     th:nth-child(2), td:nth-child(2), th:nth-child(5), td:nth-child(5) { display: none; }
     .wt { display: none; }
   }

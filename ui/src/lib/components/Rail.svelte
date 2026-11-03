@@ -2,6 +2,7 @@
   import { route } from "../stores/route.svelte";
   import { prefs } from "../stores/prefs.svelte";
   import { view } from "../stores/view.svelte";
+  import { drawer } from "../stores/drawer.svelte";
   import { formatDate, formatMoney, formatSigned } from "../money";
   let { onPalette }: { onPalette?: () => void } = $props();
   const waiting = $derived(view.current?.pending.length ?? 0);
@@ -26,8 +27,8 @@
   <a class="nav" class:on={name === "changes"} aria-current={name === "changes" ? "page" : undefined} href="#/changes">Changes</a>
   <a class="nav wide" class:on={name === "plan"} aria-current={name === "plan" ? "page" : undefined} href="#/plan">Plan</a>
   <a class="nav wide" class:on={name === "budget"} aria-current={name === "budget" ? "page" : undefined} href="#/budget">Budget</a>
-  <a class="nav wide" class:on={name === "chat"} aria-current={name === "chat" ? "page" : undefined} href="#/chat">Chat{#if waiting}<span class="badge" title="{waiting} proposal{waiting === 1 ? '' : 's'} waiting">{waiting}</span>{/if}</a>
-  <button class="nav more" type="button" onclick={() => onPalette?.()} aria-label="More: Plan, Budget, Chat and everything else">More{#if waiting}<span class="badge">{waiting}</span>{/if}</button>
+  <button type="button" class="nav wide ask" class:on={drawer.open} aria-expanded={drawer.open} onclick={() => drawer.toggle()} title="Ask a question or type balances and trades (⌘J)">Ask or update{#if waiting}<span class="badge" title="{waiting} proposal{waiting === 1 ? '' : 's'} waiting">{waiting}</span>{:else}<kbd>⌘J</kbd>{/if}</button>
+  <button class="nav more" type="button" onclick={() => onPalette?.()} aria-label="More: Plan, Budget, Ask or update, and everything else">More{#if waiting}<span class="badge">{waiting}</span>{/if}</button>
   <div class="spacer"></div>
   <button class="foot" type="button" onclick={() => onPalette?.()} title="Jump anywhere (⌘K)">Go to… <kbd>⌘K</kbd></button>
   <a class="foot" href="#/wall">Wall view</a>
@@ -53,6 +54,7 @@
   /* The current screen: a brass rule at the edge, like a bookmark. */
   .nav.on { color: var(--text); font-weight: 600; box-shadow: inset 2px 0 0 var(--accent); }
   .more { display: none; }
+  .ask kbd { margin-left: auto; }
   .badge { margin-left: auto; font-size: 11px; background: var(--text); color: var(--bg); border-radius: 9px; padding: 0 6px; font-weight: 600; line-height: 16px; }
   .spacer { flex: 1; }
   .foot { font-size: 12px; color: var(--text-3); padding: 5px 20px; background: none; border: 0; text-align: left; font: inherit; font-size: 12px; cursor: pointer; }
@@ -65,6 +67,7 @@
     .rail { position: fixed; top: auto; bottom: 0; left: 0; right: 0; z-index: 40; width: auto; height: auto; flex-direction: row; justify-content: space-around; align-items: stretch; overflow: hidden; padding: 0 4px env(safe-area-inset-bottom); border-right: 0; border-top: 1px solid var(--border); background: var(--bg); }
     .brand, .reading, .spacer, .foot, .wide { display: none; }
     .nav, .more { display: flex; flex: 1; justify-content: center; min-height: 52px; padding: 0 4px; font-size: 13px; }
+    .nav.wide { display: none; }
     .nav.on { box-shadow: inset 0 2px 0 var(--accent); }
     .more .badge { margin-left: 4px; }
   }

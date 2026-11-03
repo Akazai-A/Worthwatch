@@ -505,6 +505,33 @@ fn lookthrough_of(s: &AppState) -> LookThroughView {
     )
 }
 
+/// Added vs grown for every point of the net worth series: `GET /api/growth`.
+async fn get_growth(State(s): State<AppState>) -> Json<Vec<derive::GrowthPoint>> {
+    let snap = s.snapshot();
+    let points = tokio::task::spawn_blocking(move || {
+        let m = snap.market();
+        derive::growth(&snap.ledger, &m, &derive::net_worth_series(&snap.ledger, &m))
+    })
+    .await
+    .unwrap_or_default();
+    Json(points)
+}
+
+/// One account month by month, added vs grown: `GET /api/accounts/{id}/months`.
+async fn get_account_months(
+    State(s): State<AppState>,
+    Path(id): Path<String>,
+) -> Json<Vec<derive::MonthSplit>> {
+    let snap = s.snapshot();
+    let months = tokio::task::spawn_blocking(move || {
+        let m = snap.market();
+        derive::account_months(&snap.ledger, &m, &derive::net_worth_series(&snap.ledger, &m), &id)
+    })
+    .await
+    .unwrap_or_default();
+    Json(months)
+}
+
 async fn get_lookthrough(State(s): State<AppState>) -> Json<LookThroughView> {
     Json(lookthrough_of(&s))
 }
@@ -823,6 +850,8 @@ pub fn router(state: AppState) -> Router {
         .route("/api/parse-holdings", post(parse_holdings))
         .route("/api/lookthrough", get(get_lookthrough))
         .route("/api/changes", get(get_changes))
+        .route("/api/growth", get(get_growth))
+        .route("/api/accounts/{id}/months", get(get_account_months))
         .route("/api/refresh-holdings", post(refresh_holdings))
         .route("/api/events", get(events))
         .route("/api/plan", get(get_plan))

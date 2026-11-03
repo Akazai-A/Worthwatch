@@ -1,6 +1,8 @@
 <script lang="ts">
   import PrivacyToggle from "../lib/components/PrivacyToggle.svelte";
-  import { KIND_LABEL, type LedgerView } from "../lib/api";
+  import { KIND_LABEL, getAccountMonths, type LedgerView, type MonthSplit } from "../lib/api";
+  import { lastMonths } from "../lib/growth";
+  import MonthBars from "../lib/charts/MonthBars.svelte";
   import { formatDate, formatPlain, formatUnits, MASK, amountsHidden } from "../lib/money";
   import { prefs } from "../lib/stores/prefs.svelte";
   import Money from "../lib/components/Money.svelte";
@@ -15,6 +17,18 @@
   const SHOW = 24;
   let showAll = $state(false);
   const rows = $derived(showAll ? allRows : allRows.slice(0, SHOW));
+  // Month by month, added vs grown; the full table of check-ins is one click away.
+  let splits = $state<MonthSplit[]>([]);
+  let key = "";
+  $effect(() => {
+    const k = `${id}|${view.version}`;
+    if (k === key) return;
+    key = k;
+    getAccountMonths(id).then((m) => { splits = m; }, () => { splits = []; });
+  });
+  const months = $derived(lastMonths(splits, view.as_of));
+  const sum = (f: (m: { added: number; grown: number }) => number) => months.reduce((s, m) => s + f(m), 0);
+  let table = $state(false);
 </script>
 
 {#if !a}
@@ -59,10 +73,19 @@
     {/if}
 
     <section class="card">
-      <h2 class="label">History</h2>
+      <div class="hh"><h2 class="label">Month by month</h2><span class="faint small">last 12 months{#if a.liability}&nbsp;· paid down = added{/if}</span></div>
       {#if rows.length === 0}
         <p class="muted">No values recorded yet. <a href="#/check-in">Check in</a> to add the first one.</p>
       {:else}
+        {#if splits.length}
+          <MonthBars {months} currency={cur} blur={prefs.blur} />
+          <div class="key">
+            <span><i class="ka"></i>You added <b><Money value={sum((m) => m.added)} currency={cur} signed /></b></span>
+            <span><i class="kg"></i>{a.group === "property" ? "Value change" : "Market and FX"} <b><Money value={sum((m) => m.grown)} currency={cur} signed /></b></span>
+            <button type="button" class="link" aria-expanded={table} onclick={() => (table = !table)}>{table ? "Hide every check-in" : `Every check-in (${allRows.length})`}</button>
+          </div>
+        {/if}
+        {#if table || !splits.length}
         <table>
           <thead><tr><th>Date</th><th class="r">Value ({cur})</th><th class="r">Change</th></tr></thead>
           <tbody>
@@ -77,6 +100,7 @@
         </table>
         {#if allRows.length > SHOW}
           <button type="button" class="link" onclick={() => (showAll = !showAll)}>{showAll ? "Show recent only" : `Show all ${allRows.length} rows`}</button>
+        {/if}
         {/if}
       {/if}
     </section>
@@ -96,6 +120,13 @@
   .r { text-align: right; }
   .small { font-size: 11px; }
   .warn { color: var(--warn); }
+  .hh { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .key { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: baseline; font-size: 12px; color: var(--text-2); margin-top: 8px; }
+  .key i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; }
+  .key b { color: var(--text); font-weight: 500; }
+  .ka { background: var(--g-cash); }
+  .kg { background: var(--accent); }
+  .key .link { margin-left: auto; padding: 0; }
   .link { color: var(--accent); background: none; border: 0; font: inherit; cursor: pointer; font-size: 12px; padding: 10px 0 0; }
   code { font-family: var(--mono); }
 </style>

@@ -2,6 +2,7 @@
 //! No IO, no clock.
 
 pub mod diff;
+pub mod growth;
 pub mod market;
 pub mod portfolio;
 pub mod projection;
@@ -15,6 +16,7 @@ use rust_decimal::Decimal;
 use serde::Serialize;
 
 pub use diff::{changes, AccountDiff, Changes, HoldingDiff};
+pub use growth::{account_months, growth, GrowthPoint, MonthSplit};
 pub use market::{Market, Price, Rate, Source};
 pub use portfolio::{portfolio, AccountSlice, Portfolio, SecurityRow, Slice};
 pub use projection::{project, Assumptions};

@@ -3,9 +3,9 @@
   // Changes: what moved between two dates. Net worth bridge, every account, every
   // holding split into market / trades / FX, exposure drift, and the feed of fund
   // file changes. All figures come from GET /api/changes; this file lays them out.
-  import { GROUPS, GROUP_LABEL, type AccountDiff, type BucketDelta, type Drift, type LedgerView } from "../lib/api";
+  import { GROUP_LABEL, type AccountDiff, type BucketDelta, type Drift, type LedgerView } from "../lib/api";
   import { formatDate, formatPlain, formatSigned, formatUnits } from "../lib/money";
-  import { PRESETS, accountHint, bridgeSteps, changeLine, minorLine, parts, presetFrom, presetTo, rangeLabel, type Preset } from "../lib/changes";
+  import { PRESETS, accountHint, bridgeSteps, changeLine, minorLine, parts, presetFrom, presetTo, rangeLabel, type BridgeStep, type Preset } from "../lib/changes";
   import { changes as store } from "../lib/stores/changes.svelte";
   import { prefs } from "../lib/stores/prefs.svelte";
   import Money from "../lib/components/Money.svelte";
@@ -44,10 +44,11 @@
   const headParts = $derived(c ? parts(c) : []);
   // Column and bridge labels carry the year only when the two ends differ in it.
   const endLabel = (d: string) => formatDate(d, c && c.from.slice(0, 4) !== c.to.slice(0, 4) ? "long" : "short");
-  const steps = $derived(c ? bridgeSteps(c.accounts, 6) : []);
-  const byGroup = $derived(
-    c ? GROUPS.map((g) => ({ g, rows: c.accounts.filter((a) => a.group === g) })).filter((x) => x.rows.length) : [],
-  );
+  // The bridge is the account list: every step hovers to from → to and its split; the
+  // folded "N others" step opens into one step each.
+  let unfold = $state(false);
+  const steps = $derived(c ? bridgeSteps(c.accounts, unfold ? Infinity : 6) : []);
+  const byId = $derived(new Map((c?.accounts ?? []).map((a) => [a.account, a])));
   /** "bought 14 XEQT.TO" notes for one account, from the ledger's trade log. */
   function tradeNotes(a: AccountDiff): string[] {
     if (!c) return [];
@@ -70,7 +71,6 @@
       { label: "fx", value: Number(a.fx ?? 0) },
       { label: "unpriced", value: Number(a.residual) },
     ];
-  const maxAccount = $derived(Math.max(0, ...(c?.accounts.map((a) => Math.abs(Number(a.change))) ?? [])));
   const maxHolding = $derived(Math.max(0, ...(c?.holdings.map((h) => Math.abs(Number(h.change ?? 0))) ?? [])));
 
   let mode = $state<"lookthrough" | "as_held">("lookthrough");
@@ -148,40 +148,13 @@
 
       {#if steps.length}
         <section class="card panel bridge">
-          <div class="head"><h2 class="label">What moved it</h2><span class="faint small">debt paid down = gain{#if steps.some((s) => s.folded)}&nbsp;· smallest movers folded into one step{/if}</span></div>
-          <div class="bridge-wrap"><Bridge start={Number(c.from_net_worth)} end={Number(c.to_net_worth)} {steps} startLabel={endLabel(c.from)} endLabel={endLabel(c.to)} currency={cur} blur={prefs.blur} /></div>
+          <div class="head"><h2 class="label">What moved it</h2><span class="faint small">one step per account · hover or tab to a step for from → to and what made it · debt paid down = gain{#if unfold}&nbsp;· <button type="button" class="linkish" onclick={() => (unfold = false)}>fold the small ones</button>{/if}</span></div>
+          <div class="bridge-wrap"><Bridge start={Number(c.from_net_worth)} end={Number(c.to_net_worth)} {steps} startLabel={endLabel(c.from)} endLabel={endLabel(c.to)} currency={cur} blur={prefs.blur} tip={stepTip} onunfold={() => (unfold = true)} /></div>
         </section>
       {/if}
 
-      <section class="card panel">
-        <div class="head"><h2 class="label">Accounts</h2><span class="faint small">{c.accounts.length} {c.accounts.length === 1 ? "account" : "accounts"} · {endLabel(c.from)} → {endLabel(c.to)}</span></div>
-        <div class="body">
-        <table class="accts">
-          <thead><tr><th>Account</th><th class="bar"></th><th class="r">Change</th><th class="r">%</th><th class="r why" title="What a mixed change is made of: market, trades, balance, FX; hover the row">Why</th></tr></thead>
-          <tbody>
-            {#each byGroup as { g, rows } (g)}
-              <tr class="grp"><td colspan="5">{GROUP_LABEL[g]}{#if g === "debt"}<span class="faint"> · paid down = gain</span>{/if}</td></tr>
-              {#each rows as a (a.account)}
-                {@const hint = accountHint(a, cur, tradeNotes(a))}
-                <tr title={hint}>
-                  <td>
-                    <a class="name" href="#/accounts/{encodeURIComponent(a.account)}">{a.name}</a>{#if a.from_value == null}<span class="tag">new</span>{/if}{#if a.missing_fx || a.missing_price}<span class="tag warn">{a.missing_fx ? "no FX" : "no price"}</span>{/if}
-                    <span class="sub2 num">{#if a.from_value == null}—{:else}<Money value={a.from_value} currency={cur} size="s" />{/if} → {#if a.to_value == null}—{:else}<Money value={a.to_value} currency={cur} size="s" />{/if}</span>
-                  </td>
-                  <td class="bar"><DeltaBar value={Number(a.change)} max={maxAccount} /></td>
-                  <td class="r">{#if Number(a.change) === 0}<span class="faint">—</span>{:else}<Money value={a.change} currency={cur} signed tone="delta" />{/if}</td>
-                  <td class="r num" class:faint={a.pct == null || Number(a.pct) === 0}>{a.pct == null ? "—" : `${Number(a.pct) > 0 ? "+" : ""}${a.pct}%`}</td>
-                  <td class="r why">{#if accountParts(a).filter((p) => Math.abs(p.value) >= 0.005).length > 1}<SplitStrip parts={accountParts(a)} currency={cur} width="56px" height={6} />{/if}</td>
-                </tr>
-              {/each}
-            {/each}
-          </tbody>
-        </table>
-        </div>
-      </section>
-
       {#if c.holdings.length}
-        <section class="card panel">
+        <section class="card panel hold-panel">
           <div class="head"><h2 class="label">Holdings</h2><span class="faint small" title="Market: the price move on units already held. Trades: units bought or sold, at the end price. FX: the rate move on the starting value. The three add up to the change exactly.">change = market + trades + FX · hover a row</span></div>
           <div class="body">
           <table class="hold">
@@ -191,7 +164,7 @@
                 {@const hp = [{ label: "market", value: Number(h.market ?? 0) }, { label: "trades", value: Number(h.trades ?? 0) }, { label: "fx", value: Number(h.fx ?? 0) }]}
                 <tr title={hp.filter((p) => p.value !== 0).map((p) => `${p.label} ${formatSigned(p.value, cur)}`).join(" · ") || undefined}>
                   <td>
-                    <span class="sym">{h.symbol}</span><span class="faint small"> {h.accounts.join(" + ")}{#if h.currency !== cur}&nbsp;· {h.currency}{/if}</span>
+                    <span class="sym">{h.symbol}</span><span class="faint small hacc">{h.accounts.join(" + ")}{#if h.currency !== cur}&nbsp;· {h.currency}{/if}</span>
                     <span class="sub2 num">
                       {#if Number(h.from_units) !== Number(h.to_units)}{units(h.from_units)} → {/if}{units(h.to_units)} units ·
                       {#if h.to_price == null}<span class="warn">no price</span>
@@ -296,13 +269,30 @@
   {/if}
 </div>
 
+{#snippet stepTip(step: BridgeStep)}
+  {@const a = step.account ? byId.get(step.account) : undefined}
+  {#if a}
+    <div class="st">
+      <div class="t"><span><a class="name" href="#/accounts/{encodeURIComponent(a.account)}">{a.name}</a>{#if a.from_value == null}<span class="tag">new</span>{/if}{#if a.missing_fx || a.missing_price}<span class="tag warn">{a.missing_fx ? "no FX" : "no price"}</span>{/if}</span><Money value={a.change} currency={cur} signed tone="delta" /></div>
+      <div class="ft num">{#if a.from_value == null}new{:else}<Money value={a.from_value} currency={cur} size="s" />{/if} → {#if a.to_value == null}—{:else}<Money value={a.to_value} currency={cur} size="s" />{/if}{#if a.pct != null}&nbsp;· {Number(a.pct) > 0 ? "+" : ""}{a.pct}%{/if}{#if a.liability}&nbsp;· paid down = gain{/if}</div>
+      {#if accountParts(a).filter((p) => Math.abs(p.value) >= 0.005).length > 1}<SplitStrip parts={accountParts(a)} currency={cur} height={6} legend blur={prefs.blur} />{:else}<div class="hint">{accountHint(a, cur, tradeNotes(a)) || GROUP_LABEL[a.group]}</div>{/if}
+    </div>
+  {/if}
+{/snippet}
+
 <style>
   .changes { display: flex; flex-direction: column; gap: 20px; }
   /* The page reads top to bottom: the headline, the bridge full width as the answer,
      then the detail panels two by two at their natural height. */
   .board { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 32px; align-items: start; }
   .board > .hero, .board > .bridge { grid-column: 1 / -1; }
-  .board.solo > .panel { grid-column: 1 / -1; }
+  .board.solo > .panel, .board > .panel.hold-panel { grid-column: 1 / -1; }
+  .hacc { margin-left: 8px; }
+  .linkish { background: none; border: 0; padding: 0; font: inherit; color: var(--text-2); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+  .st { display: flex; flex-direction: column; gap: 6px; }
+  .st .t { display: flex; justify-content: space-between; gap: 10px; font-weight: 600; }
+  .st .ft { color: var(--text-2); }
+  .st .hint { color: var(--text-2); line-height: 1.4; }
   .panel { display: flex; flex-direction: column; min-width: 0; }
   .body { overflow-x: auto; }
   thead th { background: var(--bg); }
@@ -341,8 +331,6 @@
   th { text-align: left; font-weight: 500; color: var(--text-3); font-size: 12px; padding: 4px 0; }
   td { padding: 7px 0; border-top: 1px solid var(--border); vertical-align: middle; }
   .r { text-align: right; }
-  .grp td { border-top: 0; padding: 12px 0 2px; font-size: 12px; color: var(--text-3); }
-  .grp td .faint { text-transform: none; letter-spacing: 0; }
   .name { color: inherit; text-decoration: none; }
   .name:hover { color: var(--accent); }
   .sym { font-weight: 500; }
@@ -353,7 +341,7 @@
   .toggle button { padding: 4px 10px; font: inherit; font-size: 12px; color: var(--text-2); background: none; border: 0; cursor: pointer; }
   .toggle button.on { background: var(--accent-soft); color: var(--text); }
   .toggle button:disabled { opacity: 0.5; cursor: default; }
-  .bridge-wrap { overflow-x: auto; }
+  .bridge-wrap { overflow: visible; }
   .two { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 24px; margin-top: 6px; }
   .set .label { margin-bottom: 6px; }
   .drow { display: grid; grid-template-columns: minmax(96px, 130px) 1fr 76px 42px; gap: 10px; align-items: center; font-size: 12px; padding: 3px 0; }
@@ -387,7 +375,7 @@
   }
   @media (max-width: 760px) {
     .two { grid-template-columns: 1fr; }
-    .hold .why, .accts .why { display: none; }
+    .hold .why { display: none; }
     .wnum { display: none; }
     .item { grid-template-columns: 1fr; gap: 4px; }
   }

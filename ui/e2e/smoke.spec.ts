@@ -125,10 +125,12 @@ test("a holdings file dropped into data/holdings shows up in Look-through, Expos
   expect(readFileSync(join(dataDir, "holdings", "XEQT.TO", "2026-10-30.json"), "utf8")).toContain("\"source\": \"file\"");
 
   await page.goto("/#/portfolio/exposure");
-  await expect(page.locator(".barset").first()).toContainText("Technology");
-  await expect(page.locator(".barset").first()).toContainText("Unclassified"); // ZAG.TO, no file and no securities entry
+  const sector = page.locator(".read").filter({ hasText: "Sector" });
+  await expect(sector).toContainText("Technology");
+  await sector.getByRole("button", { name: /^All \d+/ }).click();
+  await expect(sector).toContainText("Unclassified"); // ZAG.TO, no file and no securities entry
   await page.getByRole("radio", { name: "As held" }).click();
-  await expect(page.locator(".barset").first()).toContainText("Funds");
+  await expect(sector).toContainText("Funds");
 
   await page.goto("/#/portfolio/overlap");
   await expect(page.locator(".empty")).toContainText("at least two funds");
@@ -139,11 +141,14 @@ test("Changes compares the last check-in with today: bridge, accounts, holdings,
   // Check-ins so far: Jan 31 (4,000) and today (5,102.10 in TD Chequing), plus the pasted TFSA.
   await expect(page.locator(".changes .hero .money.xl")).toContainText("+$");
   await expect(page.locator(".range .dates")).toContainText("Jan 31 →");
-  const chq = page.locator(".changes table").first().locator("tr", { hasText: "TD Chequing" });
-  await expect(chq).toContainText("$4,000");
-  await expect(chq).toContainText("+$1,102");
-  await expect(page.locator(".bridge")).toBeVisible();
-  await expect(page.locator(".bridge text.lab", { hasText: "TD Chequing" })).toBeVisible();
+  await expect(page.locator("svg.bridge")).toBeVisible();
+  // The bridge is the account list: tab to a step for from → to.
+  const step = page.getByRole("listitem", { name: /^TD Chequing/ });
+  await expect(step).toBeVisible();
+  await step.focus();
+  const tip = page.locator(".fit .tip");
+  await expect(tip).toContainText("$4,000");
+  await expect(tip).toContainText("+$1,102");
   // The pasted positions count as trades (the account did not exist on Jan 31).
   const xeqt = page.locator(".hold tr", { hasText: "XEQT.TO" });
   await expect(xeqt).toContainText("426.5");
@@ -199,7 +204,7 @@ test("Chat: a message becomes a diff card, nothing is written until Approve; an 
   const r = await request.post("/api/propose", { data: { origin: "mcp", text: "td chq 6200" } });
   const body = await r.json();
   expect(body.pending.id).toBeGreaterThan(0);
-  await expect(page.locator(".rail .badge")).toHaveText("1");
+  await expect(page.locator(".rail .ask .badge")).toHaveText("1");
   const pending = page.locator(".plan", { hasText: "Claude Desktop" });
   await expect(pending).toContainText("6,200.00");
   expect(readFileSync(ledger(), "utf8")).toMatch(/td-chequing: 6100/);

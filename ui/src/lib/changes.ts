@@ -86,13 +86,14 @@ export function accountHint(a: AccountDiff, base: string, tradeNotes: string[]):
   return bits.join(" · ");
 }
 
-export interface BridgeStep { label: string; delta: number; folded?: number }
+export interface BridgeStep { label: string; delta: number; folded?: number; account?: string }
 
 /** Keep the biggest movers; fold the rest into one step so the chart stays one screen tall. */
 export function bridgeSteps(accounts: AccountDiff[], keep = 8): BridgeStep[] {
   const moving = accounts.filter((a) => Math.abs(Number(a.change)) >= 0.005);
-  if (moving.length <= keep + 1) return moving.map((a) => ({ label: a.name, delta: Number(a.change) }));
-  const head = moving.slice(0, keep).map((a) => ({ label: a.name, delta: Number(a.change) }));
+  const step = (a: AccountDiff): BridgeStep => ({ label: a.name, delta: Number(a.change), account: a.account });
+  if (moving.length <= keep + 1) return moving.map(step);
+  const head = moving.slice(0, keep).map(step);
   const tail = moving.slice(keep);
   return [...head, { label: `${tail.length} others`, delta: tail.reduce((s, a) => s + Number(a.change), 0), folded: tail.length }];
 }

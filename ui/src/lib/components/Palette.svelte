@@ -31,7 +31,7 @@
       ["Plan", "#/plan", "projections contribution room"],
       ["Budget", "#/budget", "spending this month apple pay"],
       ["Budget › Import a statement", "#/budget/import", "csv ofx bank export"],
-      ["Chat", "#/chat", "update by text"],
+      ["Ask or update", "#/chat", "chat · type balances and trades, ⌘J"],
       ["Settings", "#/settings", "apple pay shortcut icloud tailscale"],
       ["Wall view", "#/wall", "full screen, for a spare tablet"],
       ["Backups", "#/backups", "download restore"],

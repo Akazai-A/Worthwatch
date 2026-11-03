@@ -11,7 +11,7 @@
   import PlanCard from "../lib/components/PlanCard.svelte";
   import Sparkline from "../lib/charts/Sparkline.svelte";
 
-  let { view }: { view: LedgerView } = $props();
+  let { view, docked = false }: { view: LedgerView; docked?: boolean } = $props();
   const base = $derived(view.base_currency);
   const rates = $derived(ratesInUse(view));
   const locked = $derived(view.problem != null);
@@ -63,9 +63,9 @@
   onMount(() => { input?.focus(); void scrollDown(); });
 </script>
 
-<div class="chat">
+<div class="chat" class:docked>
   <div class="head">
-    <h1>Chat</h1>
+    {#if !docked}<h1>Chat</h1>{/if}
     <span class="prov" title={view.assistant.url ?? ""}><span class="pd {prov.dot}"></span>{prov.text}</span>
   </div>
 
@@ -156,6 +156,8 @@
 
 <style>
   .chat { display: flex; flex-direction: column; gap: 12px; height: calc(100vh - 56px); min-height: 420px; }
+  .chat.docked { height: auto; flex: 1; min-height: 0; }
+  .docked .intro { padding: 8px 0; }
   .head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
   h1 { font-size: 22px; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
   .prov { font-size: 12px; color: var(--text-2); display: inline-flex; gap: 8px; align-items: center; }

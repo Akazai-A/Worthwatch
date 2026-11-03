@@ -1,6 +1,8 @@
 <script lang="ts">
   import PrivacyToggle from "../lib/components/PrivacyToggle.svelte";
-  import { GROUPS, GROUP_LABEL, getChanges, type AccountView, type Changes, type LedgerView } from "../lib/api";
+  import { GROUPS, GROUP_LABEL, getChanges, getGrowth, type AccountView, type Changes, type GrowthPoint, type LedgerView } from "../lib/api";
+  import { rangeCut, splitSince } from "../lib/growth";
+  import GrowthBar from "../lib/components/GrowthBar.svelte";
   import { formatDate, formatMoney, formatSigned } from "../lib/money";
   import { parts } from "../lib/changes";
   import SplitStrip from "../lib/components/SplitStrip.svelte";
@@ -17,9 +19,10 @@
   const byGroup = $derived(GROUPS.map((g) => ({ g, rows: view.accounts.filter((a) => a.group === g) })).filter((x) => x.rows.length));
   const assets = $derived(Number(view.totals.assets));
   const debt = $derived(Number(view.totals.liabilities));
-  const liquid = $derived(assets - Number(view.totals.by_group.property ?? 0) - debt);
   const groupVal = (g: string) => Number(view.totals.by_group[g as keyof typeof view.totals.by_group] ?? 0);
-  const share = (g: string) => (assets > 0 ? (groupVal(g) / assets) * 100 : 0);
+  // Liquid: what you could reach without selling the home. The mortgage goes with the property.
+  const otherDebt = $derived(view.accounts.filter((a) => a.liability && a.kind !== "mortgage").reduce((s, a) => s + Number(a.value ?? 0), 0));
+  const liquid = $derived(groupVal("cash") + groupVal("investments") - otherDebt);
 
   // Row visual: how big the account is (share of assets) and how it moved in the last 30 days.
   // Debt is flipped so paying it down reads as a gain, like on Changes.
@@ -52,6 +55,18 @@
     getChanges({ from }).then((r) => { why = r.changes ?? null; }, () => { why = null; });
   });
   const whyParts = $derived(why ? parts(why) : []);
+
+  // Added vs grown, for the chart's third mode and the bar under it (same range as the chart).
+  let growth = $state<GrowthPoint[] | null>(null);
+  let growthKey = -1;
+  let range = $state<"3m" | "1y" | "all">("1y");
+  $effect(() => {
+    const v = view.version;
+    if (v === growthKey) return;
+    growthKey = v;
+    getGrowth().then((g) => { growth = g; }, () => { growth = null; });
+  });
+  const split = $derived(growth && growth.length > 1 ? splitSince(growth, rangeCut(range, growth[growth.length - 1].date)) : null);
 </script>
 
 <div class="home">
@@ -93,34 +108,22 @@
     </section>
 
     <section class="card">
-      <NetWorthChart series={view.series} events={view.events} currency={cur} blur={prefs.blur} />
+      <NetWorthChart series={view.series} events={view.events} currency={cur} blur={prefs.blur} {growth} bind:range />
     </section>
 
-    <section class="card bars">
-      <div class="bar">
-        <div class="lab"><span>Assets</span><Money value={view.totals.assets} currency={cur} /></div>
-        <div class="track">
-          {#each GROUPS.filter((g) => g !== "debt") as g}
-            {#if share(g) > 0}<i style="width:{share(g)}%;background:var(--g-{g})" title="{GROUP_LABEL[g]} {share(g).toFixed(0)}%"></i>{/if}
-          {/each}
-        </div>
-      </div>
-      <div class="bar">
-        <div class="lab"><span>Debt</span><Money value={view.totals.liabilities} currency={cur} /></div>
-        <div class="track"><i style="width:{assets > 0 ? Math.min(100, (debt / assets) * 100) : debt > 0 ? 100 : 0}%;background:var(--g-debt)"></i></div>
-      </div>
-      <div class="legend">
-        {#each GROUPS.filter((g) => g !== "debt") as g}<span><i style="background:var(--g-{g})"></i>{GROUP_LABEL[g]} {share(g).toFixed(0)}%</span>{/each}
-        <span><i style="background:var(--g-debt)"></i>Debt is {assets > 0 ? ((debt / assets) * 100).toFixed(0) : "–"}% of assets</span>
-      </div>
-    </section>
+    {#if split}<GrowthBar {split} currency={cur} label={range === "all" ? "Where it came from:" : range === "3m" ? "Where the last 3 months' change came from:" : "Where the last year's change came from:"} />{/if}
 
     <section class="tiles">
-      <a class="card tile" style="--gc:var(--g-investments)" href="#/portfolio"><div class="label">Investments</div><div class="v"><Money value={groupVal("investments")} currency={cur} size="l" /></div>{#if view.portfolio.day_change != null}<div class="d"><Money value={view.portfolio.day_change} currency={cur} signed tone="delta" /> <span class="faint">today</span></div>{/if}</a>
-      <div class="card tile" style="--gc:var(--g-cash)"><div class="label">Cash</div><div class="v"><Money value={groupVal("cash")} currency={cur} size="l" /></div></div>
-      <div class="card tile" style="--gc:var(--g-debt)"><div class="label">Debt</div><div class="v"><Money value={debt} currency={cur} size="l" /></div></div>
-      <div class="card tile"><div class="label">Liquid net worth</div><div class="v"><Money value={liquid} currency={cur} size="l" /></div><div class="d faint">excludes property</div></div>
+      <a class="card tile" style="--gc:var(--g-investments)" href="#/portfolio"><div class="label">Investments</div><div class="v"><Money value={groupVal("investments")} currency={cur} size="l" /></div>{@render shareOf(groupVal("investments"))}{#if view.portfolio.day_change != null}<div class="d"><Money value={view.portfolio.day_change} currency={cur} signed tone="delta" /> <span class="faint">today</span></div>{/if}</a>
+      <div class="card tile" style="--gc:var(--g-cash)"><div class="label">Cash</div><div class="v"><Money value={groupVal("cash")} currency={cur} size="l" /></div>{@render shareOf(groupVal("cash"))}</div>
+      <div class="card tile" style="--gc:var(--g-debt)"><div class="label">Debt</div><div class="v"><Money value={debt} currency={cur} size="l" /></div>{@render shareOf(debt)}</div>
+      <div class="card tile" title="Cash and investments, less debt other than the mortgage. The condo and its mortgage sit apart."><div class="label">Liquid net worth</div><div class="v"><Money value={liquid} currency={cur} size="l" /></div><div class="d faint lq">cash and investments, less card and loan debt; the condo and mortgage sit apart</div></div>
     </section>
+
+{#snippet shareOf(v: number)}
+  <div class="sh"><i style="width:{assets > 0 ? Math.max(0, Math.min(100, (v / assets) * 100)) : 0}%"></i></div>
+  <div class="d faint">{assets > 0 ? Math.round((v / assets) * 100) : 0}% of assets</div>
+{/snippet}
 
     {#each byGroup as { g, rows }}
       <section class="group" style="--gc:var(--g-{g})">
@@ -176,17 +179,14 @@
   .chip { display: inline-flex; gap: 5px; align-items: baseline; }
   a.chip { text-decoration: none; color: inherit; }
   a.chip:hover .muted { color: var(--accent); }
-  .bars { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .bar .lab { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-2); margin-bottom: 6px; }
-  .track { height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; display: flex; gap: 2px; }
-  .track i { display: block; height: 100%; }
-  .legend { grid-column: 1 / -1; display: flex; gap: 14px; font-size: 12px; color: var(--text-2); flex-wrap: wrap; }
-  .legend i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
   .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
   /* Ledger tiles: no box, a rule on top in the group's colour. */
   .tile { padding: 10px 0 0; border-top: 2px solid var(--gc, var(--text-3)); }
   .tile .v { margin-top: 2px; }
+  .sh { height: 4px; margin: 10px 0 4px; background: var(--surface-2); border-radius: 2px; overflow: hidden; }
+  .sh i { display: block; height: 100%; background: var(--gc, var(--text-2)); }
   .tile .d { font-size: 12px; }
+  .tile .lq { margin-top: 10px; }
   a.tile { color: inherit; text-decoration: none; }
   a.tile:hover .label { color: var(--accent); }
   /* Groups: a margin column with the name and subtotal, rows on the right. */
@@ -221,7 +221,7 @@
   .stale { margin: 4px 0 0; font-size: 13px; color: var(--text-2); display: flex; gap: 12px; flex-wrap: wrap; }
   .stale a { margin-left: auto; }
   @media (max-width: 640px) {
-    .bars, .tiles { grid-template-columns: 1fr 1fr; }
+    .tiles { grid-template-columns: 1fr 1fr; }
     .group { grid-template-columns: 1fr; gap: 6px; }
     .gh { flex-direction: row; justify-content: space-between; }
     .row { grid-template-columns: minmax(0, 1fr) 96px 40px; gap: 10px; }

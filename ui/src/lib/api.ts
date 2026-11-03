@@ -397,6 +397,23 @@ export async function getChanges(p: ChangesParams = {}): Promise<ChangesView> {
   return r.json();
 }
 
+/** Added vs grown (GET /api/growth): `added` is the running total since the first point
+ *  of what you put in (saving, contributions, debt paid down); the rest of the move is growth. */
+export interface GrowthPoint { date: string; net_worth: string; added: string }
+export async function getGrowth(): Promise<GrowthPoint[]> {
+  const r = await fetch("/api/growth");
+  if (!r.ok) await fail(r);
+  return r.json();
+}
+
+/** One account, one calendar month (GET /api/accounts/{id}/months): contribution to net worth. */
+export interface MonthSplit { month: string; added: string; grown: string }
+export async function getAccountMonths(id: string): Promise<MonthSplit[]> {
+  const r = await fetch(`/api/accounts/${encodeURIComponent(id)}/months`);
+  if (!r.ok) await fail(r);
+  return r.json();
+}
+
 export type Mutation =
   | { op: "upsert_account"; account: Account }
   | { op: "remove_account"; id: string }
