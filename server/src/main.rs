@@ -89,8 +89,11 @@ async fn main() -> anyhow::Result<()> {
     state.schedule_backups();
     api::budget::feed::watch_icloud(&state);
     let policy = std::sync::Arc::new(security::Policy::from_env());
+    // Responses are compressed (brotli or gzip) when the browser asks; the event stream is left
+    // alone by the default predicate, so live updates still arrive at once.
     let app = api::router(state)
         .merge(ui::router())
+        .layer(tower_http::compression::CompressionLayer::new())
         .layer(axum::middleware::from_fn_with_state(policy, security::guard));
 
     tracing::info!("worthwatch listening on http://{bind} (data: {})", data_dir.display());
