@@ -1,8 +1,9 @@
 <script lang="ts">
   import PrivacyToggle from "../../lib/components/shell/PrivacyToggle.svelte";
-  import { GROUPS, GROUP_LABEL, getChanges, getGrowth, type AccountView, type Changes, type GrowthPoint, type LedgerView } from "../../lib/api";
+  import { GROUPS, GROUP_LABEL, getChanges, getGrowth, type AccountDiff, type AccountView, type Changes, type GrowthPoint, type LedgerView } from "../../lib/api";
   import { formatDate, formatMoney, formatSigned } from "../../lib/format/money";
   import { parts } from "../../lib/portfolio/changes";
+  import { checkinMonths } from "../../lib/networth/cadence";
   import SplitStrip from "../../lib/components/amounts/SplitStrip.svelte";
   import { prefs } from "../../lib/stores/prefs.svelte";
   import { changes } from "../../lib/stores/portfolio/changes.svelte";
@@ -42,6 +43,11 @@
   const maxMove = $derived(Math.max(1, ...[...moves.values()].map((m) => Math.abs(m ?? 0))));
   const sizeOf = (a: AccountView) => (assets > 0 ? Math.min(100, (Math.abs(Number(a.value ?? 0)) / assets) * 100) : 0);
   const subtotal = (g: string, rows: AccountView[]) => (g === "debt" ? debt : rows.reduce((s, a) => s + Number(a.value ?? 0), 0));
+  // The year of check-ins, and a dated stamp once this month's is in.
+  const cadence = $derived(checkinMonths(view.accounts, view.as_of));
+  const thisMonth = $derived(cadence[cadence.length - 1]);
+  const monthName = (ym: string, style: "long" | "short" = "short") => new Date(`${ym}-01T00:00:00Z`).toLocaleString("en-CA", { month: style, timeZone: "UTC" });
+  const lastEntry = $derived(view.accounts.filter((a) => a.positions == null && a.as_of).map((a) => a.as_of!).sort().at(-1) ?? null);
   const isOld = (a: AccountView) => a.days_stale == null || a.days_stale > STALE_DAYS;
 
   // "Why it moved" under the hero: the last check-in period, split into its parts.
@@ -56,6 +62,20 @@
     getChanges({ from }).then((r) => { why = r.changes ?? null; }, () => { why = null; });
   });
   const whyParts = $derived(why ? parts(why) : []);
+  // Hovering a part of the strip lights the accounts it came from (from the same Changes data).
+  let lit = $state<string | null>(null);
+  const nz = (v?: string | null) => v != null && Math.abs(Number(v)) >= 0.5;
+  const litIds = $derived.by(() => {
+    if (!lit || !why) return null;
+    const all = why.accounts;
+    const pick = (f: (d: AccountDiff) => boolean) => new Set(all.filter(f).map((d) => d.account));
+    if (lit === "market") return pick((d) => nz(d.market));
+    if (lit === "contributions & trades") return pick((d) => nz(d.trades));
+    if (lit === "FX") return pick((d) => nz(d.fx));
+    if (lit.startsWith("debt")) return pick((d) => d.liability && nz(d.change));
+    if (lit === "cash & property") return pick((d) => !d.liability && nz(d.balance));
+    return pick((d) => nz(d.residual));
+  });
 
   // Added vs grown: the chart's default view once this loads.
   let growth = $state<GrowthPoint[] | null>(null);
@@ -100,7 +120,7 @@
       </div>
       {#if whyParts.length}
         <a class="why" href="#/changes" onclick={samePeriod} title="What moved it: Changes">
-          <SplitStrip parts={whyParts} currency={cur} height={6} legend blur={prefs.blur} />
+          <SplitStrip parts={whyParts} currency={cur} height={6} legend blur={prefs.blur} bind:lit />
           <span class="go">Why it moved →</span>
         </a>
       {/if}
@@ -113,13 +133,16 @@
     <section class="tiles">
       <a class="card tile" style="--gc:var(--g-investments)" href="#/portfolio"><div class="label">Investments</div><div class="v"><Money value={groupVal("investments")} currency={cur} size="l" /></div>{@render shareOf(groupVal("investments"))}{#if view.portfolio.day_change != null}<div class="d"><Money value={view.portfolio.day_change} currency={cur} signed tone="delta" /> <span class="faint">today</span></div>{/if}</a>
       <div class="card tile" style="--gc:var(--g-cash)"><div class="label">Cash</div><div class="v"><Money value={groupVal("cash")} currency={cur} size="l" /></div>{@render shareOf(groupVal("cash"))}</div>
-      <div class="card tile" style="--gc:var(--g-debt)"><div class="label">Debt</div><div class="v"><Money value={debt} currency={cur} size="l" /></div>{@render shareOf(debt)}</div>
-      <div class="card tile" style="--gc:var(--text-2)" title="Cash and investments, less debt other than the mortgage. The condo and its mortgage sit apart."><div class="label">Liquid net worth</div><div class="v"><Money value={liquid} currency={cur} size="l" /></div>{@render shareOf(liquid, "without the condo and mortgage")}</div>
+      <div class="card tile" style="--gc:var(--g-debt)"><div class="label">Debt</div><div class="v"><Money value={debt} currency={cur} size="l" /></div>{@render ratio(debt, assets, `owed against ${formatMoney(assets, cur)} of assets`)}</div>
+      <div class="card tile" style="--gc:var(--text-2)" title="Cash and investments, less debt other than the mortgage. The condo and its mortgage sit apart."><div class="label">Liquid net worth</div><div class="v"><Money value={liquid} currency={cur} size="l" /></div>{@render ratio(liquid, Number(view.totals.net_worth), `${Number(view.totals.net_worth) > 0 ? Math.round((liquid / Number(view.totals.net_worth)) * 100) : 0}% of net worth, without the condo and mortgage`)}</div>
     </section>
 
-{#snippet shareOf(v: number, note = "")}
-  <div class="sh"><i style="width:{assets > 0 ? Math.max(0, Math.min(100, (v / assets) * 100)) : 0}%"></i></div>
-  <div class="d faint">{assets > 0 ? Math.round((v / assets) * 100) : 0}% of assets{#if note}<br />{note}{/if}</div>
+{#snippet shareOf(v: number)}
+  {@render ratio(v, assets, `${assets > 0 ? Math.round((v / assets) * 100) : 0}% of assets`)}
+{/snippet}
+{#snippet ratio(v: number, of: number, caption: string)}
+  <div class="sh"><i style="width:{of > 0 ? Math.max(0, Math.min(100, (v / of) * 100)) : 0}%"></i></div>
+  <div class="d faint">{caption}</div>
 {/snippet}
 
     {#each byGroup as { g, rows }}
@@ -128,7 +151,7 @@
         <div class="rows">
           {#each rows as a, ri}
             {@const m = moves.get(a.id) ?? null}
-            <a class="row" style="--i:{Math.min(ri, 8)}" href="#/accounts/{encodeURIComponent(a.id)}">
+            <a class="row" class:lit={litIds?.has(a.id)} class:dim={litIds != null && !litIds.has(a.id)} style="--i:{Math.min(ri, 8)}" href="#/accounts/{encodeURIComponent(a.id)}">
               <span class="name">
                 <span class="n">{a.name}<span class="inst faint">{a.institution ?? ""}{a.currency !== cur ? ` · ${a.currency}` : ""}</span></span>
                 <span class="size" title="{sizeOf(a).toFixed(0)}% of assets"><i style="width:{sizeOf(a)}%"></i></span>
@@ -151,6 +174,17 @@
         </div>
       </section>
     {/each}
+
+    <section class="rhythm" aria-label="Check-ins in the last 12 months">
+      {#if thisMonth.done && lastEntry}
+        <span class="stamp">{monthName(thisMonth.month, "long")} entered <span class="num">{formatDate(lastEntry)}</span></span>
+      {/if}
+      <span class="ticks">
+        <span class="faint small">Check-ins</span>
+        {#each cadence as c (c.month)}<i class:done={c.done} class:now={c === thisMonth} title="{monthName(c.month, 'long')} {c.month.slice(0, 4)}: {c.done ? 'entered' : 'no check-in'}"></i>{/each}
+        <span class="faint small">{monthName(cadence[0].month)} – {monthName(thisMonth.month)}</span>
+      </span>
+    </section>
 
     {#if stale.length}
       <p class="stale">
@@ -215,9 +249,25 @@
   .why :global(.strip) { flex: 1; max-width: 560px; }
   .go { color: var(--text-2); white-space: nowrap; }
   .why:hover .go { color: var(--accent); }
+  /* The check-in rhythm: a year of month ticks, and a stamp once this month is in. */
+  .rhythm { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; border-top: 1px solid var(--border); padding-top: 14px; }
+  .stamp { display: inline-flex; gap: 8px; align-items: baseline; border: 1.5px solid var(--accent); color: var(--accent); border-radius: 4px; padding: 3px 10px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; transform: rotate(-1.5deg); }
+  .stamp .num { font-weight: 400; letter-spacing: 0; text-transform: none; }
+  .ticks { display: inline-flex; align-items: center; gap: 5px; }
+  .ticks .small:first-child { margin-right: 6px; }
+  .ticks .small:last-child { margin-left: 6px; }
+  .ticks i { width: 12px; height: 12px; border-radius: 2px; border: 1.5px solid var(--text-3); }
+  .ticks i.done { background: var(--accent); border-color: var(--accent); }
+  .ticks i.now { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--text-3); }
+  @media (prefers-reduced-motion: no-preference) {
+    .stamp { animation: stamp 420ms var(--ease-out) both 200ms; }
+  }
+  @keyframes stamp { from { transform: rotate(-1.5deg) scale(1.25); opacity: 0; } }
   .stale { margin: 4px 0 0; font-size: 13px; color: var(--text-2); display: flex; gap: 12px; flex-wrap: wrap; }
   .stale a { margin-left: auto; }
-  .row { transition: background-color 120ms ease-out; }
+  .row { transition: background-color 120ms ease-out, opacity 140ms ease-out; }
+  .row.lit { background: color-mix(in oklab, var(--accent) 9%, transparent); box-shadow: inset 3px 0 0 var(--accent); }
+  .row.dim { opacity: 0.38; }
   .row:hover { background: color-mix(in oklab, var(--gc) 7%, transparent); }
   .sh i, .size i, .dv i { transition: width 360ms var(--ease-out); }
   /* Bars grow out of their baseline on arrival (delta bars out of the zero line), a row at a time. */

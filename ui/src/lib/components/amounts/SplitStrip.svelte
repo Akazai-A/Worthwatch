@@ -12,7 +12,8 @@
     scale = null,
     legend = false,
     blur = false,
-  }: { parts: Part[]; currency?: string; width?: string; height?: number; /** total the strip is scaled to; null = the parts' own sum */ scale?: number | null; legend?: boolean; blur?: boolean } = $props();
+    lit = $bindable(null),
+  }: { /** the part under the pointer or focus, for a parent that lights what it came from */ lit?: string | null; parts: Part[]; currency?: string; width?: string; height?: number; /** total the strip is scaled to; null = the parts' own sum */ scale?: number | null; legend?: boolean; blur?: boolean } = $props();
   const shown = $derived(parts.filter((p) => Math.abs(p.value) >= 0.005));
   const total = $derived(scale ?? (shown.reduce((s, p) => s + Math.abs(p.value), 0) || 1));
   const alpha = (i: number) => Math.max(0.35, 1 - i * 0.18);
@@ -22,13 +23,13 @@
 <span class="strip" style="width:{width}" {title}>
   <span class="track" style="height:{height}px">
     {#each shown as p, i (p.label)}
-      <i class:up={p.value > 0} class:down={p.value < 0} style="width:{(Math.abs(p.value) / total) * 100}%;opacity:{alpha(i)}"></i>
+      <i class:up={p.value > 0} class:down={p.value < 0} class:lit={lit === p.label} class:off={lit != null && lit !== p.label} style="width:{(Math.abs(p.value) / total) * 100}%;--a:{alpha(i)}" onmouseenter={() => (lit = p.label)} onmouseleave={() => (lit = null)} role="presentation"></i>
     {/each}
   </span>
   {#if legend}
     <span class="legend">
       {#each shown as p, i (p.label)}
-        <span><i class:up={p.value > 0} class:down={p.value < 0} style="opacity:{alpha(i)}"></i>{p.label} <b class="money">{blur ? "*****" : formatSigned(p.value, currency)}</b></span>
+        <span class="part" class:off={lit != null && lit !== p.label} onmouseenter={() => (lit = p.label)} onmouseleave={() => (lit = null)} role="presentation"><i class:up={p.value > 0} class:down={p.value < 0} style="--a:{alpha(i)}"></i>{p.label} <b class="money">{blur ? "*****" : formatSigned(p.value, currency)}</b></span>
       {/each}
     </span>
   {/if}
@@ -37,7 +38,12 @@
 <style>
   .strip { display: inline-flex; flex-direction: column; gap: 8px; vertical-align: middle; }
   .track { display: flex; gap: 2px; width: 100%; border-radius: 3px; overflow: hidden; background: var(--surface-2); }
-  .track i { display: block; height: 100%; min-width: 1px; background: var(--fill); }
+  .track i { display: block; height: 100%; min-width: 1px; background: var(--fill); opacity: var(--a, 1); transition: opacity 140ms ease-out; }
+  .track i.off { opacity: 0.22; }
+  .track i.lit { opacity: 1; box-shadow: inset 0 0 0 1px var(--accent); }
+  .part { transition: opacity 140ms ease-out; }
+  .part.off { opacity: 0.4; }
+  .legend i { opacity: var(--a, 1); }
   i.up { background: var(--positive); }
   i.down { background: var(--negative); }
   .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--text-2); }
