@@ -4,13 +4,6 @@
 import type { AssistantView, Mutation, Plan, PlanRow2 } from "./api";
 import { parseNumber } from "./money";
 
-/** "owed" for a liability; nothing otherwise. */
-export function rowUnit(r: PlanRow2): string {
-  if (r.kind === "trade") return "units";
-  if (r.kind === "price") return r.currency;
-  return r.liability ? "owed" : "";
-}
-
 /** The faint second line under a row's name. */
 export function rowHint(r: PlanRow2): string {
   const parts: string[] = [];
@@ -114,12 +107,6 @@ export function providerLine(a: AssistantView): { dot: "local" | "cloud" | "off"
     default:
       return { dot: "local", text: "Built-in parser · no model, nothing leaves this machine" };
   }
-}
-
-/** "Approve 3 changes" */
-export function approveLabel(plan: Plan): string {
-  const n = plan.rows.filter((r) => r.delta == null || Number(r.delta) !== 0 || r.kind === "note" || r.kind === "new_account").length;
-  return n === 1 ? "Approve 1 change" : `Approve ${n} changes`;
 }
 
 export const EXAMPLES = ["td chq 5102, visa 640", "sold 20 XEQT in the TFSA", "visa down 200", "what is my net worth?"];

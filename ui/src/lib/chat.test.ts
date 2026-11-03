@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { approveLabel, editPlan, providerLine, rowHint, rowUnit } from "./chat";
+import { editPlan, providerLine, rowHint } from "./chat";
 import type { Plan, PlanRow2 } from "./api";
 
 const row = (over: Partial<PlanRow2>): PlanRow2 => ({
@@ -26,11 +26,9 @@ const plan = (): Plan => ({
 });
 
 describe("rows", () => {
-  it("label debt as owed and trades with their price", () => {
-    expect(rowUnit(plan().rows[1])).toBe("owed");
+  it("describe trades with their price and keep the words they came from for hover", () => {
     expect(rowHint(plan().rows[2])).toBe("sell 20 @ 34.87");
     expect(rowHint(plan().rows[1])).toBe("from “visa 640”");
-    expect(approveLabel(plan())).toBe("Approve 3 changes");
   });
 });
 

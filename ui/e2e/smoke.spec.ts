@@ -183,14 +183,15 @@ test("Chat: a message becomes a diff card, nothing is written until Approve; an 
   // A rejection is shown, never applied.
   await input.fill("sold 5 VTI in the tfsa");
   await input.press("Enter");
-  await expect(page.locator(".plan.rejected")).toContainText("Wealthsimple TFSA holds no VTI");
+  await expect(page.locator(".line.rej")).toContainText("Wealthsimple TFSA holds no VTI");
+  await expect(card.locator(".row").first()).toHaveAttribute("title", "from “td chequing 6000”");
 
   // Edit the cash figure, then approve: the edited value lands in the file.
   await card.getByRole("button", { name: "Edit" }).click();
   await card.getByLabel("TD Chequing proposed").fill("6,100");
   await expect(card).toContainText("+997.90");
-  await card.getByRole("button", { name: "Approve 2 changes" }).click();
-  await expect(card).toContainText("Approved");
+  await card.getByRole("button", { name: "Approve 2" }).click();
+  await expect(page.locator(".line.ok")).toContainText("Saved · 2 changes");
   await expect.poll(() => readFileSync(ledger(), "utf8")).toMatch(/td-chequing: 6100(\.0+)?\n/);
   expect(readFileSync(ledger(), "utf8")).toMatch(/units: 436\.5\n/);
 
@@ -199,7 +200,7 @@ test("Chat: a message becomes a diff card, nothing is written until Approve; an 
   const body = await r.json();
   expect(body.pending.id).toBeGreaterThan(0);
   await expect(page.locator(".rail .badge")).toHaveText("1");
-  const pending = page.locator(".plan", { hasText: "Pending from Claude Desktop" });
+  const pending = page.locator(".plan", { hasText: "Claude Desktop" });
   await expect(pending).toContainText("6,200.00");
   expect(readFileSync(ledger(), "utf8")).toMatch(/td-chequing: 6100/);
   await pending.getByRole("button", { name: "Approve" }).click();

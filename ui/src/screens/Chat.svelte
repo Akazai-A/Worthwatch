@@ -4,7 +4,7 @@
   // over MCP (Claude Desktop) wait here as cards of their own.
   import { onMount, tick } from "svelte";
   import { apply, decidePending, ratesInUse, ApiError, type LedgerView, type Plan } from "../lib/api";
-  import { EXAMPLES, providerLine } from "../lib/chat";
+  import { EXAMPLES, fmtUnits, providerLine } from "../lib/chat";
   import { chat, type Turn } from "../lib/stores/chat.svelte";
   import { view as viewStore } from "../lib/stores/view.svelte";
   import { formatDate } from "../lib/money";
@@ -39,7 +39,8 @@
   async function approve(turn: Turn, plan: Plan) {
     try {
       viewStore.set(await apply(plan.mutations));
-      chat.update(turn.id, { plan, status: "approved", outcome: `Approved · ${plan.mutations.length} ${plan.mutations.length === 1 ? "write" : "writes"} to ledger.yaml` });
+      const what = plan.rows.length === 1 ? `${plan.rows[0].account_name} → ${plan.rows[0].to == null ? "" : fmtUnits(Number(plan.rows[0].to))}` : `${plan.rows.length} changes`;
+      chat.update(turn.id, { plan, status: "approved", outcome: `Saved · ${what}` });
     } catch (e) {
       const msg = e instanceof ApiError && e.line ? `line ${e.line}: ${e.message}` : e instanceof Error ? e.message : String(e);
       chat.update(turn.id, { status: "failed", outcome: `Not saved: ${msg}` });
@@ -109,12 +110,14 @@
             plan={t.plan}
             {base}
             {rates}
+            now={view.totals.net_worth}
             {locked}
             badge={t.reply.used === "shorthand" ? null : t.reply.used === "cloud" ? "Claude" : t.reply.used}
+            approveText={t.plan.rows.length > 1 ? `Approve ${t.plan.rows.length}` : "Approve"}
             status={t.status}
             outcome={t.outcome}
             onapprove={(p) => approve(t, p)}
-            oncancel={() => chat.update(t.id, { status: "cancelled", outcome: "Cancelled · nothing written" })}
+            oncancel={() => chat.update(t.id, { status: "cancelled", outcome: "Cancelled, nothing written" })}
             onedit={(p) => chat.update(t.id, { plan: p })}
           />
         {:else if !t.plan.answer}
@@ -125,16 +128,16 @@
     {/each}
 
     {#each view.pending as p (p.id)}
-      <div class="wide">
+      <div class="wide" title={p.text ? `“${p.text}”` : ""}>
         <PlanCard
           plan={p.plan}
           {base}
           {rates}
+          now={view.totals.net_worth}
           {locked}
-          title={p.origin === "mcp" ? "Pending from Claude Desktop" : `Pending from ${p.origin}`}
+          title={p.origin === "mcp" ? "Claude Desktop" : p.origin}
           badge="MCP"
-          meta={`${ago(p.created)}${p.text ? ` · “${p.text}”` : ""}`}
-          approveText="Approve"
+          meta={ago(p.created)}
           cancelText="Discard"
           onapprove={() => decide(p.id, "approve")}
           oncancel={() => decide(p.id, "discard")}
@@ -148,7 +151,7 @@
     <input bind:this={input} bind:value={text} type="text" aria-label="Message" placeholder="Type it like a text: “td chq 5102, visa 640, sold 20 XEQT in the TFSA” · or ask “what is my net worth?”" disabled={chat.busy} />
     <button type="submit" class="btn" disabled={chat.busy || !text.trim()}>{chat.busy ? "…" : "Send"}</button>
   </form>
-  <span class="hint">Enter sends · amounts like 18.5k work · dated {formatDate(view.as_of)} · the model proposes, you approve, the app writes</span>
+  <span class="hint">Enter sends · nothing is written until you approve · hover a row to see the words it came from · dated {formatDate(view.as_of)}</span>
 </div>
 
 <style>
@@ -159,7 +162,7 @@
   .pd { width: 7px; height: 7px; border-radius: 50%; display: inline-block; background: var(--positive); }
   .pd.cloud { background: var(--accent); }
   .pd.off { background: var(--text-3); }
-  .thread { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 4px 2px 8px; }
+  .thread { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 4px 2px 8px; }
   .me { align-self: flex-end; max-width: 72%; background: var(--surface-2); border-radius: 12px 12px 2px 12px; padding: 8px 12px; white-space: pre-wrap; }
   .card { max-width: 92%; }
   .wide :global(.card) { max-width: 100%; border-radius: 12px; }
@@ -167,7 +170,7 @@
   .ans .meta { flex-basis: 100%; font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; }
   .sp { color: var(--accent); }
   :global(.blur) .answer { filter: blur(7px); }
-  .send { border-color: var(--accent); border-radius: 12px 12px 12px 2px; display: flex; flex-direction: column; gap: 8px; }
+  .send { border-color: var(--text-3); border-radius: 12px 12px 12px 2px; display: flex; flex-direction: column; gap: 8px; }
   pre { margin: 0; font-family: var(--mono); font-size: 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 7px; padding: 8px 10px; color: var(--text-2); white-space: pre-wrap; max-height: 180px; overflow: auto; }
   details pre { margin-top: 6px; }
   .note { font-size: 12px; margin-top: -6px; }
@@ -175,13 +178,13 @@
   .intro p { margin: 0; }
   .ex { display: flex; gap: 8px; flex-wrap: wrap; }
   .chip { background: var(--surface); border: 1px solid var(--border); color: var(--text-2); border-radius: 16px; padding: 5px 12px; font: inherit; font-size: 13px; cursor: pointer; }
-  .chip:hover { color: var(--text); border-color: var(--accent); }
+  .chip:hover { color: var(--text); border-color: var(--text-3); }
   .compose { display: flex; gap: 10px; align-items: center; border-top: 1px solid var(--border); padding-top: 12px; }
   .compose input { flex: 1; min-width: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 9px; padding: 10px 12px; color: var(--text); font: inherit; }
-  .compose input:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+  .compose input:focus-visible { outline: 1px solid var(--text-3); outline-offset: -1px; border-color: transparent; }
   .acts { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
-  .btn { background: var(--accent); color: var(--bg); border: 0; border-radius: 8px; padding: 9px 16px; font: inherit; font-weight: 600; cursor: pointer; white-space: nowrap; }
-  .btn:disabled { opacity: 0.45; cursor: default; }
+  .btn { background: var(--text); color: var(--bg); border: 0; border-radius: 8px; padding: 9px 16px; font: inherit; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .btn:disabled { opacity: 0.35; cursor: default; }
   .hint { font-size: 11px; color: var(--text-3); }
   .small { font-size: 12px; }
   .bad { color: var(--negative); }
