@@ -186,10 +186,19 @@ pub fn scan_icloud(
     status.last_scan = Some(Utc::now());
     status.errors.clear();
     status.not_downloaded.clear();
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        status.found = false;
-        status.files = 0;
-        return 0;
+    let entries = match std::fs::read_dir(dir) {
+        Ok(entries) => entries,
+        Err(e) => {
+            status.found = false;
+            status.files = 0;
+            if e.kind() == std::io::ErrorKind::PermissionDenied {
+                status.errors.push(
+                    "macOS blocked reading this folder: give worthwatch Full Disk Access in System Settings › Privacy & Security"
+                        .into(),
+                );
+            }
+            return 0;
+        }
     };
     status.found = true;
     let mut files = 0;
