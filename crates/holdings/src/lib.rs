@@ -19,7 +19,9 @@ use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-pub use diff::{diff_fund, drift, fund_dollars, BucketDelta, ChangeKind, ConstituentChange, Drift, FundDiff};
+pub use diff::{
+    diff_fund, drift, fund_dollars, BucketDelta, ChangeKind, CompanyDelta, ConstituentChange, Drift, FundDiff,
+};
 pub use lookthrough::{
     lookthrough, overlap, Bucket, Company, FundStatus, Holding, LookThrough, Overlap, OverlapCell,
     SecurityMeta, Via,

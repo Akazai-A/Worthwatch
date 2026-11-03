@@ -10,7 +10,7 @@ use rust_decimal::Decimal;
 use serde::Serialize;
 
 use crate::lookthrough::{leaf_key, pretty_name};
-use crate::{child_symbol, Bucket, FundHoldings, Holding, LookThrough};
+use crate::{child_symbol, Bucket, Company, FundHoldings, Holding, LookThrough};
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "snake_case")]
@@ -226,6 +226,62 @@ pub struct Drift {
     pub by_country: Vec<BucketDelta>,
     pub by_asset_class: Vec<BucketDelta>,
     pub by_currency: Vec<BucketDelta>,
+    /// Your dollars in each company then and now, through every fund; biggest move first.
+    pub by_company: Vec<CompanyDelta>,
+}
+
+/// One company's dollars at both ends of a period, through every fund. The move includes
+/// what you bought or sold, the fund's own reweighting and the price.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct CompanyDelta {
+    pub key: String,
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ticker: Option<String>,
+    pub sector: String,
+    pub slot: String,
+    pub from_value: Decimal,
+    pub to_value: Decimal,
+    pub delta: Decimal,
+}
+
+/// How many companies a drift carries: enough for a top-movers list either way.
+pub const COMPANY_MOVERS: usize = 40;
+
+fn company_deltas(a: &[Company], b: &[Company]) -> Vec<CompanyDelta> {
+    let mut m: BTreeMap<&str, CompanyDelta> = BTreeMap::new();
+    for (c, then) in a.iter().map(|c| (c, true)).chain(b.iter().map(|c| (c, false))) {
+        // The undisclosed remainder and the folded tail are not companies.
+        if c.undisclosed || c.key == "__other__" {
+            continue;
+        }
+        let e = m.entry(&c.key).or_insert_with(|| CompanyDelta {
+            key: c.key.clone(),
+            name: c.name.clone(),
+            ticker: c.ticker.clone(),
+            sector: c.sector.clone(),
+            slot: c.slot.clone(),
+            from_value: Decimal::ZERO,
+            to_value: Decimal::ZERO,
+            delta: Decimal::ZERO,
+        });
+        if then {
+            e.from_value = c.value
+        } else {
+            e.to_value = c.value
+        }
+    }
+    let mut v: Vec<CompanyDelta> = m
+        .into_values()
+        .map(|mut d| {
+            d.delta = (d.to_value - d.from_value).round_dp(2);
+            d
+        })
+        .filter(|d| !d.delta.is_zero())
+        .collect();
+    v.sort_by(|x, y| y.delta.abs().cmp(&x.delta.abs()).then(x.key.cmp(&y.key)));
+    v.truncate(COMPANY_MOVERS);
+    v
 }
 
 fn bucket_deltas(a: &[Bucket], b: &[Bucket]) -> Vec<BucketDelta> {
@@ -284,6 +340,7 @@ pub fn drift(from: &LookThrough, to: &LookThrough) -> Drift {
         by_country: bucket_deltas(&from.by_country, &to.by_country),
         by_asset_class: bucket_deltas(&from.by_asset_class, &to.by_asset_class),
         by_currency: bucket_deltas(&from.by_currency, &to.by_currency),
+        by_company: company_deltas(&from.companies, &to.companies),
     }
 }
 
@@ -449,5 +506,9 @@ mod tests {
         assert_eq!(d.by_sector[0].label, "Technology", "largest share first");
         let sum: Decimal = d.by_sector.iter().map(|x| x.delta).sum();
         assert_eq!(sum, Decimal::ZERO);
+        // Companies in dollars, biggest move first: B left (-400), C arrived (+300), A grew (+100).
+        let moves: Vec<(&str, Decimal)> = d.by_company.iter().map(|c| (c.key.as_str(), c.delta)).collect();
+        assert_eq!(moves.iter().map(|m| m.1).collect::<Vec<_>>(), vec![dec!(-400), dec!(300), dec!(100)]);
+        assert_eq!(d.by_company[1].from_value, Decimal::ZERO);
     }
 }

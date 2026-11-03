@@ -250,6 +250,25 @@ export interface LookThroughView {
   snapshots: SnapshotInfo[];
 }
 
+// ---- One fund or company (Portfolio › a holding's page), from GET /api/security ----
+export interface SecurityView {
+  symbol: string;
+  base_currency: string;
+  currency: string | null;
+  prices: { date: string; close: string }[];
+  price_source: "held" | "fetched" | "none";
+  price_note?: string;
+  /** Your dollars in it at each check-in, then today, through every fund. */
+  yours: { date: string; value: string }[];
+  /** Points dated before this (the first holdings file) use that file's weights. */
+  estimated_before?: string;
+}
+export async function getSecurity(symbol: string, key?: string): Promise<SecurityView> {
+  const q = new URLSearchParams({ symbol });
+  if (key) q.set("key", key);
+  return get(`/api/security?${q}`);
+}
+
 export async function getLookthrough(): Promise<LookThroughView> {
   return get("/api/lookthrough");
 }
@@ -326,7 +345,10 @@ export interface Drift {
   by_country: BucketDelta[];
   by_asset_class: BucketDelta[];
   by_currency: BucketDelta[];
+  /** Your dollars in each company at both ends, through every fund; biggest move first, at most 40. */
+  by_company: CompanyDelta[];
 }
+export interface CompanyDelta { key: string; name: string; ticker?: string; sector: string; slot: string; from_value: string; to_value: string; delta: string }
 export type ChangeKind = "added" | "removed" | "reweighted";
 export interface ConstituentChange {
   kind: ChangeKind;

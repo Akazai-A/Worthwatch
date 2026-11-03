@@ -2,19 +2,22 @@
   import PrivacyToggle from "../../lib/components/shell/PrivacyToggle.svelte";
   // Portfolio › Look-through: where the money actually is, through every fund.
   import type { Company, LookThroughView } from "../../lib/api";
-  import { formatDate, formatMoney, formatPct } from "../../lib/format/money";
-  import { caveats, familyHue, familyOf, headlineParts, shortPath, viaLabel } from "../../lib/portfolio/lookthrough";
+  import { formatPct } from "../../lib/format/money";
+  import { caveats, familyHue, familyOf, FLAG, headlineParts, overlapPairs, shortPath, viaLabel } from "../../lib/portfolio/lookthrough";
   import Lineage from "../../lib/components/portfolio/Lineage.svelte";
+  import FundsCard from "../../lib/components/portfolio/FundsCard.svelte";
+  import ExposureBars from "../../lib/components/portfolio/ExposureBars.svelte";
   import Money from "../../lib/components/amounts/Money.svelte";
   import Treemap from "../../lib/charts/Treemap.svelte";
+  import { hashFor } from "../../lib/stores/route.svelte";
 
   // cash: investment accounts that hold cash rather than funds (an FHSA not invested yet).
   let { lt, cash = [] }: { lt: LookThroughView; cash?: { name: string; value: number }[] } = $props();
   const cashTotal = $derived(cash.reduce((s, c) => s + c.value, 0));
   const cur = $derived(lt.base_currency);
   const x = $derived(lt.lookthrough);
-  // Ten rows sit level with the detail and funds cards whatever the company count;
-  // the rest unfold on request, with the detail card pinned alongside.
+  // Ten rows sit level with the detail card; the rest unfold inside the card, which then
+  // scrolls on its own instead of growing the page.
   const SHOW = 10;
   const MAX = 50;
   const ranked = $derived(x.companies.filter((c) => !c.undisclosed && c.key !== "__other__").slice(0, MAX));
@@ -24,6 +27,9 @@
   let selectedKey = $state<string | null>(null);
   const selected = $derived<Company | null>(x.companies.find((c) => c.key === selectedKey) ?? top[0] ?? null);
   const parts = $derived(headlineParts(x.company_count, x.funds, x.top10_pct, x.effective_holdings));
+  // Overlap shows up only as a flag: two funds this much alike are worth knowing about.
+  const pairs = $derived(overlapPairs(lt.overlap));
+  const twins = $derived(pairs.filter((p) => p.pct >= FLAG.pair));
   const warns = $derived(caveats(x.undisclosed, x.total, x.funds));
   const maxTop = $derived(top.length ? Number(top[0].value) : 1);
   const unresolvedFunds = $derived(x.funds.filter((f) => !f.resolved));
@@ -39,6 +45,7 @@
     <PrivacyToggle />
     {#each cash as c (c.name)}<span class="chip"><Money value={c.value} currency={cur} />&nbsp;<span class="muted">cash in {c.name}, not invested yet</span></span>{/each}
     {#each parts as p}<span class="chip">{p}</span>{/each}
+    {#each twins as t (`${t.a}|${t.b}`)}<span class="chip warn" title="{t.shared.slice(0, 5).map((n) => n.name).join(', ')}…">{t.a} and {t.b} are {t.pct.toFixed(0)}% the same</span>{/each}
     {#each warns as w}<span class="chip warn">{w}</span>{/each}
   </div>
 </section>
@@ -62,23 +69,26 @@
 
   <div class="two">
     <section class="card">
-      <h2 class="label">Top {top.length} companies</h2>
-      <table class="top">
-        <thead><tr><th>Company</th><th class="r">Value</th><th class="bar"></th><th class="r">Of total</th></tr></thead>
-        <tbody>
-          {#each top as c (c.key)}
-            <tr class:on={selected?.key === c.key} onclick={() => (selectedKey = c.key)}>
-              <td><i class="dot" style={dot(c)}></i>{c.name}<span class="sub2">{c.sector}</span></td>
-              <td class="r"><Money value={c.value} currency={cur} /></td>
-              <td class="bar"><span class="wt"><i style="width:{(Number(c.value) / maxTop) * 100}%"></i></span></td>
-              <td class="r num">{formatPct(c.pct)}</td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
+      <h2 class="label">Top companies</h2>
+      <div class="scroll" class:open={expanded}>
+        <table class="top">
+          <thead><tr><th>Company</th><th class="r">Value</th><th class="bar"></th><th class="r">Of total</th><th class="go"></th></tr></thead>
+          <tbody>
+            {#each top as c, i (c.key)}
+              <tr class:on={selected?.key === c.key} onclick={() => (selectedKey = c.key)}>
+                <td><span class="rank num">{i + 1}</span><i class="dot" style={dot(c)}></i>{c.name}<span class="sub2">{c.sector}</span></td>
+                <td class="r"><Money value={c.value} currency={cur} /></td>
+                <td class="bar"><span class="wt"><i style="width:{(Number(c.value) / maxTop) * 100}%"></i></span></td>
+                <td class="r num">{formatPct(c.pct)}</td>
+                <td class="go"><a href={hashFor({ name: "company", key: c.key })} aria-label="Open {c.name}" onclick={(e) => e.stopPropagation()}>›</a></td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
       <div class="foot">
         {#if more > 0}
-          <button type="button" class="more" onclick={() => (expanded = !expanded)}>{expanded ? "Show fewer" : `Show ${more} more`}</button>
+          <button type="button" class="more" aria-expanded={expanded} onclick={() => (expanded = !expanded)}>{expanded ? "Show top 10" : `Show ${more} more`}</button>
         {/if}
         {#if x.company_count > ranked.length}
           <span class="faint">{(x.company_count - ranked.length).toLocaleString("en-CA")} more names, each under {formatPct(ranked[ranked.length - 1]?.pct ?? 0)}</span>
@@ -86,10 +96,9 @@
       </div>
     </section>
 
-    <div class="side">
     <section class="card detail" aria-live="polite">
       {#if selected}
-        <div class="label">Selected</div>
+        <div class="dh"><span class="label">Selected</span><a class="open" href={hashFor({ name: "company", key: selected.key })}>Open page ›</a></div>
         <h3>{selected.name}{#if selected.ticker && selected.ticker !== selected.name}&nbsp;<span class="faint tk">{selected.ticker}</span>{/if}</h3>
         <div class="sub2"><i class="dot" style={dot(selected)}></i>{selected.sector}{#if selected.country}&nbsp;· {selected.country}{/if}{#if selected.currency}&nbsp;· {selected.currency}{/if}</div>
         <div class="big"><Money value={selected.value} currency={cur} size="l" /></div>
@@ -100,45 +109,20 @@
         <p class="note faint">Your value in each fund × the fund's disclosed weight, through every level.</p>
       {/if}
     </section>
-    <section class="card funds">
-      <h2 class="label">Holdings</h2>
-      <table>
-        <thead><tr><th>Holding</th><th class="r">Value</th><th class="r">File</th><th class="r">Names</th></tr></thead>
-        <tbody>
-          {#each x.funds as f (f.symbol)}
-            <tr>
-              <td>
-                <span class="sym">{f.symbol}</span>
-                <span class="sub2">{#if f.name}{f.name} · {/if}{#if f.children.length}holds {f.children.join(", ")}{:else if f.resolved}stocks directly{:else}no file, counted as one name{/if}{#if f.unresolved_children.length}&nbsp;<span class="warn">· no file for {f.unresolved_children.join(", ")}</span>{/if}</span>
-              </td>
-              <td class="r"><Money value={f.value} currency={cur} /></td>
-              <td class="r">
-                {#if f.resolved}
-                  {f.as_of ? formatDate(f.as_of) : ""}{#if f.source && f.source !== "seed"}&nbsp;<span class="faint">({f.source})</span>{/if}
-                  {#if f.coverage_pct != null && Number(f.coverage_pct) < 99.5}<span class="sub2 warn">{f.coverage_pct}% disclosed</span>{/if}
-                {:else}
-                  <span class="warn">none</span>
-                {/if}
-              </td>
-              <td class="r num">{f.resolved ? f.constituents : "—"}</td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-      {#if broken.length}
-        <ul class="errs">{#each broken as [k, v]}<li><b>{k}</b> <span class="warn">{v}</span></li>{/each}</ul>
-      {/if}
-      <p class="faint note">
-        {#if unresolvedFunds.length || missingChildren.length}
-          A fund with no file counts as one line. Save its holdings CSV as <code>&lt;SYMBOL&gt;.csv</code>{#if missingChildren.length}&nbsp;(also {missingChildren.map((c) => `${c}.csv`).join(", ")}){/if} in the folder below{#if !lt.offline}, or set <code>settings.holdings_urls</code>{/if}.
-        {/if}
-        Folder: <code title={lt.holdings_dir}>{shortPath(lt.holdings_dir)}</code>
-      </p>
-    </section>
-    </div>
   </div>
 
+  <FundsCard funds={x.funds} companies={x.companies} {pairs} total={Number(x.total)} currency={cur} asOf={lt.as_of} />
+  {#if broken.length || unresolvedFunds.length || missingChildren.length}
+    <section class="card fix">
+      {#if broken.length}<ul class="errs">{#each broken as [k, v]}<li><b>{k}</b> <span class="warn">{v}</span></li>{/each}</ul>{/if}
+      <p class="faint note">
+        A fund with no file counts as one line. Save its holdings CSV as <code>&lt;SYMBOL&gt;.csv</code>{#if missingChildren.length}&nbsp;(also {missingChildren.map((c) => `${c}.csv`).join(", ")}){/if} in <code title={lt.holdings_dir}>{shortPath(lt.holdings_dir)}</code>{#if !lt.offline}, or set <code>settings.holdings_urls</code>{/if}.
+      </p>
+    </section>
+  {/if}
 {/if}
+
+<ExposureBars {lt} />
 
 <style>
   .hero .sub { margin-top: 8px; display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--text-2); }
@@ -149,7 +133,11 @@
   .chart { padding: 10px; }
   .legend { font-size: 11px; color: var(--text-3); margin: 0; padding: 10px 6px 2px; }
   .two { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(280px, 1fr); gap: 20px; align-items: start; }
-  .side { display: flex; flex-direction: column; gap: 20px; position: sticky; top: 16px; }
+  .detail { position: sticky; top: 16px; }
+  /* Ten rows show; "Show more" keeps the card this tall and scrolls the list inside it. */
+  .scroll.open { max-height: 520px; overflow-y: auto; overscroll-behavior: contain; box-shadow: inset 0 -12px 10px -10px rgba(0, 0, 0, 0.35); }
+  .scroll thead th { position: sticky; top: 0; z-index: 1; background: var(--surface); }
+  .rank { display: inline-block; width: 22px; font-size: 11px; color: var(--text-3); }
   h2.label { margin: 0 0 8px; font-weight: 500; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th { text-align: left; font-weight: 500; color: var(--text-3); font-size: 12px; padding: 4px 0; }
@@ -160,19 +148,21 @@
   .top td:first-child { min-width: 0; max-width: 0; width: 100%; }
   tbody tr { cursor: pointer; }
   tbody tr:hover td, tbody tr.on td { color: var(--text); }
-  .top tbody tr.on td:first-child { box-shadow: inset 2px 0 0 var(--accent); padding-left: 8px; }
-  .funds tbody tr { cursor: default; }
-  .funds td:first-child { min-width: 0; max-width: 0; width: 100%; }
-  .funds td.r { white-space: nowrap; vertical-align: top; }
+  .top tbody tr.on td:first-child { box-shadow: inset 2px 0 0 var(--accent); }
   .r { text-align: right; }
-  .sub2 { display: block; font-size: 11px; color: var(--text-3); padding-left: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .detail .sub2, .funds .sub2 { padding-left: 0; }
+  .sub2 { display: block; font-size: 11px; color: var(--text-3); padding-left: 36px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .detail .sub2 { padding-left: 0; }
   .detail h3 + .sub2 { margin-top: 2px; }
-  .sym { font-weight: 500; }
   .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 7px; vertical-align: 1px; }
   .top td:first-child { padding-left: 0; }
   .wt { display: block; width: 50px; height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
   .wt i { display: block; height: 100%; background: var(--fill); }
+  th.go, td.go { width: 22px; padding-left: 8px; text-align: right; }
+  td.go a { color: var(--text-3); text-decoration: none; padding: 2px 4px; }
+  td.go a:hover, td.go a:focus-visible { color: var(--accent); }
+  .dh { display: flex; justify-content: space-between; align-items: baseline; }
+  .open { font-size: 12px; color: var(--text-2); text-decoration: none; }
+  .open:hover { color: var(--accent); }
   .detail h3 { margin: 2px 0 0; font-size: 17px; font-weight: 600; }
   .detail .tk { font-weight: 400; font-size: 13px; }
   .detail .big { margin-top: 12px; }
@@ -181,12 +171,14 @@
   .more { font: inherit; font-size: 12px; color: var(--text-2); background: none; border: 1px solid var(--border); border-radius: 6px; padding: 3px 10px; cursor: pointer; }
   .more:hover { color: var(--text); }
   .more:focus-visible { outline: 2px solid var(--accent); }
-  .errs { margin: 10px 0 0; padding: 0; list-style: none; font-size: 12px; }
+  .fix .note { margin: 0; }
+  .errs { margin: 0 0 10px; padding: 0; list-style: none; font-size: 12px; }
   .errs li { padding: 4px 0; }
   code { font-family: var(--mono); font-size: 11px; }
   @media (max-width: 760px) {
     .two { grid-template-columns: 1fr; }
     th.bar, td.bar { display: none; }
-    .side { position: static; }
+    .detail { position: static; }
+    .scroll.open { max-height: 440px; }
   }
 </style>

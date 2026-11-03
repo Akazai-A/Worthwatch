@@ -13,6 +13,7 @@ pub mod budget;
 pub mod chat;
 pub mod plan;
 pub mod portfolio;
+pub mod security;
 pub mod view;
 
 /// The body of every error answer. `line` points into `ledger.yaml` when the error is there.
@@ -59,6 +60,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/growth", get(portfolio::get_growth))
         .route("/api/accounts/{id}/months", get(portfolio::get_account_months))
         .route("/api/refresh-holdings", post(portfolio::refresh_holdings))
+        .route("/api/security", get(security::get_security))
         // Plan and backups
         .route("/api/plan", get(plan::get_plan))
         .route("/api/backups", get(backups::list_backups).post(backups::create_backup))

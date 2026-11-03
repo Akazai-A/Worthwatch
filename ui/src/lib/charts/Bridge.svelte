@@ -15,7 +15,10 @@
     blur = false,
     tip,
     onunfold,
+    title = "Net worth",
   }: {
+    /** What the bridge walks from start to end, for screen readers. */
+    title?: string;
     start: number; end: number; steps: BridgeStep[]; startLabel: string; endLabel: string; currency?: string; blur?: boolean;
     /** Card shown while a step is hovered or focused: from → to and what made it. */
     tip?: Snippet<[BridgeStep]>;
@@ -61,7 +64,7 @@
   {@const right = x(Math.max(r.from, r.to))}
   <div class="tip" style="top:{ROW * (active + 1) + ROW + 6}px;{right > W * 0.6 ? `right:${W - x(Math.min(r.from, r.to)) + 8}px` : `left:${right + 70}px`}">{@render tip(r)}</div>
 {/if}
-<svg class="bridge" viewBox="0 0 {W} {height}" width={W} height={height} role="group" aria-label="Net worth bridge from {startLabel} to {endLabel}">
+<svg class="bridge" viewBox="0 0 {W} {height}" width={W} height={height} role="group" aria-label="{title} bridge from {startLabel} to {endLabel}">
   <line class="axis" x1={x(start)} x2={x(start)} y1={4} y2={height - 4} />
   <g transform="translate(0,{ROW / 2})">
     <text class="lab" x={GUTTER - 10} y={4} text-anchor="end">{startLabel}</text>
@@ -95,7 +98,7 @@
 </div>
 
 <style>
-  .fit { position: relative; }
+  .fit { position: relative; contain: inline-size; }
   .bridge { display: block; overflow: visible; }
   .step { outline: none; }
   .step .hit { fill: transparent; }

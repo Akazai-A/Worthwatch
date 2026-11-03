@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { accountHint, bridgeSteps, causeOf, changeLine, minorLine, parts, presetFrom, rangeLabel, verdict } from "./changes";
-import type { AccountDiff, FundFeed } from "../api";
-
-const acct = (over: Partial<AccountDiff>): AccountDiff => ({
-  account: "a", name: "A", group: "cash", liability: false, currency: "CAD", from_value: "1", to_value: "2",
-  change: "1", pct: "100", residual: "0", missing_price: false, missing_fx: false, ...over,
-});
+import { changeLine, fundSteps, investParts, minorLine, parts, presetFrom, rangeLabel, verdict } from "./changes";
+import type { FundFeed, HoldingDiff } from "../api";
 
 describe("presets", () => {
   it("count back whole months and clamp to the first known date", () => {
@@ -28,19 +23,6 @@ describe("wording", () => {
     const p = parts({ market: "4118", trades: "0", fx: "-12", balances: "0.001", debt: "-300", residual: "0" });
     expect(p.map((x) => x.label)).toEqual(["market", "debt grew", "FX"]);
   });
-  it("explains an account row", () => {
-    expect(accountHint(acct({ currency: "USD", market: "2653", fx: "-12" }), "CAD", [])).toBe("USD → CAD · market +$2,653 · fx −$12");
-    expect(accountHint(acct({ market: "1465", trades: "742" }), "CAD", ["bought 14 XEQT.TO"])).toBe("market +$1,465 · bought 14 XEQT.TO +$742");
-    expect(accountHint(acct({ from_value: null, balance: "500" }), "CAD", [])).toBe("new in this period");
-  });
-  it("folds small movers into one bridge step", () => {
-    const many = Array.from({ length: 12 }, (_, i) => acct({ name: `A${i}`, change: String(100 - i * 5) }));
-    const steps = bridgeSteps(many, 8);
-    expect(steps).toHaveLength(9);
-    expect(steps[8]).toEqual({ label: "4 others", delta: 60 + 55 + 50 + 45, folded: 4 });
-    expect(bridgeSteps(many.slice(0, 9), 8)).toHaveLength(9);
-    expect(bridgeSteps([acct({ change: "0" })])).toHaveLength(0);
-  });
   it("words a constituent change", () => {
     expect(changeLine({ kind: "reweighted", key: "XEC", name: "X", ticker: "XEC", from_weight: "7.37", to_weight: "7.92", delta: "0.55" })).toBe("XEC 7.37% → 7.92% (+0.55 pt)");
     expect(changeLine({ kind: "added", key: "CLS", name: "Celestica", ticker: "CLS", from_weight: "0", to_weight: "0.84", delta: "0.84" })).toBe("CLS added at 0.84%");
@@ -52,15 +34,24 @@ describe("wording", () => {
   });
 });
 
-describe("causes and the verdict", () => {
-  it("names what mostly moved an account", () => {
-    expect(causeOf(acct({ liability: true }))).toBe("debt");
-    expect(causeOf(acct({ market: "900", fx: "50", trades: "100" }))).toBe("market");
-    expect(causeOf(acct({ balance: "-780" }))).toBe("money");
-  });
-  it("names the account that did a quarter or more of the change, else nothing", () => {
+describe("the verdict", () => {
+  it("names the fund that did a quarter or more of the change, else nothing", () => {
     expect(verdict([{ label: "RRSP", delta: 1011 }, { label: "FHSA", delta: 1000 }], 3939)).toEqual({ who: "RRSP", delta: 1011 });
     expect(verdict([{ label: "A", delta: 100 }, { label: "B", delta: 90 }], 1000)).toBeNull();
     expect(verdict([], 0)).toBeNull();
+  });
+});
+
+describe("fund waterfall", () => {
+  const h = (symbol: string, market: string, trades: string, fx: string): HoldingDiff => ({
+    symbol, currency: "CAD", accounts: [], from_units: "1", to_units: "1", from_price: "1", to_price: "1", from_price_date: null, to_price_date: null,
+    from_value: "1", to_value: "1", trade_count: 0, market, trades, fx, change: String(Number(market) + Number(trades) + Number(fx)),
+  });
+  it("makes one step per fund that moved, biggest first, coloured by what moved it", () => {
+    const steps = fundSteps([h("VFV", "500", "0", "0"), h("XEQT", "10", "14000", "0"), h("ZAG", "0", "0", "0")]);
+    expect(steps.map((s) => [s.label, s.delta, s.cause])).toEqual([["XEQT", 14010, "money"], ["VFV", 500, "market"]]);
+  });
+  it("splits the investment change into price, money in or out, and FX", () => {
+    expect(investParts([h("VTI", "700", "0", "300"), h("VFV", "500", "0", "0")]).map((p) => [p.label, p.value])).toEqual([["market", 1200], ["FX", 300]]);
   });
 });

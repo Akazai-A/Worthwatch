@@ -57,7 +57,7 @@ pub struct SnapshotInfo {
 }
 
 const COMPANY_CAP: usize = 300;
-const DEPTH: u8 = 3;
+pub(crate) const DEPTH: u8 = 3;
 
 pub fn build_lookthrough(
     snap: &Snapshot,
@@ -163,7 +163,11 @@ pub struct ChangesQuery {
 const FEED_CAP: usize = 20;
 pub const DEFAULT_THRESHOLD: Decimal = Decimal::from_parts(5, 0, 0, false, 1);
 
-fn holdings_inputs(snap: &Snapshot, m: &derive::Market, date: NaiveDate) -> Vec<holdings::Holding> {
+pub(crate) fn holdings_inputs(
+    snap: &Snapshot,
+    m: &derive::Market,
+    date: NaiveDate,
+) -> Vec<holdings::Holding> {
     derive::portfolio(&snap.ledger, m, date)
         .securities
         .iter()
@@ -178,7 +182,7 @@ fn holdings_inputs(snap: &Snapshot, m: &derive::Market, date: NaiveDate) -> Vec<
         .collect()
 }
 
-fn security_meta(l: &ledger::Ledger) -> BTreeMap<String, holdings::SecurityMeta> {
+pub(crate) fn security_meta(l: &ledger::Ledger) -> BTreeMap<String, holdings::SecurityMeta> {
     l.securities
         .iter()
         .map(|(sym, sec)| {
