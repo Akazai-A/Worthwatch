@@ -11,6 +11,7 @@
   // Drawn at the width it gets (not a scaled viewBox), so its text stays readable on a phone.
   let cw = $state(780);
   const W = $derived(Math.max(300, cw));
+  const LANE = 32;
   const H = 236, STRIP = 34;
   const c = $derived(chart(v, W, H, STRIP));
   const money = (n: number) => (prefs.blur ? "*****" : formatMoney(n, v.base_currency));
@@ -31,14 +32,14 @@
 </script>
 
 <div class="wrap" bind:clientWidth={cw}>
-  <svg viewBox="0 0 {W} {H}" width={W} height={H} role="img" aria-label="Running total of spending this month against an even pace to the budget"
+  <svg viewBox="0 0 {W} {H + (c.bills.length ? LANE : 0)}" width={W} height={H + (c.bills.length ? LANE : 0)} role="img" aria-label="Running total of spending this month against an even pace to the budget"
     onpointermove={onMove} onpointerleave={() => (hover = null)}>
     {#each c.yTicks as t}
       <line class="grid" x1={c.x(0)} x2={c.x(v.days)} y1={t.y} y2={t.y} />
       <text class="ax" x={c.x(v.days) + 8} y={t.y + 3}>{compact(t.value)}</text>
     {/each}
     {#if c.pace}<path class="pace" d={c.pace} />
-      <text class="ax" x={c.x(v.days) - 4} y={c.y(Number(v.budget)) - 8} text-anchor="end">budget {compact(Number(v.budget))}</text>{/if}
+      <text class="ax" x={c.x(v.days) - 4} y={c.y(c.everyday) - 8} text-anchor="end">everyday budget {compact(c.everyday)}</text>{/if}
     <path class="conf" d={c.confirmed} />
     {#if c.total}<path class="prov" d={c.total} />{/if}
     {#if c.today && v.day < v.days}
@@ -53,6 +54,17 @@
     {#each ticks as d}
       <text class="ax" x={c.x(d - 0.5)} y={H - 4} text-anchor="middle">{monthShort} {d}</text>
     {/each}
+    {#if c.bills.length}
+      <!-- Bills on their own lane: a notch on the day, filled once paid. -->
+      <g transform="translate(0,{H + 10})">
+        <line class="grid" x1={c.x(0)} x2={c.x(v.days)} y1="8" y2="8" />
+        <text class="ax" x={c.x(v.days) + 8} y="11">bills</text>
+        {#each c.bills as b (b.name)}
+          <rect class="bill" class:paid={b.paid} x={b.x - 4} y="3" width="8" height="10" rx="1.5" />
+          <text class="ax bl" x={b.x + 7} y="11">{b.name} {compact(b.amount)}</text>
+        {/each}
+      </g>
+    {/if}
     {#if hd}
       <line class="hover" x1={c.x(hd.day - 0.5)} x2={c.x(hd.day - 0.5)} y1="12" y2={stripTop + STRIP} />
     {/if}
@@ -81,6 +93,9 @@
   .dot { fill: var(--accent); stroke: var(--surface); stroke-width: 2; }
   .now { stroke: var(--text-3); }
   .bar { fill: var(--fill); opacity: 0.6; }
+  .bill { fill: none; stroke: var(--text-3); stroke-width: 1.2; }
+  .bill.paid { fill: var(--text-3); }
+  .bl { fill: var(--text-2); }
   .bar.hot { opacity: 1; }
   .clip { stroke: var(--surface); stroke-width: 2; }
   .hover { stroke: var(--text-2); stroke-width: 1; pointer-events: none; }
