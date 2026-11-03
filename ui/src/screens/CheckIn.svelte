@@ -43,7 +43,9 @@
     const el = document.querySelector<HTMLInputElement>(".ci input[type=text]");
     el?.focus();
   }
-  $effect(() => { if (view.accounts.length) queueMicrotask(focusFirst); });
+  // Focus the first field once, when the accounts first arrive; live updates must not move the cursor.
+  let focused = false;
+  $effect(() => { if (!focused && view.accounts.length) { focused = true; queueMicrotask(focusFirst); } });
 
   async function save() {
     if (saving || result.mutations.length === 0 || result.invalid.length) return;
@@ -94,7 +96,9 @@
   }
 
   function onKey(e: KeyboardEvent) {
-    if (e.key === "Enter" && !adding && (e.target as HTMLElement)?.tagName === "INPUT") { e.preventDefault(); void save(); }
+    // Only Enter in this screen's own fields saves; the ⌘K palette's input must not.
+    const t = e.target as HTMLElement | null;
+    if (e.key === "Enter" && !adding && t?.tagName === "INPUT" && t.closest(".checkin")) { e.preventDefault(); void save(); }
   }
   const kinds = Object.keys(KIND_LABEL) as AccountKind[];
 </script>

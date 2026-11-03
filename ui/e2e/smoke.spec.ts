@@ -297,3 +297,39 @@ test("Budget: a tap needs the token, shows at once as provisional, and the state
   await expect(page.getByRole("button", { name: "Import 0 new" })).toBeDisabled();
   expect((await (await request.get("/api/budget")).json()).txns).toHaveLength(1);
 });
+
+test("⌘⇧H blurs every amount, not only the charts", async ({ page }) => {
+  await page.goto("/#/");
+  const amount = page.locator(".hero .money.xl");
+  await expect(amount).toBeVisible();
+  const filter = () => amount.evaluate((el) => getComputedStyle(el).filter);
+  expect(await filter()).toBe("none");
+  await page.keyboard.press("Control+Shift+H");
+  await expect(page.locator("body")).toHaveClass(/\bblur\b/);
+  expect(await filter()).toContain("blur");
+  await page.keyboard.press("Control+Shift+H");
+  await expect(page.locator("body")).not.toHaveClass(/\bblur\b/);
+});
+
+test("Check-in: Enter in ⌘K doesn't save, and a live update doesn't move the cursor", async ({ page }) => {
+  await page.goto("/#/check-in");
+  const visa = page.getByLabel("TD Visa new value");
+  await visa.fill("123");
+  const before = readFileSync(ledger(), "utf8");
+
+  // Enter inside the palette runs the palette item, never the check-in save.
+  await page.keyboard.press("Control+K");
+  await page.getByRole("combobox", { name: "Search" }).fill("Backups");
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/#\/backups$/);
+  expect(readFileSync(ledger(), "utf8")).toBe(before);
+
+  // A change on disk reloads the view; the field being typed in keeps focus.
+  await page.goto("/#/check-in");
+  await visa.click();
+  await visa.fill("456");
+  writeFileSync(ledger(), before + "\n# touched by the e2e test\n");
+  await expect(page.getByText("touched", { exact: false })).toHaveCount(0);
+  await page.waitForTimeout(1200);
+  await expect(visa).toBeFocused();
+});
