@@ -1,4 +1,4 @@
-# Architecture (Stage 4)
+# Architecture (Stage 5)
 
 Read the design doc for the full picture. The rules that matter in code:
 
@@ -7,7 +7,7 @@ Read the design doc for the full picture. The rules that matter in code:
 3. **Exact numbers.** `rust_decimal::Decimal` for money, `chrono::NaiveDate` for dates. No `f64` outside chart payloads.
 4. **One view per screen.** `server::routes::LedgerView` is assembled server-side; the UI renders it and never recomputes totals.
 5. **The file is the truth, even when broken.** `server::state` polls `ledger.yaml` (mtime + size, 4×/s; polling so Docker bind mounts work) and reloads it. A file that fails to parse or validate leaves the last good `Ledger` in memory, sets a `Diagnostic` (line number when the YAML parser gave one), and makes `apply` refuse with 409 until the file is fixed, so a hand edit is never overwritten. Changes fan out to the UI over `/api/events` (SSE) and the UI re-fetches `/api/view`.
-6. **Dependency direction.** `ui -> server -> derive -> ledger`, with `providers`, `holdings` and `importers` as siblings the server glues in (`importers -> ledger`; `providers -> holdings`; `holdings` depends on nothing in the workspace). Nothing below `server` knows about HTTP.
+6. **Dependency direction.** `ui -> server -> derive -> ledger`, with `providers`, `holdings`, `importers` and `assistant` as siblings the server glues in (`importers -> ledger`; `assistant -> ledger`; `providers -> holdings`; `holdings` depends on nothing in the workspace). Nothing below `server` knows about HTTP.
 7. **Two files, two kinds of data.** `ledger.yaml` holds what you would type: accounts, balances, positions, prices and FX rates you entered. `quotes.json` beside it holds what the app fetched. It is never hand-edited and can be deleted; the next refresh rebuilds it. `derive::Market` merges the two for valuation: a typed price wins over a fetched one for the same date, and a typed FX rate is the fallback when no fetched rate covers the date.
 8. **Providers at the boundary only.** `PriceProvider` and `FxProvider` are the only traits; each has a `Manual` (fixed answers) and `Off` impl, and every real provider is a pure `parse_*` function over fixture-tested bytes plus a thin blocking HTTP shim. No test touches the network; `WORTHWATCH_OFFLINE=1` makes the binary never touch it either.
 9. **Never silently zero.** A holding with no price, or an account in a currency with no rate, is flagged (`missing_price`, `missing_fx`, `unpriced`) and shown as "no price" / "no FX" in brass. Stale fetched prices keep their date on screen.
@@ -179,3 +179,47 @@ Playwright smoke flow: `ui/e2e/smoke.spec.ts` runs the real binary on a temp dat
 `lib/market.ts` (tested) words the freshness line; the paste preview and the portfolio numbers come from the server.
 
 Crates: `ledger`, `derive`, `holdings`, `providers`, `importers`. Planned: `assistant`, `mcp`.
+
+## Stage 5 data flow: chat and MCP propose, you approve
+
+```mermaid
+flowchart LR
+  subgraph you [you]
+    T([type in Chat:<br/>"td chq 5102, visa 640"])
+    CD([Claude Desktop<br/>or any MCP client])
+  end
+  subgraph server [worthwatch]
+    CH[/POST /api/chat/]
+    CTX[chat::context<br/>accounts, values, rates, summary]
+    PR[llm::build_prompt<br/>ids, names, kinds, symbols<br/>never a balance]
+    subgraph models [Llm trait]
+      SH[shorthand::parse<br/>no model]
+      OL[Ollama<br/>local default]
+      AN[Anthropic<br/>cloud opt-in]
+    end
+    RP[parse_reply<br/>JSON -> Proposal or reject]
+    RS[assistant::resolve<br/>match names, build Vec of Mutation,<br/>apply to a COPY + validate]
+    PQ[pending queue<br/>in memory]
+    AP[/POST /api/apply<br/>POST /api/pending/id/approve/]
+    W[AppState::apply_many<br/>the one write path]
+  end
+  MCP[worthwatch mcp<br/>stdio JSON-RPC] -->|GET /api/context, /api/view,<br/>/api/lookthrough| server
+  CD <-->|get_net_worth, get_accounts,<br/>get_portfolio, get_exposure,<br/>propose_update, check_proposal| MCP
+  MCP -->|POST /api/propose| RS
+  T --> CH --> CTX --> PR
+  PR -->|cloud: preview first,<br/>send only on consent| AN
+  PR --> OL
+  CTX --> SH
+  OL & AN --> RP --> RS
+  SH --> RS
+  RS -->|Plan: rows, rejected, mutations| T
+  RS --> PQ -->|card with Approve / Discard| T
+  T -->|Approve| AP --> W --> Y[(ledger.yaml)]
+```
+
+Rules on top of the earlier ones:
+
+- **The model proposes, never writes.** `/api/chat` and `/api/propose` have no path to `apply_many`. The only routes that write are `/api/apply` (the Chat card's Approve sends the plan's mutations there) and `/api/pending/{id}/approve`, both of which re-validate against the ledger as it is at that moment. Tested by construction: the chat and MCP tests assert the file is byte-identical until approval.
+- **A plan applies whole or not at all.** `resolve` applies every mutation to a copy; if the list fails, `mutations` is emptied and the card cannot be approved. An item that does not resolve (unknown account, selling what is not held, a balance for a holdings account) is a `Rejected` row with a reason and a hint, never a silent zero.
+- **Nothing leaves the machine by default.** The default provider is a local Ollama; when it is not running the shorthand parser answers and the card says so. `cloud` needs `settings.assistant.provider: cloud` and `ANTHROPIC_API_KEY`, and every message first comes back as a preview of the exact prompt (identifiers only) with a Send button. `WORTHWATCH_OFFLINE=1` never asks any model.
+- **MCP is a client of the app, not of the file.** `worthwatch mcp` speaks JSON-RPC on stdio and calls the running server's HTTP API, so Claude Desktop reads the same numbers as the dashboard and its proposals queue as cards. Pending proposals live in memory: a restart drops them, the safe direction.

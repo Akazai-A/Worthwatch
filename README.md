@@ -2,7 +2,7 @@
 
 Self-hosted net worth and portfolio tracker. One Rust binary, your data in one folder, no bank connections.
 
-Status: **Stage 2**: hand-edited or typed-in balances, monthly check-in, net worth dashboard with history, positions valued from fetched prices (Yahoo Finance or Stooq) and Bank of Canada FX with manual fallbacks, a Portfolio screen, and pasting a Wealthsimple/Questrade holdings export into Check-in. See `docs/` and the design doc for the plan.
+Status: **Stage 5**: hand-edited or typed-in balances, monthly check-in, net worth dashboard, positions valued from fetched prices and Bank of Canada FX, ETF look-through and exposure, a Changes screen, and a Chat panel plus an MCP server that propose updates you approve. See `docs/` and the design doc for the plan.
 
 ## Run (dev)
 
@@ -41,6 +41,30 @@ settings:
 
 `WORTHWATCH_OFFLINE=1` never touches the network; the app then runs on typed and previously fetched data and says so. Symbols use Yahoo spelling (`XEQT.TO`, `VTI`); the Stooq provider maps them. Bank of Canada rates are CAD-based, so with another base currency set `fx: off` and type rates.
 
+## Chat and MCP
+
+Chat (left rail) takes what you would text: `td chq 5102, visa down to 640, sold 20 XEQT in the TFSA`, `visa down 200`, `eq savings 18.5k`, or a question like `what is my net worth?`. Every message becomes a card listing each change (now, proposed, delta, effect on net worth) with Approve, Edit and Cancel. Nothing is written until you approve, and anything that does not match your accounts is shown as rejected with the reason.
+
+Who reads the message is set in the ledger:
+
+```yaml
+settings:
+  assistant: { provider: ollama }   # ollama (default, local) | cloud | shorthand (no model)
+  # ollama_url: http://127.0.0.1:11434, model: llama3.1
+```
+
+- **ollama**: a local model; nothing leaves the machine. If Ollama is not running, the built-in parser answers and the card says so.
+- **cloud**: Anthropic's API, opt-in. Set `ANTHROPIC_API_KEY` in the server's environment. Each message first shows the exact text that would be sent (account ids, names, kinds, currencies and symbols; never balances) and is sent only when you press Send.
+- **shorthand**: no model at all.
+
+**MCP (Claude Desktop).** `worthwatch mcp` is an MCP server on stdio that talks to the running app. Add it to Claude Desktop's config:
+
+```json
+{ "mcpServers": { "worthwatch": { "command": "/path/to/worthwatch", "args": ["mcp"], "env": { "WORTHWATCH_URL": "http://127.0.0.1:7777" } } } }
+```
+
+With Docker, the command is `docker` with args `["compose", "-f", "/path/to/worthwatch/deploy/docker-compose.yml", "exec", "-T", "worthwatch", "/worthwatch", "mcp"]`, and `docker compose --profile ai up -d` starts a local Ollama the app already points at (pull a model once with `docker compose exec ollama ollama pull llama3.1`). Tools: `get_net_worth`, `get_accounts`, `get_portfolio`, `get_exposure`, `propose_update`, `check_proposal`. A proposal from Claude Desktop appears in Chat as a pending card (the rail shows a count) and waits for your Approve or Discard.
+
 ## Security
 
 Worthwatch holds your finances and, for now, has **no login**. Anyone who can reach the port sees everything.
@@ -58,6 +82,7 @@ crates/ledger     your data: schema, validation, Mutation + apply, atomic YAML w
 crates/derive     pure functions: valuation, net worth series, portfolio, market merge
 crates/providers  Yahoo / Stooq / Bank of Canada behind traits, fixture-tested parsers, quotes.json
 crates/importers  pasted broker holdings -> mutations
+crates/assistant  chat: shorthand parser, Ollama / Anthropic behind a trait, proposals checked against the ledger
 server/         the binary: axum API + embedded UI
 ui/             Svelte 5 + Vite + TypeScript
 deploy/         Dockerfile, compose

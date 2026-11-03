@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::convert::Infallible;
 
-use axum::extract::{Query, State};
+use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::routing::{get, post};
@@ -36,6 +36,10 @@ pub struct LedgerView {
     pub events: Vec<ledger::Event>,
     pub market: MarketView,
     pub portfolio: derive::Portfolio,
+    /// How the chat panel is set up (settings.assistant).
+    pub assistant: crate::chat::AssistantView,
+    /// Proposals from MCP waiting for Approve or Discard, oldest first.
+    pub pending: Vec<crate::chat::Pending>,
 }
 
 #[derive(Serialize)]
@@ -205,6 +209,8 @@ pub fn build_view(snap: &Snapshot, path: &str, today: NaiveDate, offline: bool) 
         events: l.events.clone(),
         market,
         portfolio: derive::portfolio(l, &m, today),
+        assistant: crate::chat::assistant_view(l, offline),
+        pending: snap.pending.clone(),
     }
 }
 
@@ -596,6 +602,103 @@ async fn parse_holdings(
     Ok(Json(ParseHoldingsResponse { parsed_lines: parsed.rows.len(), total_lines, plan }))
 }
 
+/// Turn a message into a proposal. Writes nothing: the UI sends `plan.mutations` to
+/// `/api/apply` when the user approves. With a cloud model and `send: false`, nothing
+/// leaves the machine either; the reply carries the exact prompt as a preview.
+async fn chat(
+    State(s): State<AppState>,
+    Json(req): Json<crate::chat::ChatRequest>,
+) -> ApiResult<crate::chat::ChatReply> {
+    let snap = s.snapshot();
+    let offline = s.offline;
+    let today = Local::now().date_naive();
+    match tokio::task::spawn_blocking(move || crate::chat::chat(&snap, offline, &req, today)).await {
+        Ok(r) => Ok(Json(r)),
+        Err(e) => {
+            Err((StatusCode::INTERNAL_SERVER_ERROR, Json(ApiError { message: e.to_string(), line: None })))
+        }
+    }
+}
+
+/// What MCP clients read: the assistant's context (accounts with values, headline
+/// figures). Same numbers as the dashboard, assembled server-side.
+async fn get_context(State(s): State<AppState>) -> Json<assistant::Context> {
+    Json(crate::chat::context(&s.snapshot(), Local::now().date_naive()))
+}
+
+#[derive(Deserialize)]
+pub struct ProposeRequest {
+    #[serde(default = "default_origin")]
+    pub origin: String,
+    /// What the user said, for the card.
+    #[serde(default)]
+    pub text: String,
+    #[serde(default)]
+    pub proposal: Option<assistant::Proposal>,
+}
+
+fn default_origin() -> String {
+    "mcp".into()
+}
+
+#[derive(Serialize)]
+pub struct ProposeReply {
+    /// Set when the plan has something to approve and was queued.
+    pub pending: Option<crate::chat::Pending>,
+    pub plan: assistant::Plan,
+}
+
+/// Queue a proposal for the user (the MCP `propose_update` path). A structured
+/// proposal is resolved as given; text alone goes through the shorthand parser. The
+/// plan is returned either way so the caller sees rejections at once.
+async fn propose(State(s): State<AppState>, Json(req): Json<ProposeRequest>) -> Json<ProposeReply> {
+    let snap = s.snapshot();
+    let today = Local::now().date_naive();
+    let ctx = crate::chat::context(&snap, today);
+    let p = req.proposal.unwrap_or_else(|| assistant::shorthand::parse(&req.text, &ctx));
+    let plan = assistant::resolve(&snap.ledger, &ctx, &p);
+    let pending = (!plan.mutations.is_empty()).then(|| s.propose(&req.origin, &req.text, plan.clone()));
+    Json(ProposeReply { pending, plan })
+}
+
+#[derive(Serialize)]
+pub struct PendingStatus {
+    pub id: u64,
+    /// pending | approved | discarded | expired | unknown
+    pub status: String,
+}
+
+async fn pending_status(State(s): State<AppState>, Path(id): Path<u64>) -> Json<PendingStatus> {
+    let snap = s.snapshot();
+    let status = if snap.pending.iter().any(|p| p.id == id) {
+        "pending".to_string()
+    } else {
+        snap.decided.get(&id).cloned().unwrap_or_else(|| "unknown".into())
+    };
+    Json(PendingStatus { id, status })
+}
+
+async fn decide(State(s): State<AppState>, Path((id, action)): Path<(u64, String)>) -> ApiResult<LedgerView> {
+    let approve = match action.as_str() {
+        "approve" => true,
+        "discard" => false,
+        _ => {
+            return Err((
+                StatusCode::NOT_FOUND,
+                Json(ApiError { message: format!("unknown action {action}"), line: None }),
+            ))
+        }
+    };
+    match s.decide(id, approve) {
+        Ok(Some(_)) => Ok(Json(view_of(&s))),
+        Ok(None) => Err((
+            StatusCode::NOT_FOUND,
+            Json(ApiError { message: format!("no pending proposal {id}"), line: None }),
+        )),
+        Err(e) => Err(ledger_error(e)),
+    }
+}
+
 /// Server-sent events: one `change` event with the new version whenever the
 /// ledger changes (a save from the UI, a hand edit on disk, or fetched quotes).
 async fn events(State(s): State<AppState>) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
@@ -618,6 +721,11 @@ pub fn router(state: AppState) -> Router {
         .route("/api/changes", get(get_changes))
         .route("/api/refresh-holdings", post(refresh_holdings))
         .route("/api/events", get(events))
+        .route("/api/chat", post(chat))
+        .route("/api/context", get(get_context))
+        .route("/api/propose", post(propose))
+        .route("/api/pending/{id}", get(pending_status))
+        .route("/api/pending/{id}/{action}", post(decide))
         .with_state(state)
 }
 
@@ -640,6 +748,9 @@ mod tests {
             quotes: QuoteCache::default(),
             holdings: Default::default(),
             version: 1,
+            pending: vec![],
+            decided: Default::default(),
+            next_id: 1,
         };
         let v = build_view(&snap, "x", ymd(2026, 11, 2), true);
         assert_eq!(v.series.len(), 3);
@@ -687,7 +798,16 @@ mod tests {
             }
             store.save(f).unwrap();
         }
-        let snap = Snapshot { ledger: l, problem: None, quotes, holdings: store, version: 3 };
+        let snap = Snapshot {
+            ledger: l,
+            problem: None,
+            quotes,
+            holdings: store,
+            version: 3,
+            pending: vec![],
+            decided: Default::default(),
+            next_id: 1,
+        };
         let v = build_changes(&snap, &ChangesQuery::default(), today).unwrap();
         assert_eq!(v.to, today);
         assert_eq!(v.from, *snap.ledger.snapshots.keys().rev().nth(1).unwrap(), "last check-in before today");
@@ -736,6 +856,9 @@ mod tests {
             quotes: QuoteCache::default(),
             holdings: Default::default(),
             version: 1,
+            pending: vec![],
+            decided: Default::default(),
+            next_id: 1,
         };
         let v = build_changes(&empty, &ChangesQuery::default(), today).unwrap();
         assert_eq!(v.from, today);
@@ -762,7 +885,16 @@ mod tests {
             tags: vec![],
             positions: None,
         });
-        let snap = Snapshot { ledger: l, problem: None, quotes, holdings: Default::default(), version: 1 };
+        let snap = Snapshot {
+            ledger: l,
+            problem: None,
+            quotes,
+            holdings: Default::default(),
+            version: 1,
+            pending: vec![],
+            decided: Default::default(),
+            next_id: 1,
+        };
         let v = build_view(&snap, "x", ymd(2026, 11, 2), false);
         assert_eq!(v.market.prices_as_of, Some(ymd(2026, 11, 1)));
         assert_eq!(v.market.prices_age_days, Some(1));

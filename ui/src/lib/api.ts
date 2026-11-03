@@ -123,6 +123,68 @@ export interface LedgerView {
   events: { date: string; note: string }[];
   market: MarketView;
   portfolio: Portfolio;
+  /** How the chat panel is set up (settings.assistant). */
+  assistant: AssistantView;
+  /** Proposals from MCP waiting for Approve or Discard, oldest first. */
+  pending: Pending[];
+}
+
+// ---- Chat (POST /api/chat) and pending proposals (MCP) ----
+export interface AssistantView { provider: "ollama" | "cloud" | "shorthand"; model: string | null; url: string | null; key_present: boolean; offline: boolean }
+export type RowKind = "balance" | "trade" | "price" | "new_account" | "note";
+export interface PlanRow2 {
+  kind: RowKind;
+  account: string | null;
+  account_name: string;
+  detail: string | null;
+  source: string | null;
+  liability: boolean;
+  currency: string;
+  from: string | null;
+  to: string | null;
+  delta: string | null;
+  price: string | null;
+  /** Signed effect on net worth, base currency. */
+  effect: string | null;
+}
+export interface Rejected { source: string | null; reason: string; hint: string | null }
+export interface Plan {
+  date: string;
+  rows: PlanRow2[];
+  mutations: Mutation[];
+  rejected: Rejected[];
+  net_change: string | null;
+  net_worth_after: string | null;
+  answer: string | null;
+}
+export interface SendPreview { url: string; model: string; prompt: { system: string; user: string } }
+export interface ChatReply {
+  text: string;
+  provider: string;
+  /** ollama | cloud | shorthand | none (preview only) */
+  used: string;
+  note: string | null;
+  plan: Plan | null;
+  preview: SendPreview | null;
+}
+export interface Pending { id: number; created: string; origin: string; text: string; plan: Plan }
+
+/** Ask for a proposal. Writes nothing. `send` = consent to the cloud preview. */
+export async function chat(text: string, send = false, date?: string): Promise<ChatReply> {
+  const r = await fetch("/api/chat", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ text, send, date: date ?? null }),
+  });
+  if (!r.ok) await fail(r);
+  return r.json();
+}
+
+/** Approve (applies through the one write path) or discard a pending MCP proposal. */
+export async function decidePending(id: number, action: "approve" | "discard"): Promise<LedgerView> {
+  const r = await fetch(`/api/pending/${id}/${action}`, { method: "POST" });
+  if (!r.ok) await fail(r);
+  return r.json();
 }
 
 // ---- Look-through (Portfolio › Look-through / Exposure / Overlap), from GET /api/lookthrough ----
