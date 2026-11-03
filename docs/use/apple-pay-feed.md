@@ -3,8 +3,8 @@
 This page shows you how to send each Apple Pay purchase from your iPhone to Worthwatch as you pay, so your budget is current before your bank's statement arrives. You set it up once: a Shortcut that Worthwatch makes for you, and a Wallet automation that runs it.
 
 <picture>
-  <source media="(prefers-color-scheme: light)" srcset="screenshots/settings-light.png">
-  <img src="screenshots/settings-dark.png" alt="Settings: Apple Pay feed with iCloud Drive selected, a setup checklist, and account sources" width="860">
+  <source media="(prefers-color-scheme: light)" srcset="../screenshots/settings/settings-light.png">
+  <img src="../screenshots/settings/settings-dark.png" alt="Settings: Apple Pay feed with iCloud Drive selected, a setup checklist, and account sources" width="860">
 </picture>
 
 ## How it works
@@ -22,7 +22,7 @@ When you pay with a Wallet card, iOS runs a Shortcuts automation. The automation
 | **Tailscale** (recommended) | Tailscale on the Mac and the iPhone, plus one `tailscale serve` command. | A few seconds. | The Shortcut keeps a queue and sends it with your next tap. |
 | **iCloud Drive** | The Mac signs in to the same Apple ID, and Worthwatch reads your iCloud Drive. | Usually under a minute, as fast as iCloud syncs. | Taps wait in iCloud and arrive when it's back. |
 
-Use Tailscale. The iCloud Drive feed needs your Apple ID on the Mac that runs Worthwatch, and macOS lets a background program read iCloud Drive only with Full Disk Access, which opens far more than the taps. See [Keep Worthwatch secure](security.md).
+Use Tailscale. The iCloud Drive feed needs your Apple ID on the Mac that runs Worthwatch, and macOS lets a background program read iCloud Drive only with Full Disk Access, which opens far more than the taps. See [Keep Worthwatch secure](../run/security.md).
 
 Each tap shows on **Budget** as *not on a statement yet*. When you [import the statement](budgeting.md#import-a-statement), Worthwatch matches the row to the tap, so it's counted once. A tipped restaurant bill matches its higher posted amount.
 
@@ -30,10 +30,10 @@ Your purchases go from your phone to your Mac, through your own iCloud account o
 
 ## Before you begin
 
-- Worthwatch runs on a Mac that stays on. See [Run Worthwatch on a Mac](macos.md).
+- Worthwatch runs on a Mac that stays on. See [Run Worthwatch on a Mac](../run/macos.md).
 - Your iPhone runs iOS 17 or later, with the cards you use in Wallet.
 - For iCloud Drive: the Mac and the iPhone are signed in to the same Apple ID, with iCloud Drive turned on.
-- For Tailscale: Tailscale is installed and signed in on both. See [Access Worthwatch remotely](remote-access.md#use-tailscale).
+- For Tailscale: Tailscale is installed and signed in on both. See [Access Worthwatch remotely](../run/remote-access.md#use-tailscale).
 
 ## Choose how taps reach your Mac
 
@@ -55,7 +55,7 @@ Only on a Mac where you accept the trade-off above. In a container, mount only t
    tailscale serve --bg --set-path /api/ingest http://127.0.0.1:7777/api/ingest
    ```
 
-   If you already share the whole app with `tailscale serve --bg 7777`, skip this step. Over Tailscale, Worthwatch answers only this address unless you set `WORTHWATCH_TAILSCALE_OWNER`; see [Keep Worthwatch secure](security.md#open-the-dashboard-from-your-laptop-or-phone).
+   If you already share the whole app with `tailscale serve --bg 7777`, skip this step. Over Tailscale, Worthwatch answers only this address unless you set `WORTHWATCH_TAILSCALE_OWNER`; see [Keep Worthwatch secure](../run/security.md#open-the-dashboard-from-your-laptop-or-phone).
 2. In **Settings**, check **This Mac's Tailscale address**. Worthwatch fills it in when it can ask Tailscale. Otherwise, enter the `https://….ts.net` address that `tailscale serve status` prints, and select **Save**.
 
 Every request needs the token shown beside **Token**. A request without it gets `401 Unauthorized` and saves nothing. **Settings** shows only its last four characters; select **Show** to see the whole token.
@@ -197,7 +197,7 @@ The body is one JSON object, an array of them, or one object per line. `merchant
 |---|---|
 | **Settings** says *Waiting for the folder*. | Check that the Mac uses the same Apple ID as the phone and has iCloud Drive on. Make the Shortcut once, or make one tap; the folder appears after the first file. |
 | **Settings** lists files *not downloaded to this Mac*. | Control-click **iCloud Drive › Shortcuts** in Finder and choose **Keep Downloaded**. |
-| **Settings** says *macOS blocked reading this folder*. | Switch the feed to **Tailscale**. Granting Full Disk Access would let Worthwatch read your Mail, Messages and all of iCloud Drive; see [Keep Worthwatch secure](security.md). |
+| **Settings** says *macOS blocked reading this folder*. | Switch the feed to **Tailscale**. Granting Full Disk Access would let Worthwatch read your Mail, Messages and all of iCloud Drive; see [Keep Worthwatch secure](../run/security.md). |
 | The automation runs but nothing arrives (Tailscale). | Open the Tailscale app on the phone and check it's connected. Open `https://<your-mac>.ts.net/api/ingest/transaction` in Safari: `405 Method Not Allowed` means the path is shared; a timeout means it isn't. |
 | Taps arrive as `401`. | The token changed. Select **Make again** and add the new Shortcut on the phone. |
 | A purchase never showed up. | Online and in-app Apple Pay purchases may not run the Wallet automation. The statement import still brings them in. |

@@ -70,8 +70,8 @@ Worthwatch tracks what one person owns and owes, values it in CAD from public pr
 ## Evidence on Hand
 
 - **Sample data:** `worthwatch seed --force` generates a realistic but fictional ledger, holdings and a month of budget data. Use it for screenshots and demos, never real balances.
-- **Screenshots:** the current UI in dark and light, in `docs/screenshots/` (hero, home, portfolio, look-through, exposure, overlap, changes, plan, chat, budget, wall, palette, settings, mobile variants).
-- **Docs:** `README.md`, `docs/user-guide.md`, `docs/architecture.md` and the rest of `docs/`.
+- **Screenshots:** the current UI in dark and light, in `docs/screenshots/`, one folder per screen (hero, home, portfolio, look-through, exposure, overlap, changes, plan, chat, budget, wall, palette, settings, mobile variants).
+- **Docs:** `README.md`, `docs/use/user-guide.md`, `docs/develop/architecture.md` and the rest of `docs/`.
 - **Absent:** no testimonials, users, press or benchmarks. Do not invent any.
 
 ## Product Principles

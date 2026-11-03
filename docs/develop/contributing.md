@@ -72,12 +72,12 @@ Read [Architecture](architecture.md) before you change how data moves.
 1. Create a branch that starts with `f/`, such as `f/stage-8-auth`.
 2. Make your change and run the checks.
 3. Open a pull request. Include:
-   - Screenshots of the real UI for any UI change, in dark and light themes. Save them under `docs/screenshots/`.
+   - Screenshots of the real UI for any UI change, in dark and light themes. Save them under `docs/screenshots/<screen>/`, next to the other shots of that screen.
    - A Mermaid or ASCII diagram for any change to architecture or data flow.
 
 ## Set up CI
 
-The CI workflow lives at `deploy/ci.yml`. To turn it on in your fork, copy it to `.github/workflows/ci.yml`.
+The CI workflow lives at `.github/workflows/ci.yml`. Forks run it as soon as you enable Actions.
 
 It runs three jobs on every push and pull request:
 
