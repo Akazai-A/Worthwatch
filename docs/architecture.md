@@ -96,7 +96,7 @@ These rules hold everywhere in the code. When you change something, keep them tr
 |---|---|
 | `worthwatch` | Runs the server. |
 | `worthwatch seed [--force]` | Writes a 14-month sample ledger, quotes and fund holdings. |
-| `worthwatch mcp` | Runs the MCP server on stdio. See [Connect Claude Desktop](mcp.md). |
+| `worthwatch mcp` | Runs the MCP server on stdio. See [Connect an AI assistant](mcp.md). |
 | `worthwatch backup` | Writes a backup. |
 | `worthwatch restore <file> [--force]` | Restores a backup. See [Back up and restore](backup-restore.md). |
 
