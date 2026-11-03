@@ -5,6 +5,9 @@ use serde::{Deserialize, Serialize};
 use crate::schema::*;
 use crate::validate::{self, LedgerError};
 
+/// Cards that can run in one week.
+pub const MAX_CARDS_A_WEEK: usize = 2;
+
 /// Every write to the ledger is one of these. The UI, the YAML watcher, the
 /// chatbot and MCP all produce `Mutation`s; only [`Ledger::apply`] consumes them.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -85,6 +88,18 @@ pub enum Mutation {
     },
     SetFeed {
         feed: Feed,
+    },
+    /// The budget game's monthly jar goal; `None` turns the game off.
+    SetGameGoal {
+        goal: Option<Decimal>,
+    },
+    /// Play a challenge card for its week. Playing the same id again does nothing.
+    PlayCard {
+        card: PlayedCard,
+    },
+    /// Pass on an offered card so it is not offered again.
+    PassCard {
+        id: String,
     },
 }
 
@@ -235,6 +250,30 @@ impl Ledger {
             }
             Mutation::SetFeed { feed } => {
                 next.budget.feed = feed;
+            }
+            Mutation::SetGameGoal { goal } => {
+                next.budget.game.goal = goal;
+            }
+            Mutation::PlayCard { card } => {
+                let game = &mut next.budget.game;
+                if !game.cards.iter().any(|c| c.id == card.id) {
+                    let in_week = game.cards.iter().filter(|c| c.week == card.week).count();
+                    if in_week >= MAX_CARDS_A_WEEK {
+                        return Err(LedgerError::BadCard(
+                            card.id,
+                            format!("{MAX_CARDS_A_WEEK} cards are already in play that week"),
+                        ));
+                    }
+                    game.passed.retain(|p| *p != card.id);
+                    game.cards.push(card);
+                    game.cards.sort_by_key(|c| c.week);
+                }
+            }
+            Mutation::PassCard { id } => {
+                let game = &mut next.budget.game;
+                if !game.passed.contains(&id) && !game.cards.iter().any(|c| c.id == id) {
+                    game.passed.push(id);
+                }
             }
         }
         validate::validate(&next)?;

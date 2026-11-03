@@ -32,6 +32,7 @@ use crate::state::AppState;
 pub const TOKEN_FILE: &str = "ingest-token";
 const SCAN_EVERY: Duration = Duration::from_secs(10);
 const SHORTCUT_NAME: &str = "Worthwatch Tap.shortcut";
+const DAY_SHORTCUT_NAME: &str = "Worthwatch Day.shortcut";
 
 // ------------------------------------------------------------------ token
 
@@ -93,6 +94,9 @@ pub struct IngestReply {
     pub added: usize,
     pub duplicates: usize,
     pub errors: Vec<String>,
+    /// What the Shortcut shows as a notification: what's left today, the jar. Empty
+    /// when the game has no budget to work from.
+    pub notify: String,
 }
 
 fn unauthorized(message: &str) -> Response {
@@ -100,19 +104,28 @@ fn unauthorized(message: &str) -> Response {
 }
 
 /// `POST /api/ingest/transaction`: one tap, an array, or a queue file of them.
-async fn ingest(State(s): State<AppState>, headers: HeaderMap, body: Bytes) -> Response {
+/// The Bearer token check shared by the two routes the phone calls: `Some` is the
+/// error to answer with.
+pub fn token_error(s: &AppState, headers: &HeaderMap) -> Option<Response> {
     let Some(given) = headers
         .get(header::AUTHORIZATION)
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.strip_prefix("Bearer ").or_else(|| v.strip_prefix("bearer ")))
     else {
-        return unauthorized("missing Authorization: Bearer <token>");
+        return Some(unauthorized("missing Authorization: Bearer <token>"));
     };
-    let Ok(expected) = token(&s) else {
-        return (StatusCode::INTERNAL_SERVER_ERROR, "could not read the ingest token").into_response();
+    let Ok(expected) = token(s) else {
+        return Some((StatusCode::INTERNAL_SERVER_ERROR, "could not read the ingest token").into_response());
     };
     if !same(given.trim(), &expected) {
-        return unauthorized("wrong token; copy it again from Settings");
+        return Some(unauthorized("wrong token; copy it again from Settings"));
+    }
+    None
+}
+
+async fn ingest(State(s): State<AppState>, headers: HeaderMap, body: Bytes) -> Response {
+    if let Some(r) = token_error(&s, &headers) {
+        return r;
     }
     if s.snapshot().ledger.budget.feed.mode == FeedMode::Off {
         return (
@@ -124,6 +137,7 @@ async fn ingest(State(s): State<AppState>, headers: HeaderMap, body: Bytes) -> R
     let text = String::from_utf8_lossy(&body);
     let parsed = budget::parse_taps(&text, Utc::now());
     let total = parsed.taps.len();
+    let taps = parsed.taps.clone();
     let added = {
         let mut store = s.txns.write().expect("txn lock");
         match store.append(parsed.taps.into_iter().map(budget::store::Record::Tap).collect()) {
@@ -137,8 +151,15 @@ async fn ingest(State(s): State<AppState>, headers: HeaderMap, body: Bytes) -> R
         tracing::info!("apple pay: {added} new tap(s) over the network");
         s.bump();
     }
-    Json(IngestReply { worthwatch_saved: true, added, duplicates: total - added, errors: parsed.errors })
-        .into_response()
+    let notify = crate::game::notify_for(&s, &taps, Local::now().date_naive()).unwrap_or_default();
+    Json(IngestReply {
+        worthwatch_saved: true,
+        added,
+        duplicates: total - added,
+        errors: parsed.errors,
+        notify,
+    })
+    .into_response()
 }
 
 // ------------------------------------------------------------------ iCloud reader
@@ -252,6 +273,7 @@ pub fn watch_icloud(s: &AppState) {
         .spawn(move || {
             let mut seen = BTreeMap::new();
             let mut last_dir: Option<PathBuf> = None;
+            let mut status_key: Option<(u64, NaiveDate, PathBuf)> = None;
             loop {
                 let l = state.snapshot().ledger;
                 if l.budget.feed.mode == FeedMode::Icloud {
@@ -266,6 +288,15 @@ pub fn watch_icloud(s: &AppState) {
                         if added > 0 {
                             tracing::info!("apple pay: {added} new tap(s) from iCloud Drive");
                             state.bump();
+                        }
+                        // Keep game/today.json current for the phone: on any change, and
+                        // when the day turns over.
+                        let key = (state.snapshot().version, Local::now().date_naive(), dir.clone());
+                        if status_key.as_ref() != Some(&key) && dir.is_dir() {
+                            match crate::game::write_status(&state, &dir, key.1) {
+                                Ok(_) => status_key = Some(key),
+                                Err(e) => tracing::warn!("game status file: {e}"),
+                            }
                         }
                     }
                 } else {
@@ -329,7 +360,7 @@ pub struct MonthQuery {
     pub month: Option<String>,
 }
 
-fn parse_month(s: &str) -> Option<NaiveDate> {
+pub fn parse_month(s: &str) -> Option<NaiveDate> {
     NaiveDate::parse_from_str(&format!("{s}-01"), "%Y-%m-%d")
         .ok()
         .or_else(|| NaiveDate::parse_from_str(s, "%Y-%m-%d").ok())
@@ -567,6 +598,8 @@ pub struct SettingsView {
     pub can_sign: bool,
     /// Where a signed Shortcut was saved, if one exists.
     pub shortcut_file: Option<String>,
+    /// The same for the morning recap Shortcut.
+    pub day_shortcut_file: Option<String>,
     pub last_tap: Option<DateTime<Utc>>,
     pub taps: usize,
 }
@@ -596,13 +629,31 @@ fn detect_tailscale() -> Option<String> {
     None
 }
 
-fn shortcut_target(l: &Ledger) -> Option<PathBuf> {
+fn shortcut_target(l: &Ledger, which: Which) -> Option<PathBuf> {
     // Beside the taps in iCloud mode; in Shortcuts' own iCloud folder otherwise.
     let dir = match l.budget.feed.mode {
         FeedMode::Icloud => icloud_dir(l),
         _ => shortcuts_icloud_root().map(|r| r.join(budget::shortcut::FOLDER)),
     }?;
-    Some(dir.join(SHORTCUT_NAME))
+    Some(dir.join(match which {
+        Which::Tap => SHORTCUT_NAME,
+        Which::Day => DAY_SHORTCUT_NAME,
+    }))
+}
+
+/// The tap Shortcut, or the morning recap one.
+#[derive(Clone, Copy, PartialEq, Eq, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum Which {
+    #[default]
+    Tap,
+    Day,
+}
+
+#[derive(Deserialize, Default)]
+pub struct WhichQuery {
+    #[serde(default)]
+    pub which: Which,
 }
 
 fn settings_view(s: &AppState) -> Result<SettingsView, (StatusCode, Json<ApiError>)> {
@@ -624,7 +675,12 @@ fn settings_view(s: &AppState) -> Result<SettingsView, (StatusCode, Json<ApiErro
         tailscale_detected: detected.is_some(),
         tailscale_url: configured.or(detected),
         can_sign: shortcuts_tool().is_some(),
-        shortcut_file: shortcut_target(&l).filter(|p| p.exists()).map(|p| p.display().to_string()),
+        shortcut_file: shortcut_target(&l, Which::Tap)
+            .filter(|p| p.exists())
+            .map(|p| p.display().to_string()),
+        day_shortcut_file: shortcut_target(&l, Which::Day)
+            .filter(|p| p.exists())
+            .map(|p| p.display().to_string()),
         last_tap: store.last_tap(),
         taps: store.taps.len(),
     })
@@ -645,11 +701,15 @@ async fn rotate_token(State(s): State<AppState>) -> ApiResult<SettingsView> {
     get_settings(State(s)).await
 }
 
-fn plist_for(s: &AppState) -> Result<String, (StatusCode, Json<ApiError>)> {
+fn plist_for(s: &AppState, which: Which) -> Result<String, (StatusCode, Json<ApiError>)> {
     let l = s.snapshot().ledger;
+    let make = |t| match which {
+        Which::Tap => budget::shortcut::plist(t),
+        Which::Day => budget::shortcut::day_plist(t),
+    };
     match l.budget.feed.mode {
         FeedMode::Off => Err(bad(StatusCode::CONFLICT, "pick iCloud Drive or Tailscale first")),
-        FeedMode::Icloud => Ok(budget::shortcut::plist(budget::shortcut::Transport::Icloud)),
+        FeedMode::Icloud => Ok(make(budget::shortcut::Transport::Icloud)),
         FeedMode::Tailscale => {
             let view = settings_view(s)?;
             let Some(url) = view.tailscale_url else {
@@ -658,25 +718,20 @@ fn plist_for(s: &AppState) -> Result<String, (StatusCode, Json<ApiError>)> {
                     "enter this Mac's Tailscale address first (https://<name>.<tailnet>.ts.net)",
                 ));
             };
-            Ok(budget::shortcut::plist(budget::shortcut::Transport::Tailscale {
-                url: &url,
-                token: &view.token,
-            }))
+            Ok(make(budget::shortcut::Transport::Tailscale { url: &url, token: &view.token }))
         }
     }
 }
 
 /// The unsigned Shortcut, for signing by hand (`shortcuts sign`).
-async fn shortcut_plist(State(s): State<AppState>) -> Response {
+async fn shortcut_plist(State(s): State<AppState>, Query(q): Query<WhichQuery>) -> Response {
     let st = s.clone();
-    match tokio::task::spawn_blocking(move || plist_for(&st)).await {
+    let name = if q.which == Which::Day { "Worthwatch Day" } else { "Worthwatch Tap" };
+    match tokio::task::spawn_blocking(move || plist_for(&st, q.which)).await {
         Ok(Ok(xml)) => (
             [
                 (header::CONTENT_TYPE, "application/x-plist".to_string()),
-                (
-                    header::CONTENT_DISPOSITION,
-                    "attachment; filename=\"Worthwatch Tap.unsigned.plist\"".to_string(),
-                ),
+                (header::CONTENT_DISPOSITION, format!("attachment; filename=\"{name}.unsigned.plist\"")),
             ],
             xml,
         )
@@ -686,50 +741,58 @@ async fn shortcut_plist(State(s): State<AppState>) -> Response {
     }
 }
 
-/// Build, sign (macOS) and save the Shortcut into iCloud Drive, where the phone can open it.
+/// Build, sign (macOS) and save both Shortcuts into iCloud Drive, where the phone can
+/// open them: the tap one and the morning recap.
 async fn make_shortcut(State(s): State<AppState>) -> ApiResult<SettingsView> {
     let st = s.clone();
     tokio::task::spawn_blocking(move || -> Result<(), (StatusCode, Json<ApiError>)> {
-        let xml = plist_for(&st)?;
-        let tool = shortcuts_tool().ok_or_else(|| {
-            bad(
-                StatusCode::CONFLICT,
-                "signing a Shortcut needs macOS. Download the unsigned file and sign it on a Mac.",
-            )
-        })?;
-        let target = shortcut_target(&st.snapshot().ledger).ok_or_else(|| {
-            bad(StatusCode::CONFLICT, "can't find iCloud Drive's Shortcuts folder on this Mac")
-        })?;
-        if let Some(dir) = target.parent() {
-            std::fs::create_dir_all(dir)
-                .map_err(|e| bad(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        for which in [Which::Tap, Which::Day] {
+            sign_and_save(&st, which)?;
         }
-        let tmp = std::env::temp_dir().join(format!("worthwatch-{}.plist", std::process::id()));
-        std::fs::write(&tmp, xml).map_err(|e| bad(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-        let out = std::process::Command::new(tool)
-            .args(["sign", "--mode", "anyone", "--input"])
-            .arg(&tmp)
-            .arg("--output")
-            .arg(&target)
-            .output();
-        let _ = std::fs::remove_file(&tmp);
-        match out {
-            Ok(o) if o.status.success() => Ok(()),
-            Ok(o) => Err(bad(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("shortcuts sign failed: {}", String::from_utf8_lossy(&o.stderr).trim()),
-            )),
-            Err(e) => Err(bad(StatusCode::INTERNAL_SERVER_ERROR, format!("could not run shortcuts: {e}"))),
-        }
+        Ok(())
     })
     .await
     .map_err(|e| bad(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))??;
     get_settings(State(s)).await
 }
 
+fn sign_and_save(st: &AppState, which: Which) -> Result<(), (StatusCode, Json<ApiError>)> {
+    let xml = plist_for(st, which)?;
+    let tool = shortcuts_tool().ok_or_else(|| {
+        bad(
+            StatusCode::CONFLICT,
+            "signing a Shortcut needs macOS. Download the unsigned file and sign it on a Mac.",
+        )
+    })?;
+    let target = shortcut_target(&st.snapshot().ledger, which)
+        .ok_or_else(|| bad(StatusCode::CONFLICT, "can't find iCloud Drive's Shortcuts folder on this Mac"))?;
+    if let Some(dir) = target.parent() {
+        std::fs::create_dir_all(dir).map_err(|e| bad(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    }
+    let tmp = std::env::temp_dir().join(format!("worthwatch-{}.plist", std::process::id()));
+    std::fs::write(&tmp, xml).map_err(|e| bad(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let out = std::process::Command::new(tool)
+        .args(["sign", "--mode", "anyone", "--input"])
+        .arg(&tmp)
+        .arg("--output")
+        .arg(&target)
+        .output();
+    let _ = std::fs::remove_file(&tmp);
+    match out {
+        Ok(o) if o.status.success() => Ok(()),
+        Ok(o) => Err(bad(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("shortcuts sign failed: {}", String::from_utf8_lossy(&o.stderr).trim()),
+        )),
+        Err(e) => Err(bad(StatusCode::INTERNAL_SERVER_ERROR, format!("could not run shortcuts: {e}"))),
+    }
+}
+
 pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/api/ingest/transaction", post(ingest))
+        .route("/api/ingest/day", get(crate::game::get_day))
+        .route("/api/game", get(crate::game::get_game))
         .route("/api/budget", get(get_budget))
         .route("/api/budget/import/preview", post(import_preview))
         .route("/api/budget/import", post(import))
@@ -785,6 +848,30 @@ mod tests {
     }
 
     const TAP: &str = r#"{"merchant":"Blue Bottle","amount":"$7.25","card":"Amex Cobalt","at":"2026-11-03T08:12:45.120-05:00"}"#;
+
+    #[tokio::test]
+    async fn the_reply_carries_a_notification_once_there_is_a_budget() {
+        let (_dir, s) = app();
+        let tok = format!("Bearer {}", token(&s).unwrap());
+        let (_, body) = post(&s, Some(&tok), TAP).await;
+        assert_eq!(body["notify"], "", "no budget, no game line");
+        s.apply_many(vec![Mutation::SetBudgetLimit {
+            category: "coffee".into(),
+            amount: Some(Decimal::from(90)),
+        }])
+        .unwrap();
+        let tap2 = TAP.replace("08:12:45", "09:00:00").replace("7.25", "4.10");
+        let (st, body) = post(&s, Some(&tok), &tap2).await;
+        assert_eq!(st, StatusCode::OK);
+        let line = body["notify"].as_str().unwrap();
+        assert!(line.starts_with('$') && line.contains("today") && line.contains("\nJar $"), "{line}");
+        // The morning Shortcut's route takes the same token.
+        let req = Request::get("/api/ingest/day").header("authorization", &tok).body(Body::empty()).unwrap();
+        let res = router(s.clone()).oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+        let req = Request::get("/api/ingest/day").body(Body::empty()).unwrap();
+        assert_eq!(router(s.clone()).oneshot(req).await.unwrap().status(), StatusCode::UNAUTHORIZED);
+    }
 
     #[tokio::test]
     async fn no_token_or_a_wrong_one_is_401_and_writes_nothing() {
@@ -878,7 +965,7 @@ mod tests {
     #[test]
     fn shortcut_needs_a_mode_and_a_tailscale_address() {
         let (_dir, s) = app();
-        assert!(plist_for(&s).is_err() || detect_tailscale().is_some());
+        assert!(plist_for(&s, Which::Tap).is_err() || detect_tailscale().is_some());
         s.apply_many(vec![Mutation::SetFeed {
             feed: Feed {
                 mode: FeedMode::Tailscale,
@@ -887,10 +974,10 @@ mod tests {
             },
         }])
         .unwrap();
-        let xml = plist_for(&s).unwrap();
+        let xml = plist_for(&s, Which::Tap).unwrap();
         assert!(xml.contains("https://mini.tail1.ts.net/api/ingest/transaction"));
         assert!(xml.contains(&token(&s).unwrap()));
         s.apply_many(vec![Mutation::SetFeed { feed: Feed::default() }]).unwrap();
-        assert!(plist_for(&s).is_err());
+        assert!(plist_for(&s, Which::Tap).is_err());
     }
 }

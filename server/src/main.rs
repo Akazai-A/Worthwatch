@@ -1,6 +1,7 @@
 mod backup;
 mod budget;
 mod chat;
+mod game;
 mod mcp;
 mod routes;
 mod seed;

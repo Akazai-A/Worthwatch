@@ -16,6 +16,8 @@ pub const SAVED_MARKER: &str = "worthwatch_saved";
 /// Folder inside the Shortcuts iCloud folder.
 pub const FOLDER: &str = "Worthwatch";
 pub const QUEUE: &str = "Worthwatch/queue.jsonl";
+/// Written by the Mac for the iCloud Shortcuts: what's left today, the morning recap.
+pub const STATUS: &str = "Worthwatch/game/today.json";
 
 pub enum Transport<'a> {
     Icloud,
@@ -120,6 +122,84 @@ const U_TAP: &str = "9B1C2D3E-0004-4A5B-8C7D-000000000004";
 const U_FILE: &str = "9B1C2D3E-0006-4A5B-8C7D-000000000006";
 const U_POST: &str = "9B1C2D3E-0007-4A5B-8C7D-000000000007";
 const G_IF: &str = "9B1C2D3E-0008-4A5B-8C7D-000000000008";
+const U_STATUS_FILE: &str = "9B1C2D3E-0009-4A5B-8C7D-000000000009";
+const U_STATUS: &str = "9B1C2D3E-000A-4A5B-8C7D-00000000000A";
+const U_LINE: &str = "9B1C2D3E-000B-4A5B-8C7D-00000000000B";
+const U_MERCHANT: &str = "9B1C2D3E-000C-4A5B-8C7D-00000000000C";
+const U_AMOUNT: &str = "9B1C2D3E-000D-4A5B-8C7D-00000000000D";
+const G_NOTIFY: &str = "9B1C2D3E-000E-4A5B-8C7D-00000000000E";
+
+fn value_for_key(uuid: &str, dict: P, key: &str) -> P {
+    action(
+        "is.workflow.actions.getvalueforkey",
+        vec![("UUID", s(uuid)), ("WFInput", attachment(dict)), ("WFDictionaryKey", s(key))],
+    )
+}
+
+/// `If <line> has any value: Show Notification(title, line) End If`.
+fn notify_if_any(title: Vec<Result<&str, P>>, line: &str, group: &str) -> Vec<P> {
+    vec![
+        action(
+            "is.workflow.actions.conditional",
+            vec![
+                ("GroupingIdentifier", s(group)),
+                ("WFControlFlowMode", P::I(0)),
+                ("WFCondition", P::I(100)),
+                (
+                    "WFInput",
+                    P::D(vec![
+                        ("Type", s("Variable")),
+                        ("Variable", attachment(output(line, "Dictionary Value"))),
+                    ]),
+                ),
+            ],
+        ),
+        action(
+            "is.workflow.actions.notification",
+            vec![
+                ("WFNotificationActionTitle", text(title)),
+                ("WFNotificationActionBody", text(vec![Err(output(line, "Dictionary Value"))])),
+                ("WFNotificationActionSound", P::B(false)),
+            ],
+        ),
+        action(
+            "is.workflow.actions.conditional",
+            vec![("GroupingIdentifier", s(group)), ("WFControlFlowMode", P::I(2))],
+        ),
+    ]
+}
+
+/// Read `Worthwatch/game/today.json` and take one key out of it.
+fn read_status(key: &str) -> Vec<P> {
+    vec![
+        action(
+            "is.workflow.actions.documentpicker.open",
+            vec![
+                ("UUID", s(U_STATUS_FILE)),
+                ("WFGetFilePath", text(vec![Ok(STATUS)])),
+                ("WFFileErrorIfNotFound", P::B(false)),
+                ("WFShowFilePicker", P::B(false)),
+            ],
+        ),
+        action(
+            "is.workflow.actions.detect.dictionary",
+            vec![("UUID", s(U_STATUS)), ("WFInput", attachment(output(U_STATUS_FILE, "File")))],
+        ),
+        value_for_key(U_LINE, output(U_STATUS, "Dictionary"), key),
+    ]
+}
+
+fn bearer(token: &str) -> P {
+    let header = P::D(vec![
+        ("WFItemType", P::I(0)),
+        ("WFKey", text(vec![Ok("Authorization")])),
+        ("WFValue", text(vec![Ok(&format!("Bearer {token}"))])),
+    ]);
+    P::D(vec![
+        ("Value", P::D(vec![("WFDictionaryFieldValueItems", P::A(vec![header]))])),
+        ("WFSerializationType", s("WFDictionaryFieldValue")),
+    ])
+}
 
 /// The Shortcut's property list (XML). Keep the token out of logs: it is in here.
 pub fn plist(transport: Transport) -> String {
@@ -156,6 +236,16 @@ pub fn plist(transport: Transport) -> String {
             ],
         ),
     ];
+    // The notification's title: "Pai Northern Thai · $24.00", from the tap itself.
+    actions.push(value_for_key(U_MERCHANT, output(U_DICT, "Dictionary"), "merchant"));
+    actions.push(value_for_key(U_AMOUNT, output(U_DICT, "Dictionary"), "amount"));
+    let title = || {
+        vec![
+            Err(output(U_MERCHANT, "Dictionary Value")),
+            Ok(" · "),
+            Err(output(U_AMOUNT, "Dictionary Value")),
+        ]
+    };
     let append = |path: P| {
         action(
             "is.workflow.actions.file.append",
@@ -173,6 +263,9 @@ pub fn plist(transport: Transport) -> String {
                 Err(output(U_MONTH, "Formatted Date")),
                 Ok(".jsonl"),
             ])));
+            // No round trip in iCloud mode: show what the Mac last wrote.
+            actions.extend(read_status("tap"));
+            actions.extend(notify_if_any(title(), U_LINE, G_NOTIFY));
         }
         Transport::Tailscale { url, token } => {
             let endpoint = format!("{}/api/ingest/transaction", url.trim_end_matches('/'));
@@ -186,11 +279,6 @@ pub fn plist(transport: Transport) -> String {
                     ("WFShowFilePicker", P::B(false)),
                 ],
             ));
-            let header = P::D(vec![
-                ("WFItemType", P::I(0)),
-                ("WFKey", text(vec![Ok("Authorization")])),
-                ("WFValue", text(vec![Ok(&format!("Bearer {token}"))])),
-            ]);
             actions.push(action(
                 "is.workflow.actions.downloadurl",
                 vec![
@@ -200,13 +288,7 @@ pub fn plist(transport: Transport) -> String {
                     ("WFHTTPBodyType", s("File")),
                     ("WFRequestVariable", attachment(output(U_FILE, "File"))),
                     ("ShowHeaders", P::B(true)),
-                    (
-                        "WFHTTPHeaders",
-                        P::D(vec![
-                            ("Value", P::D(vec![("WFDictionaryFieldValueItems", P::A(vec![header]))])),
-                            ("WFSerializationType", s("WFDictionaryFieldValue")),
-                        ]),
-                    ),
+                    ("WFHTTPHeaders", bearer(token)),
                 ],
             ));
             actions.push(action(
@@ -236,8 +318,39 @@ pub fn plist(transport: Transport) -> String {
                 "is.workflow.actions.conditional",
                 vec![("GroupingIdentifier", s(G_IF)), ("WFControlFlowMode", P::I(2))],
             ));
+            actions.push(value_for_key(U_LINE, output(U_POST, "Contents of URL"), "notify"));
+            actions.extend(notify_if_any(title(), U_LINE, G_NOTIFY));
         }
     }
+    wrap(actions, true)
+}
+
+/// The morning recap Shortcut ("Worthwatch Day"), run by a time-of-day automation:
+/// how yesterday closed and today's allowance, as a notification.
+pub fn day_plist(transport: Transport) -> String {
+    let mut actions = Vec::new();
+    match transport {
+        Transport::Icloud => actions.extend(read_status("day")),
+        Transport::Tailscale { url, token } => {
+            let endpoint = format!("{}/api/ingest/day", url.trim_end_matches('/'));
+            actions.push(action(
+                "is.workflow.actions.downloadurl",
+                vec![
+                    ("UUID", s(U_POST)),
+                    ("WFURL", s(&endpoint)),
+                    ("WFHTTPMethod", s("GET")),
+                    ("ShowHeaders", P::B(true)),
+                    ("WFHTTPHeaders", bearer(token)),
+                ],
+            ));
+            actions.push(value_for_key(U_LINE, output(U_POST, "Contents of URL"), "text"));
+        }
+    }
+    actions.extend(notify_if_any(vec![Ok("Worthwatch")], U_LINE, G_NOTIFY));
+    wrap(actions, false)
+}
+
+fn wrap(actions: Vec<P>, takes_input: bool) -> String {
     let root = P::D(vec![
         ("WFWorkflowClientVersion", s("2302.0.4")),
         ("WFWorkflowMinimumClientVersion", P::I(900)),
@@ -251,9 +364,13 @@ pub fn plist(transport: Transport) -> String {
         ),
         (
             "WFWorkflowInputContentItemClasses",
-            P::A(vec![s("WFDictionaryContentItem"), s("WFStringContentItem")]),
+            P::A(if takes_input {
+                vec![s("WFDictionaryContentItem"), s("WFStringContentItem")]
+            } else {
+                vec![]
+            }),
         ),
-        ("WFWorkflowHasShortcutInputVariables", P::B(true)),
+        ("WFWorkflowHasShortcutInputVariables", P::B(takes_input)),
         ("WFWorkflowTypes", P::A(vec![])),
         ("WFWorkflowImportQuestions", P::A(vec![])),
         ("WFWorkflowActions", P::A(actions)),
@@ -278,6 +395,23 @@ mod tests {
         assert!(p.contains("Worthwatch/taps-\u{fffc}.jsonl"));
         assert!(!p.contains("downloadurl"));
         assert_eq!(p.matches("<dict>").count(), p.matches("</dict>").count());
+        // Then reads the Mac's status file and shows its line.
+        let order = ["file.append", STATUS, "<string>tap</string>", "actions.notification"];
+        let at: Vec<usize> = order.iter().map(|a| p.find(a).unwrap()).collect();
+        assert!(at.windows(2).all(|w| w[0] < w[1]), "append, read status, notify");
+    }
+
+    #[test]
+    fn day_shortcut_reads_the_recap_and_takes_no_input() {
+        let p = day_plist(Transport::Icloud);
+        assert!(
+            p.contains(STATUS) && p.contains("<string>day</string>") && p.contains("actions.notification")
+        );
+        assert!(p.contains("<key>WFWorkflowHasShortcutInputVariables</key><false/>"));
+        let p = day_plist(Transport::Tailscale { url: "https://m.ts.net", token: "abc" });
+        assert!(p.contains("https://m.ts.net/api/ingest/day") && p.contains("Bearer abc"));
+        assert!(p.contains("<string>text</string>"));
+        assert_eq!(p.matches("<dict>").count(), p.matches("</dict>").count());
     }
 
     #[test]
@@ -289,6 +423,8 @@ mod tests {
         let at: Vec<usize> = order.iter().map(|a| p.find(a).unwrap()).collect();
         assert!(at.windows(2).all(|w| w[0] < w[1]), "queue first, delete last");
         assert!(p.contains(SAVED_MARKER));
+        assert!(p.find("<string>notify</string>").unwrap() > p.find("file.delete").unwrap());
+        assert!(p.contains("is.workflow.actions.notification"));
         assert_eq!(p.matches("<array>").count(), p.matches("</array>").count());
     }
 }

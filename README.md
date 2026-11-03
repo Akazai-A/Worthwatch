@@ -63,7 +63,7 @@ Worthwatch tracks what you own and what you owe. You type balances in once a mon
   </tr>
 </table>
 
-Also: bank statement import with category rules and bills, a [wall view](docs/user-guide.md#wall-view) for a spare tablet, a <kbd>⌘</kbd> <kbd>K</kbd> command palette, and [daily backups](docs/backup-restore.md).
+Also: a [budget game](docs/budget-game.md) with a daily allowance, a savings jar and weekly challenge cards, bank statement import with category rules and bills, a [wall view](docs/user-guide.md#wall-view) for a spare tablet, a <kbd>⌘</kbd> <kbd>K</kbd> command palette, and [daily backups](docs/backup-restore.md).
 
 ## Works with your AI assistant
 
@@ -131,6 +131,7 @@ For the full setup, your first check-in, and where your data lives, see [Get sta
 | [Get started](docs/getting-started.md) | Install with Docker or from source, load sample data, do your first check-in. |
 | [User guide](docs/user-guide.md) | Use each screen: Home, Check-in, Portfolio, Changes, Chat, Plan, Budget, Wall view. |
 | [Budget your spending](docs/budgeting.md) | Import bank statements, set limits, sort categories, track bills. |
+| [Play the budget game](docs/budget-game.md) | Beat a daily allowance, fill a jar to your monthly goal, and get a notification after each tap. |
 | [Set up the Apple Pay feed](docs/apple-pay-feed.md) | Send each Wallet purchase from your iPhone to your Mac as you pay. |
 | [Configure Worthwatch](docs/configuration.md) | Settings in `ledger.yaml` and environment variables. |
 | [Prices, FX and fund holdings](docs/data-sources.md) | Where numbers come from and how to override them. |

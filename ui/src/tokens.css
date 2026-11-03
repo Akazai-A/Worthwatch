@@ -29,6 +29,8 @@
   /* One neutral fill for every bar and cell (bone on graphite); brass stays the only accent. */
   --fill: color-mix(in oklab, var(--text) 42%, var(--surface-2));
   --fill-soft: color-mix(in oklab, var(--text) 22%, var(--surface-2));
+  /* Coins and won cards in the budget game: brass, lit from the top left. */
+  --coin-hi: #f0cf7a; --coin-lo: #8a6a2a; --gold-card: linear-gradient(160deg, #5a4414, #2a2010); --on-gold: #f0cf7a;
   --radius: 8px;
   --font: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
   --display: "Newsreader", Georgia, "Times New Roman", serif;
@@ -44,6 +46,7 @@
     --negative: #a1442f; --positive: #3f6b42; --warn: #7f5f14;
     --g-cash: #2a78d6; --g-investments: #eb6834; --g-property: #1baf7a; --g-debt: #6250d6;
     --f-tech: #3f78c8; --f-fin: #b8506e; --f-cons: #1f8f74; --f-ind: #8b5bb3;
+    --coin-hi: #e6c46c; --coin-lo: #7f5f14; --gold-card: linear-gradient(160deg, #f1d98f, #d9b35a); --on-gold: #3d2c06;
     color-scheme: light;
   }
 }
@@ -55,6 +58,7 @@
   --negative: #a1442f; --positive: #3f6b42; --warn: #7f5f14;
   --g-cash: #2a78d6; --g-investments: #eb6834; --g-property: #1baf7a; --g-debt: #6250d6;
   --f-tech: #3f78c8; --f-fin: #b8506e; --f-cons: #1f8f74; --f-ind: #8b5bb3;
+  --coin-hi: #e6c46c; --coin-lo: #7f5f14; --gold-card: linear-gradient(160deg, #f1d98f, #d9b35a); --on-gold: #3d2c06;
   color-scheme: light;
 }
 * { box-sizing: border-box; }

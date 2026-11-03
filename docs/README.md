@@ -7,6 +7,7 @@ Start with [Get started](getting-started.md). Each page below covers one task.
 - [Get started](getting-started.md): install, load sample data, and do your first check-in.
 - [User guide](user-guide.md): what each screen shows and how to use it.
 - [Budget your spending](budgeting.md): import bank statements, set limits, sort categories, track bills.
+- [Play the budget game](budget-game.md): beat a daily allowance, fill a jar to your monthly goal, and play weekly challenge cards.
 - [Set up the Apple Pay feed](apple-pay-feed.md): send each Wallet purchase from your iPhone as you pay.
 - [Configure Worthwatch](configuration.md): settings in `ledger.yaml` and environment variables.
 - [Prices, FX and fund holdings](data-sources.md): where the numbers come from and how to override them.

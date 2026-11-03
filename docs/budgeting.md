@@ -148,5 +148,6 @@ Transactions themselves live in `transactions/YYYY-MM.jsonl`, one line each. Wor
 
 ## What's next
 
+- [Play the budget game](budget-game.md): beat a daily allowance and fill a jar to your monthly goal.
 - [Set up the Apple Pay feed](apple-pay-feed.md) so taps show up as you pay.
 - [Run Worthwatch on a Mac](macos.md) that stays on, such as a Mac mini.

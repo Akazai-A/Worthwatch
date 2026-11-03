@@ -96,6 +96,36 @@ iOS doesn't let an app create this automation for you, so you add it once on the
 
 Make a small purchase to test it. In iCloud mode the tap shows on **Budget** within about a minute; in Tailscale mode, within a few seconds. **Settings** shows **Last tap received** and a count.
 
+## Get notified on your iPhone
+
+Once you've [set a budget](budgeting.md#set-a-budget-for-each-category), the **Worthwatch Tap** Shortcut shows a notification after each tap with what's left of today's allowance in the [budget game](budget-game.md). You don't need to change anything for this. If you added the Shortcut before notifications existed, select **Make again** and add it on the phone again, replacing the old one.
+
+| Delivery | What the notification shows |
+|---|---|
+| **Tailscale** | The total after this tap. The Mac works it out and sends it back in its reply. |
+| **iCloud Drive** | The total *before* this tap. The phone can't wait for the Mac, so it reads `Worthwatch/game/today.json`, which the Mac rewrites within seconds of each change. |
+
+```text
+ Tailscale:  tap ─▶ POST /api/ingest/transaction ─▶ reply.notify ─────────────▶ Show Notification
+ iCloud:     tap ─▶ append taps-YYYY-MM.jsonl
+                    read game/today.json (written by the Mac) ─▶ "tap" line ─▶ Show Notification
+```
+
+### Add the morning recap
+
+A second Shortcut, **Worthwatch Day**, tells you each morning how yesterday closed and what you have today.
+
+1. In **Settings**, select **Make Shortcut**. Worthwatch saves **Worthwatch Day** beside **Worthwatch Tap**.
+2. On your iPhone, open **Files** › **iCloud Drive** › **Shortcuts** › **Worthwatch**, tap **Worthwatch Day**, then tap **Add Shortcut**.
+3. In **Shortcuts**, tap **Automation**, then **+**.
+4. Tap **Time of Day**, set it to **8:00 AM**, **Daily**, and select **Run Immediately**. Tap **Next**.
+5. Tap **New Blank Automation**, add a **Run Shortcut** action, and choose **Worthwatch Day**. Tap **Done**.
+
+In Tailscale mode the Shortcut asks `GET /api/ingest/day` with your token. In iCloud mode it reads the `day` line from `Worthwatch/game/today.json`.
+
+> [!NOTE]
+> Notifications from a Shortcut carry the Shortcuts icon, not a Worthwatch icon, and they're plain text. iOS doesn't let a Shortcut change either.
+
 ## Link each Wallet card to an account
 
 The first tap from a new card shows as a chip at the top of **Budget**, for example *Amex Cobalt tapped 2 times. Which account is it?* Choose the credit card account it belongs to and select **Link**. Worthwatch moves its taps there and sets the account's source to **Apple Pay + CSV**.
@@ -124,9 +154,13 @@ If you can't sign the generated Shortcut, build it in the Shortcuts app. Name it
 3. **Get Dictionary from** Shortcut Input.
 4. **Set Dictionary Value**: key `at`, value the first Formatted Date, in Dictionary.
 
-**For iCloud Drive, add one more:**
+**For iCloud Drive, add these:**
 
 5. **Append to Text File**: append the Dictionary to `Worthwatch/taps-` + the second Formatted Date + `.jsonl`, with **Make New Line** on.
+6. **Get File** `Worthwatch/game/today.json`, with **Error If Not Found** off.
+7. **Get Dictionary from** the File.
+8. **Get Dictionary Value** for key `tap` in the Dictionary.
+9. **If** Dictionary Value **has any value**: **Show Notification** with the Dictionary Value as the body, then **End If**.
 
 **For Tailscale, add these instead:**
 
@@ -136,6 +170,8 @@ If you can't sign the generated Shortcut, build it in the Shortcuts app. Name it
 8. **If** Contents of URL **contains** `worthwatch_saved`:
 9. &nbsp;&nbsp;&nbsp;**Delete** the File from step 6, with **Confirm Before Deleting** off.
 10. **End If**.
+11. **Get Dictionary Value** for key `notify` in Contents of URL.
+12. **If** Dictionary Value **has any value**: **Show Notification** with the Dictionary Value as the body, then **End If**.
 
 The queue is why an offline tap isn't lost: iOS never retries a failed Shortcut, so the tap is written to the queue first and deleted only after your Mac confirms it saved it. Sending a tap twice is safe, because Worthwatch ignores taps it already has.
 
@@ -149,7 +185,7 @@ curl -H "Authorization: Bearer $(cat data/ingest-token)" \
   http://127.0.0.1:7777/api/ingest/transaction
 ```
 
-The body is one JSON object, an array of them, or one object per line. `merchant`, `amount` and `card` are required; `at`, `name` and `currency` are optional. The reply contains `worthwatch_saved` with the number of taps added and the number already there. When the feed is set to **Off**, the endpoint answers `409` and saves nothing.
+The body is one JSON object, an array of them, or one object per line. `merchant`, `amount` and `card` are required; `at`, `name` and `currency` are optional. The reply contains `worthwatch_saved` with the number of taps added and the number already there, and `notify`, the notification line for the [budget game](budget-game.md). `notify` is empty until you set a budget. When the feed is set to **Off**, the endpoint answers `409` and saves nothing.
 
 ## Troubleshoot the feed
 
@@ -162,3 +198,4 @@ The body is one JSON object, an array of them, or one object per line. `merchant
 | Taps arrive as `401`. | The token changed. Select **Make again** and add the new Shortcut on the phone. |
 | A purchase never showed up. | Online and in-app Apple Pay purchases may not run the Wallet automation. The statement import still brings them in. |
 | A tap sits in **Review**. | See [Review unmatched taps](budgeting.md#review-unmatched-taps). |
+| No notification after a tap. | Set a budget first: the notification needs a daily allowance. Then select **Make again** and add the new Shortcut, since older ones don't show notifications. In iCloud mode, check that `Worthwatch/game/today.json` exists. |

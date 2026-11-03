@@ -67,6 +67,64 @@ pub struct Budget {
     /// How Apple Pay taps reach this server.
     #[serde(default, skip_serializing_if = "Feed::is_default")]
     pub feed: Feed,
+    /// The budget game: a monthly savings goal and the challenge cards you played.
+    #[serde(default, skip_serializing_if = "Game::is_default")]
+    pub game: Game,
+}
+
+/// The budget game. Each day's allowance is what the budget leaves for that day once
+/// bills are out; what you don't spend goes into the month's jar. `goal` is how full
+/// you want the jar by month end. Cards are weekly challenges you chose to play.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct Game {
+    /// Monthly jar goal, base currency. `None` means the game is not set up.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub goal: Option<Decimal>,
+    /// Cards played, oldest first. The rule is copied in when played, so a card keeps
+    /// its terms even if your spending history changes later.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub cards: Vec<PlayedCard>,
+    /// Ids of cards you passed on, so they are not offered again that week.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub passed: Vec<String>,
+}
+
+impl Game {
+    pub fn is_default(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PlayedCard {
+    pub id: String,
+    /// Monday of the week the card runs.
+    pub week: NaiveDate,
+    /// First day it counts, when played mid-week; the card then runs to Sunday.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub from: Option<NaiveDate>,
+    pub rule: CardRule,
+}
+
+impl PlayedCard {
+    /// First day the card counts.
+    pub fn start(&self) -> NaiveDate {
+        self.from.filter(|f| *f > self.week).unwrap_or(self.week)
+    }
+}
+
+/// What a card asks of you for its week.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum CardRule {
+    /// Spend at most `amount` on `category` this week.
+    Cap { category: String, amount: Decimal },
+    /// Spend nothing on these weekdays (0 is Monday), on `category` or on anything.
+    NoSpend {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        category: Option<String>,
+        weekdays: Vec<u8>,
+    },
 }
 
 impl Budget {

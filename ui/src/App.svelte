@@ -14,6 +14,7 @@
   import Wall from "./screens/Wall.svelte";
   import Backups from "./screens/Backups.svelte";
   import Budget from "./screens/Budget.svelte";
+  import Play from "./screens/Play.svelte";
   import Settings from "./screens/Settings.svelte";
   import Palette from "./lib/components/Palette.svelte";
   import ChatDrawer from "./lib/components/ChatDrawer.svelte";
@@ -84,6 +85,8 @@
         <Plan view={view.current} />
       {:else if route.current.name === "budget"}
         <Budget view={view.current} month={route.current.month} importing={route.current.import ?? false} />
+      {:else if route.current.name === "play"}
+        <Play view={view.current} month={route.current.month} />
       {:else if route.current.name === "settings"}
         <Settings view={view.current} />
       {:else if route.current.name === "backups"}

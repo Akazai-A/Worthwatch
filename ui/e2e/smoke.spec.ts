@@ -4,6 +4,7 @@ import { join } from "node:path";
 
 const dataDir = process.env.WW_E2E_DATA!;
 const ledger = () => join(dataDir, "ledger.yaml");
+const ledgerText = () => readFileSync(ledger(), "utf8");
 
 test.describe.configure({ mode: "serial" });
 
@@ -301,6 +302,44 @@ test("Budget: a tap needs the token, shows at once as provisional, and the state
   await expect(page.getByText("1 already imported")).toBeVisible();
   await expect(page.getByRole("button", { name: "Import 0 new" })).toBeDisabled();
   expect((await (await request.get("/api/budget")).json()).txns).toHaveLength(1);
+});
+
+test("Play: the game asks for a budget, then a goal; the jar and today's token show, and a tap's reply carries the notification", async ({ page, request }) => {
+  await page.goto("/#/budget/play");
+  await expect(page.getByRole("heading", { name: "The game needs a budget" })).toBeVisible();
+
+  const setup = await request.post("/api/apply", {
+    data: [
+      { op: "set_budget_limit", category: "dining", amount: "600" },
+      { op: "set_budget_limit", category: "groceries", amount: "900" },
+    ],
+  });
+  expect(setup.ok()).toBeTruthy();
+
+  await expect(page.getByRole("heading", { name: /^Pick a goal for / })).toBeVisible();
+  await page.locator(".choice").first().click();
+  await expect(page.getByRole("heading", { name: /^Pick a goal for / })).toHaveCount(0);
+  await expect(page.locator(".jarbox")).toContainText(/of \$\d/);
+  await expect(page.locator(".tile.today")).toHaveCount(1);
+  const game = await (await request.get("/api/game")).json();
+  expect(Number(game.goal)).toBeGreaterThan(0);
+  expect(ledgerText()).toMatch(/game:\n\s+goal: /);
+
+  // The Shortcut shows whatever the reply's notify line says.
+  const token = (await (await request.get("/api/settings")).json()).token as string;
+  const now = new Date();
+  const tap = { merchant: "Balzac's", amount: "4.85", card: "TD Aeroplan Visa", at: now.toISOString() };
+  const reply = await (await request.post("/api/ingest/transaction", { data: tap, headers: { Authorization: `Bearer ${token}` } })).json();
+  expect(reply.notify).toMatch(/^\$\d+ (left|over) today.*\nJar \$/);
+  const day = await request.get("/api/ingest/day", { headers: { Authorization: `Bearer ${token}` } });
+  expect(day.status()).toBe(200);
+  expect((await day.json()).text).toContain("Jar");
+  expect((await request.get("/api/ingest/day")).status()).toBe(401);
+
+  // The Budget tab stays for setup and links into the game.
+  await page.goto("/#/budget");
+  await page.getByRole("link", { name: "Play" }).click();
+  await expect(page).toHaveURL(/#\/budget\/play\/\d{4}-\d{2}$/);
 });
 
 test("⌘⇧H hides every amount as stars, and shows them again", async ({ page }) => {

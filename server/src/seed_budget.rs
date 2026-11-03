@@ -46,6 +46,7 @@ pub fn seed_budget_settings() -> Budget {
     b.rules =
         vec![ledger::CategoryRule { contains: "LANDLORD".into(), category: "bills".into(), account: None }];
     b.feed = Feed { mode: FeedMode::Icloud, ..Default::default() };
+    b.game.goal = Some(Decimal::from(500));
     b
 }
 

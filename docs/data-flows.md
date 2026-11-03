@@ -176,13 +176,15 @@ Rules on top of the Stage 3 ones:
 | `GET /api/budget?month` | `BudgetView`: the month's spending, pace by day, categories with six-month history, bills, transactions with status, review list, unlinked cards, account sources and feed status |
 | `POST /api/budget/import/preview` · `POST /api/budget/import` | `{ account, text, preset, flip }` → the parsed statement with duplicates marked (writes nothing), or the rows appended to `transactions/` |
 | `POST /api/budget/category` | `{ id, category }` → one hand-picked category in `categories.json` |
+| `GET /api/game?month` | `GameView`: the month as tiles (allowance, spent, net, coins, state), the jar, today's taps, this week's hand and offers, the shelf of won cards, the closed month's score and goal suggestions |
+| `GET /api/ingest/day` | The morning recap `{ text }` for the Worthwatch Day Shortcut; same Bearer token as the tap feed |
 | `GET /api/settings` · `POST /api/settings/token` · `POST /api/settings/shortcut` · `GET /api/settings/shortcut.plist` | feed status and setup checks; a new ingest token; sign and save the Shortcut to iCloud Drive (macOS); the unsigned Shortcut |
 | `worthwatch backup` · `worthwatch restore <file> [--force]` | the same backup from the command line; restore unpacks into `WORTHWATCH_DATA`, refuses to replace a ledger without `--force`, and backs the old one up first |
 | `worthwatch seed [--force]` | writes a 14-month sample ledger and a `quotes.json` with daily closes for the same span to `WORTHWATCH_DATA` (no typed prices: what a fetching user's file looks like), plus two dated holdings snapshots per seeded fund under `holdings/` (a month apart, a few sleeves reweighted) so the Changes feed has something to show |
 
 ## UI
 
-Hash routes `#/`, `#/check-in`, `#/portfolio[/look-through|/exposure|/overlap]`, `#/changes`, `#/chat`, `#/plan`, `#/wall` (full screen, no rail), `#/backups`, `#/budget[/import]`, `#/settings`, `#/accounts/<id>`. ⌘K / Ctrl+K opens the command palette anywhere (`lib/palette.ts` matches and ranks, tested). Global state is five stores under `ui/src/lib/stores`: `view` (the `LedgerView` plus the SSE subscription), `lookthrough` (the `LookThroughView`, fetched once per ledger version when a Portfolio sub-tab needs it), `changes` (the `ChangesView` for the chosen period and threshold, refetched when either or the ledger version moves), `route`, `prefs` (blur, theme). Screens under `ui/src/screens` render the view; the only browser-side arithmetic is the live preview on Check-in (`lib/checkin.ts`, unit-tested), and the saved numbers always come back from the server. Charts live in `lib/charts` (uPlot for time series, d3-hierarchy for the look-through treemap, plain SVG for the net worth bridge). The Changes screen encodes before it writes: a stacked strip for the split of a change (`SplitStrip`), a diverging bar per row (`DeltaBar`), a before/after weight bar per constituent (`WeightMove`); the words sit in hover titles. The screen is one window on a desktop: a 2×3 board (headline and bridge, then accounts beside holdings, then exposure drift beside fund changes) whose four panels scroll inside themselves, so the page never grows with the portfolio; under 1100px it stacks and each panel keeps a capped height. `lib/changes.ts` (tested) does the period presets and the wording. Colours are CSS tokens in `tokens.css`; components never use colour literals.
+Hash routes `#/`, `#/check-in`, `#/portfolio[/look-through|/exposure|/overlap]`, `#/changes`, `#/chat`, `#/plan`, `#/wall` (full screen, no rail), `#/backups`, `#/budget[/import]`, `#/budget/play[/YYYY-MM]`, `#/settings`, `#/accounts/<id>`. ⌘K / Ctrl+K opens the command palette anywhere (`lib/palette.ts` matches and ranks, tested). Global state is five stores under `ui/src/lib/stores`: `view` (the `LedgerView` plus the SSE subscription), `lookthrough` (the `LookThroughView`, fetched once per ledger version when a Portfolio sub-tab needs it), `changes` (the `ChangesView` for the chosen period and threshold, refetched when either or the ledger version moves), `route`, `prefs` (blur, theme). Screens under `ui/src/screens` render the view; the only browser-side arithmetic is the live preview on Check-in (`lib/checkin.ts`, unit-tested), and the saved numbers always come back from the server. Charts live in `lib/charts` (uPlot for time series, d3-hierarchy for the look-through treemap, plain SVG for the net worth bridge). The Changes screen encodes before it writes: a stacked strip for the split of a change (`SplitStrip`), a diverging bar per row (`DeltaBar`), a before/after weight bar per constituent (`WeightMove`); the words sit in hover titles. The screen is one window on a desktop: a 2×3 board (headline and bridge, then accounts beside holdings, then exposure drift beside fund changes) whose four panels scroll inside themselves, so the page never grows with the portfolio; under 1100px it stacks and each panel keeps a capped height. `lib/changes.ts` (tested) does the period presets and the wording. Colours are CSS tokens in `tokens.css`; components never use colour literals.
 
 Playwright smoke flow: `ui/e2e/smoke.spec.ts` runs the real binary on a temp data dir.
 
@@ -288,5 +290,29 @@ flowchart LR
 - **Two records, one transaction.** A tap and a statement row are stored as they arrived and never edited. `reconcile` pairs them on every read, greedily by exact amount, then merchant similarity, then nearest date. Importing the same statement again or receiving the same tap again is a no-op, because ids are stable: `csv-` plus a hash of account, date, amount, description and occurrence (or `ofx-` plus the bank's FITID), and `tap-` plus a hash of time, card, amount and merchant.
 - **Statements win.** A matched pair takes the statement's amount and date, so a tipped meal counts at its posted total. A tap with no row after 7 days moves to Review. An account set to Apple Pay only uses taps as the record.
 - **The card bill is a transfer.** Cards link only to credit card accounts. Payments between your own accounts are categorized `transfer`, which, like `income`, never counts as spending.
-- **The feed is narrow.** `/api/ingest/transaction` is the only route that accepts the token, rejects a missing or wrong one with 401 and writes nothing, and answers 409 when the feed is off. `tailscale serve --set-path /api/ingest` exposes only that path. The token lives in `ingest-token` (mode 0600) and is compared in constant time.
+- **The feed is narrow.** `/api/ingest/transaction` and `/api/ingest/day` are the only routes that accept the token. Both reject a missing or wrong one with 401 and write nothing, and the tap route answers 409 when the feed is off. `tailscale serve --set-path /api/ingest` exposes only that path. The token lives in `ingest-token` (mode 0600) and is compared in constant time.
 - **The Shortcut is generated.** `budget::shortcut::plist` writes the Shortcut for the chosen mode; on macOS the server signs it with `shortcuts sign --mode anyone` and saves it to iCloud Drive. The tests check the actions and that only a reply containing `worthwatch_saved` deletes the queue.
+
+## Stage 7 data flow: the budget game
+
+```mermaid
+flowchart LR
+  L[ledger.yaml<br/>budget.limits · bills<br/>budget.game: goal · cards · passed] --> V
+  ST[(transactions/)] --> RC[budget::reconcile] --> V[budget::game::view<br/>month, today, FX]
+  V --> W[weekday_weights<br/>last 3 months, clamped 0.5–2<br/>flat under 28 days]
+  W --> T[tiles: allowance − spent<br/>green / red, coins 0–5]
+  T --> J[jar = Σ net of closed days]
+  V --> D[deal: last 8 weeks<br/>caps at ~70% of usual,<br/>no-spend weekday / weekend]
+  D --> H[hand · offers · shelf<br/>≤ 2 cards a week]
+  J & H --> GV[/GET /api/game/] --> UI[Play screen<br/>Track · Jar · PlayingCard]
+  UI -- set_game_goal · play_card · pass_card --> A[/POST /api/apply/] --> L
+  V --> TL[tap_line] --> IN[/POST /api/ingest/transaction<br/>reply.notify/] --> PH[iPhone notification]
+  V --> RL[recap_line] --> DY[/GET /api/ingest/day/] --> PH
+  V --> SF[(iCloud: Worthwatch/game/today.json<br/>tap · day lines)] --> PH
+```
+
+- **The game is a read.** `budget::game::view` is a pure function of the ledger, the reconciled transactions, the month and today. Nothing about a day's result is stored, so a statement that corrects a tap also corrects the day and the jar.
+- **The allowance leaves bills out.** The monthly allowance is the sum of category limits minus the bills limit (or the listed bills when there's no bills limit). Income, transfers and bills never count against a day.
+- **Cards are dealt, not stored, until you play.** `deal` is deterministic for the same history, so a reload deals the same hand. Only played cards (`PlayedCard { id, week, from?, rule }`) and passed ids go in `ledger.yaml`. A card dealt mid-week starts on `from`, and its cap is prorated by the days left. `PlayCard` refuses a third card in a week.
+- **The month closes on read.** For a past month, `view` adds a `MonthClose`: hit or miss against the goal, green days, cards won, the streak of hits, and a suggested next goal (+5% after three hits, −5% after two misses).
+- **The phone never computes.** In Tailscale mode the tap reply carries `notify`. In iCloud mode the server rewrites `game/today.json` whenever the ledger version or the date changes; it's in a subfolder so the tap reader, which reads `Worthwatch/*.json*`, skips it.
