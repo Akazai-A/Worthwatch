@@ -315,7 +315,7 @@
   .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
   .link { background: none; border: 0; color: var(--accent); font: inherit; cursor: pointer; padding: 0; }
   .hero { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: end; }
-  .big { font-size: 3.2rem; font-weight: 500; letter-spacing: -0.04em; line-height: 1.05; }
+  .big { font-family: var(--display); font-size: 4rem; font-weight: 500; letter-spacing: -0.01em; line-height: 1; font-variant-numeric: lining-nums tabular-nums; }
   .sub { color: var(--text-2); font-size: 13px; }
   .sub b { font-weight: 500; color: var(--text); }
   .neg { color: var(--negative) !important; }
@@ -360,7 +360,7 @@
   .bill { display: flex; gap: 6px; align-items: center; border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px; }
   .bd { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--text-3); }
   .bd.paid { background: var(--positive); border-color: var(--positive); }
-  .day { font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.1em; padding: 12px 0 4px; display: flex; justify-content: space-between; }
+  .day { font-size: 12px; color: var(--text-3); padding: 12px 0 4px; display: flex; justify-content: space-between; }
   .tx { display: grid; grid-template-columns: 14px 1fr 124px 140px 96px; gap: 12px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
   .tx.xfer { color: var(--text-3); }
   .m { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

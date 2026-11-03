@@ -91,7 +91,7 @@
   .val { text-align: right; }
   h2 { margin: 0 0 8px; font-weight: 500; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th { text-align: left; font-weight: 500; color: var(--text-3); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; padding: 4px 0; }
+  th { text-align: left; font-weight: 500; color: var(--text-3); font-size: 12px; padding: 4px 0; }
   td { padding: 7px 0; border-top: 1px solid var(--border); }
   .r { text-align: right; }
   .small { font-size: 11px; }

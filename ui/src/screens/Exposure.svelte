@@ -67,7 +67,7 @@
   .toggle button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
   .empty p { margin: 0; }
   .bars { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-  .barset h2 { margin: 0 0 10px; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-3); display: flex; justify-content: space-between; }
+  .barset h2 { margin: 0 0 10px; font-size: 12px; font-weight: 500; color: var(--text-3); display: flex; justify-content: space-between; }
   .barset h2 small { text-transform: none; letter-spacing: 0; font-size: 11px; }
   .row { display: grid; grid-template-columns: minmax(96px, 128px) 1fr 48px 60px; gap: 10px; align-items: center; font-size: 12px; padding: 3px 0; }
   .row .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

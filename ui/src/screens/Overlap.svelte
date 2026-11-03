@@ -120,7 +120,7 @@
   .detail h3 { margin: 2px 0 0; font-size: 20px; font-weight: 600; }
   .sub2 { font-size: 12px; color: var(--text-3); margin-top: 2px; }
   .shared { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; }
-  .shared th { text-align: left; font-weight: 500; color: var(--text-3); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; padding: 4px 0; }
+  .shared th { text-align: left; font-weight: 500; color: var(--text-3); font-size: 12px; padding: 4px 0; }
   .shared td { padding: 6px 0; border-top: 1px solid var(--border); }
   .r { text-align: right; }
   .note { font-size: 12px; margin: 12px 0 0; }

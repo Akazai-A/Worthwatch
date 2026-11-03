@@ -167,7 +167,7 @@
   .card { max-width: 92%; }
   .wide :global(.card) { max-width: 100%; border-radius: 12px; }
   .ans { padding: 10px 14px; border-radius: 12px 12px 12px 2px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; align-self: flex-start; }
-  .ans .meta { flex-basis: 100%; font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; }
+  .ans .meta { flex-basis: 100%; font-size: 12px; color: var(--text-3); }
   .sp { color: var(--accent); }
   .send { border-color: var(--text-3); border-radius: 12px 12px 12px 2px; display: flex; flex-direction: column; gap: 8px; }
   pre { margin: 0; font-family: var(--mono); font-size: 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 7px; padding: 8px 10px; color: var(--text-2); white-space: pre-wrap; max-height: 180px; overflow: auto; }

@@ -147,7 +147,7 @@
       </section>
 
       {#if steps.length}
-        <section class="card panel">
+        <section class="card panel bridge">
           <div class="head"><h2 class="label">What moved it</h2><span class="faint small">debt paid down = gain{#if steps.some((s) => s.folded)}&nbsp;· smallest movers folded into one step{/if}</span></div>
           <div class="bridge-wrap"><Bridge start={Number(c.from_net_worth)} end={Number(c.to_net_worth)} {steps} startLabel={endLabel(c.from)} endLabel={endLabel(c.to)} currency={cur} blur={prefs.blur} /></div>
         </section>
@@ -298,15 +298,14 @@
 
 <style>
   .changes { display: flex; flex-direction: column; gap: 20px; }
-  /* One window: a 2×3 board. Row one is the headline and its bridge; the four panels
-     below share the rest of the height and scroll inside themselves. */
-  .board { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr); gap: 16px; height: calc(100vh - 172px); min-height: 640px; }
+  /* The page reads top to bottom: the headline, the bridge full width as the answer,
+     then the detail panels two by two at their natural height. */
+  .board { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 32px; align-items: start; }
+  .board > .hero, .board > .bridge { grid-column: 1 / -1; }
   .board.solo > .panel { grid-column: 1 / -1; }
-  .board.solo { grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr); }
-  .panel { display: flex; flex-direction: column; min-height: 0; }
-  .panel .head, .panel h2 { flex: 0 0 auto; }
-  .body { flex: 1; min-height: 0; overflow: auto; margin: 0 -16px -14px; padding: 0 16px 14px; scrollbar-width: thin; }
-  thead th { position: sticky; top: 0; background: var(--surface); z-index: 1; }
+  .panel { display: flex; flex-direction: column; min-width: 0; }
+  .body { overflow-x: auto; }
+  thead th { background: var(--bg); }
   .top { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 12px; flex-wrap: wrap; }
   .error { color: var(--negative); }
   .empty { padding: 28px 24px; display: flex; flex-direction: column; gap: 10px; }
@@ -326,7 +325,7 @@
   .split { margin-top: 12px; max-width: 560px; }
   th.bar, td.bar { width: 80px; padding-left: 10px; padding-right: 10px; }
   th.why, td.why { width: 64px; }
-  .tag { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; padding: 1px 6px; border-radius: 4px; background: var(--surface-2); color: var(--text-2); margin-left: 6px; }
+  .tag { font-size: 12px; padding: 1px 6px; border-radius: 4px; background: var(--surface-2); color: var(--text-2); margin-left: 6px; }
   .tag.warn { color: var(--warn); }
   .tag.up { color: var(--positive); }
   .tag.down { color: var(--negative); }
@@ -339,10 +338,10 @@
   .sub-h { text-transform: none; letter-spacing: 0; }
   h2 { margin: 0 0 8px; font-weight: 500; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th { text-align: left; font-weight: 500; color: var(--text-3); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; padding: 4px 0; }
+  th { text-align: left; font-weight: 500; color: var(--text-3); font-size: 12px; padding: 4px 0; }
   td { padding: 7px 0; border-top: 1px solid var(--border); vertical-align: middle; }
   .r { text-align: right; }
-  .grp td { border-top: 0; padding: 12px 0 2px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-3); }
+  .grp td { border-top: 0; padding: 12px 0 2px; font-size: 12px; color: var(--text-3); }
   .grp td .faint { text-transform: none; letter-spacing: 0; }
   .name { color: inherit; text-decoration: none; }
   .name:hover { color: var(--accent); }
@@ -384,9 +383,7 @@
     .wnum { display: none; }
   }
   @media (max-width: 1100px) {
-    /* Narrow: one column, page scrolls, each panel still scrolls inside a capped height. */
-    .board { display: flex; flex-direction: column; height: auto; min-height: 0; }
-    .body { max-height: 360px; }
+    .board { grid-template-columns: 1fr; }
   }
   @media (max-width: 760px) {
     .two { grid-template-columns: 1fr; }

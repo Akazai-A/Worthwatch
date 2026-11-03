@@ -14,10 +14,12 @@
     blur = false,
   }: { start: number; end: number; steps: BridgeStep[]; startLabel: string; endLabel: string; currency?: string; blur?: boolean } = $props();
 
-  const ROW = 19;
-  const GUTTER = 130;
-  const RIGHT = 90;
-  const W = 640;
+  const ROW = 22;
+  const GUTTER = 150;
+  const RIGHT = 96;
+  // Drawn at the width it is given, so text stays at its real size on a wide page.
+  let cw = $state(640);
+  const W = $derived(Math.max(460, cw));
   const rows = $derived.by(() => {
     let cum = start;
     const out = steps.map((s) => {
@@ -41,7 +43,8 @@
   const signed = (v: number) => (blur ? "*****" : formatSigned(v, currency));
 </script>
 
-<svg class="bridge" viewBox="0 0 {W} {height}" width="100%" style="height:{height}px;min-width:460px" role="img" aria-label="Net worth bridge from {startLabel} to {endLabel}">
+<div class="fit" bind:clientWidth={cw}>
+<svg class="bridge" viewBox="0 0 {W} {height}" width={W} height={height} role="img" aria-label="Net worth bridge from {startLabel} to {endLabel}">
   <line class="axis" x1={x(start)} x2={x(start)} y1={4} y2={height - 4} />
   <g transform="translate(0,{ROW / 2})">
     <text class="lab" x={GUTTER - 10} y={4} text-anchor="end">{startLabel}</text>
@@ -65,6 +68,7 @@
   </g>
   <text class="tick" x={W - RIGHT} y={height - 2} text-anchor="end">{blur ? "" : `${formatCompact(domain.lo)} – ${formatCompact(domain.hi)}`}</text>
 </svg>
+</div>
 
 <style>
   .bridge { display: block; overflow: visible; }

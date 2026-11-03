@@ -145,7 +145,7 @@
   .net { font-size: 13px; }
   .sp { flex: 1; }
   .acts { display: flex; align-items: center; gap: 10px; }
-  .pill { font-size: 10px; padding: 1px 6px; border-radius: 9px; background: var(--surface-2); color: var(--text-2); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+  .pill { font-size: 12px; padding: 1px 6px; border-radius: 9px; background: var(--surface-2); color: var(--text-2); font-weight: 600; }
   .pill.mcp { background: color-mix(in oklab, var(--g-cash) 18%, transparent); color: var(--g-cash); }
   .row { display: grid; grid-template-columns: minmax(0, 1fr) 96px 14px 104px 116px 56px; gap: 10px; align-items: center; padding: 5px 0; border-top: 1px solid var(--border); font-size: 13px; }
   .row.same { opacity: 0.6; }
