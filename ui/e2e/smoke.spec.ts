@@ -267,7 +267,10 @@ test("Budget: a tap needs the token, shows at once as provisional, and the state
   expect((await (await request.get("/api/budget")).json()).txns).toHaveLength(0);
 
   // With it: saved, and a retry of the same tap (the Shortcut's queue) changes nothing.
-  const token = (await (await request.get("/api/settings")).json()).token as string;
+  // GET /api/settings shows only the last 4 characters; the whole token takes a POST.
+  const token = (await (await request.post("/api/settings/token/reveal")).json()).token as string;
+  expect(token).toHaveLength(48);
+  expect(JSON.stringify(await (await request.get("/api/settings")).json())).not.toContain(token);
   const auth = { Authorization: `Bearer ${token}` };
   const sent = Date.now();
   const ok = await request.post("/api/ingest/transaction", { data: tap, headers: auth });
