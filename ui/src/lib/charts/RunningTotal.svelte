@@ -8,7 +8,10 @@
   import { prefs } from "../stores/prefs.svelte";
 
   let { v }: { v: BudgetView } = $props();
-  const W = 780, H = 236, STRIP = 34;
+  // Drawn at the width it gets (not a scaled viewBox), so its text stays readable on a phone.
+  let cw = $state(780);
+  const W = $derived(Math.max(300, cw));
+  const H = 236, STRIP = 34;
   const c = $derived(chart(v, W, H, STRIP));
   const money = (n: number) => (prefs.blur ? "*****" : formatMoney(n, v.base_currency));
   const compact = (n: number) => (prefs.blur ? "*****" : formatCompact(n));
@@ -27,8 +30,8 @@
   const hd = $derived(hover != null ? { day: hover, daily: v.daily[hover - 1], cum: v.cumulative[hover - 1], prov: v.cumulative_provisional[hover - 1] } : null);
 </script>
 
-<div class="wrap">
-  <svg viewBox="0 0 {W} {H}" width="100%" role="img" aria-label="Running total of spending this month against an even pace to the budget"
+<div class="wrap" bind:clientWidth={cw}>
+  <svg viewBox="0 0 {W} {H}" width={W} height={H} role="img" aria-label="Running total of spending this month against an even pace to the budget"
     onpointermove={onMove} onpointerleave={() => (hover = null)}>
     {#each c.yTicks as t}
       <line class="grid" x1={c.x(0)} x2={c.x(v.days)} y1={t.y} y2={t.y} />

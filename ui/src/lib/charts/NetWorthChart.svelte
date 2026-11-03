@@ -8,6 +8,7 @@
 
   type Range = "3m" | "1y" | "all";
   type Mode = "line" | "groups" | "added";
+  export type Cursor = "ruler" | "caliper" | "scrub";
 
   let {
     series,
@@ -17,7 +18,15 @@
     groups = true,
     growth = null,
     range = $bindable("1y"),
-  }: { series: Point[]; events?: { date: string; note: string }[]; currency?: string; blur?: boolean; groups?: boolean; growth?: GrowthPoint[] | null; range?: Range } = $props();
+    cursor = "ruler",
+    scrub = $bindable(null),
+  }: {
+    series: Point[]; events?: { date: string; note: string }[]; currency?: string; blur?: boolean; groups?: boolean; growth?: GrowthPoint[] | null; range?: Range;
+    /** How hovering reads out a day. ruler: tags on both axes; caliper: measures the gain; scrub: the page follows the day. */
+    cursor?: Cursor;
+    /** The hovered day, for a parent that follows it (scrub). */
+    scrub?: Point | null;
+  } = $props();
 
   // Added vs grown is the default view once the growth series has loaded: it is the
   // net worth line plus where the change came from. Line and By group are one click away.
@@ -25,7 +34,10 @@
   const mode = $derived<Mode>(chosen ?? (growth?.length ? "added" : "line"));
   let host: HTMLDivElement;
   let plot: uPlot | null = null;
-  let hover = $state<{ i: number; left: number } | null>(null);
+  // Where the hovered day sits, in px inside .plot: x, the net worth y, the added-line y (or the window's
+  // first value in line mode, so the caliper measures the gain since then), and the plotting box.
+  type Hover = { i: number; left: number; y: number; y0: number; box: { l: number; t: number; w: number; h: number } };
+  let hover = $state<Hover | null>(null);
 
   const toSec = (iso: string) => Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)) / 1000;
 
@@ -70,7 +82,8 @@
     const base: uPlot.Options = {
       width,
       height: 240,
-      cursor: { x: true, y: false, points: { show: false }, drag: { x: false, y: false } },
+      // uPlot only tracks the pointer; the readout is drawn below (no dot, no floating box over the line).
+      cursor: { x: false, y: false, points: { show: false }, drag: { x: false, y: false } },
       legend: { show: false },
       scales: { x: { time: true }, y: { range: (_u, min, max) => pad(min, max) } },
       axes: [
@@ -87,7 +100,17 @@
       hooks: {
         setCursor: [(u) => {
           const i = u.cursor.idx;
-          hover = i == null ? null : { i, left: u.valToPos(u.data[0][i], "x") };
+          if (i == null) { hover = null; return; }
+          const o = u.over, l = o.offsetLeft, t = o.offsetTop;
+          const nwIdx = mode === "groups" ? 5 : 1;
+          const ref = mode === "added" ? (u.data[2][i] as number) : (u.data[nwIdx][0] as number);
+          hover = {
+            i,
+            left: l + u.valToPos(u.data[0][i], "x"),
+            y: t + u.valToPos(u.data[nwIdx][i] as number, "y"),
+            y0: t + u.valToPos(ref, "y"),
+            box: { l, t, w: o.clientWidth, h: o.clientHeight },
+          };
         }],
         draw: [(u) => { if (mode === "added") drawGap(u); drawEvents(u); }],
       },
@@ -207,11 +230,14 @@
 
   const hovered = $derived(hover ? visible[hover.i] : null);
   const hoverEvents = $derived(hovered ? events.filter((e) => e.date === hovered.date) : []);
-  const tipLeft = $derived.by(() => {
-    if (!hover || !host) return 0;
-    const w = host.clientWidth;
-    return hover.left > w / 2 ? hover.left - 180 : hover.left + 16;
+  $effect(() => { scrub = cursor === "scrub" ? hovered : null; });
+  // The gain the caliper measures: since the window opened (line, groups) or over what you added.
+  const measured = $derived.by(() => {
+    if (!hover || !hovered) return null;
+    if (mode === "added") return Number(hovered.net_worth) - addedLine[hover.i];
+    return Number(hovered.net_worth) - Number(visible[0].net_worth);
   });
+  const clampX = (x: number, w: number) => (hover ? Math.max(hover.box.l, Math.min(hover.box.l + hover.box.w - w, x - w / 2)) : 0);
 </script>
 
 <div class="chart">
@@ -229,28 +255,53 @@
   </div>
 
   <div class="plot" bind:this={host} class:blur>
-    {#if hovered}
-      <div class="tip" style="left:{tipLeft}px">
-        <div class="top"><b class="money num">{formatMoney(hovered.net_worth, currency)}</b><span>{formatDate(hovered.date, "long")}</span></div>
-        {#if mode === "added" && hover}
-          {@const added = addedLine[hover.i] - Number(visible[0].net_worth)}
-          {@const grown = Number(hovered.net_worth) - addedLine[hover.i]}
-          <div class="row"><span><i style="background:var(--g-cash)"></i>You added</span><span class="money num">{formatSigned(added, currency)}</span></div>
-          <div class="row"><span><i style="background:{grown < 0 ? 'var(--negative)' : 'var(--accent)'}"></i>Market and other</span><span class="money num">{formatSigned(grown, currency)}</span></div>
-          <div class="ev">since {formatDate(visible[0].date)}</div>
-        {/if}
-        {#each groups && mode !== "added" ? GROUPS : [] as k}
-          <div class="row"><span><i style="background:var(--g-{k})"></i>{GROUP_LABEL[k]}</span><span class="money num">{formatMoney(k === "debt" ? -Number(hovered.by_group[k] ?? 0) : hovered.by_group[k] ?? 0, currency)}</span></div>
-        {/each}
-        {#each hoverEvents as e}<div class="ev">· {e.note}</div>{/each}
-      </div>
+    {#if hovered && hover}
+      {@const b = hover.box}
+      {#if cursor === "scrub"}
+        <!-- Scrub: the days after the hovered one fall back; the page above reads out the day. -->
+        <div class="veil" style="left:{hover.left}px;top:{b.t}px;width:{b.l + b.w - hover.left}px;height:{b.h}px"></div>
+        <div class="hair solid" style="left:{hover.left}px;top:{b.t}px;height:{b.h}px"></div>
+        <div class="tag x" style="left:{clampX(hover.left, 92)}px;top:{b.t + b.h + 4}px">{formatDate(hovered.date, "long")}</div>
+      {:else if cursor === "caliper"}
+        <!-- Caliper: a bracket from the reference line to net worth, labelled with what it measures. -->
+        {@const top = Math.min(hover.y, hover.y0)}
+        {@const h = Math.max(1, Math.abs(hover.y0 - hover.y))}
+        <div class="hair" style="left:{hover.left}px;top:{b.t}px;height:{b.h}px"></div>
+        <div class="cal" class:neg={(measured ?? 0) < 0} style="left:{hover.left}px;top:{top}px;height:{h}px"></div>
+        <div class="cal-tag money num" class:neg={(measured ?? 0) < 0} class:flip={hover.left > b.l + b.w * 0.75} style="left:{hover.left}px;top:{top + h / 2}px">
+          {formatSigned(measured ?? 0, currency)}<span>{mode === "added" ? "market" : `since ${formatDate(visible[0].date)}`}</span>
+        </div>
+        <div class="tag x" style="left:{clampX(hover.left, 92)}px;top:{b.t + b.h + 4}px">{formatDate(hovered.date, "long")}</div>
+        <div class="tag y money num" style="left:{b.l + b.w + 4}px;top:{hover.y}px">{formatCompact(Number(hovered.net_worth))}</div>
+      {:else}
+        <!-- Ruler: a hairline, a level mark across the line, and the reading on both axes. -->
+        <div class="hair" style="left:{hover.left}px;top:{b.t}px;height:{b.h}px"></div>
+        <div class="level" style="left:{hover.left}px;top:{hover.y}px"></div>
+        <div class="rule-y" style="left:{b.l}px;top:{hover.y}px;width:{b.w}px"></div>
+        <div class="tag x" style="left:{clampX(hover.left, 92)}px;top:{b.t + b.h + 4}px">{formatDate(hovered.date, "long")}</div>
+        <div class="tag y money num" style="left:{b.l + b.w + 4}px;top:{hover.y}px">{formatMoney(hovered.net_worth, currency)}</div>
+      {/if}
     {/if}
     {#if visible.length === 0}
       <p class="empty">No history yet. Your first check-in adds the first point.</p>
     {/if}
   </div>
 
-  {#if mode === "added"}
+  {#if hovered && hover && cursor !== "scrub"}
+    <p class="totals readout">
+      <b class="money num">{formatMoney(hovered.net_worth, currency)}</b> on {formatDate(hovered.date, "long")}
+      {#if mode === "added"}
+        {@const added = addedLine[hover.i] - Number(visible[0].net_worth)}
+        {@const grown = Number(hovered.net_worth) - addedLine[hover.i]}
+        <span class="sep">·</span> you added <b class="money num">{formatSigned(added, currency)}</b>, the market <b class="money num" class:neg={grown < 0}>{formatSigned(grown, currency)}</b> <span class="faint">since {formatDate(visible[0].date)}</span>
+      {:else if groups}
+        {#each GROUPS as k}<span class="sep">·</span><span class="gk"><i style="background:var(--g-{k})"></i>{GROUP_LABEL[k]} <b class="money num">{formatCompact(k === "debt" ? -Number(hovered.by_group[k] ?? 0) : Number(hovered.by_group[k] ?? 0))}</b></span>{/each}
+      {/if}
+      {#each hoverEvents as e}<span class="sep">·</span><span class="faint">{e.note}</span>{/each}
+    </p>
+  {:else if mode === "line" && cursor !== "scrub"}
+    <p class="totals hint faint">Hover the line to read any day.</p>
+  {:else if mode === "added"}
     {#if totals}
       <p class="totals">
         Since {formatDate(totals.from, "long")}: you added <b class="money num">{formatSigned(totals.added, currency)}</b>,
@@ -279,15 +330,30 @@
   .seg button:disabled { color: var(--text-3); cursor: default; }
   .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
   .plot { position: relative; min-height: 240px; }
-  .plot :global(.u-cursor-x) { border-right: 1px solid var(--text-2); }
+  /* Hover readouts. Hairlines and tags only: nothing sits on top of the line it describes. */
+  .hair, .veil, .level, .rule-y, .tag, .cal, .cal-tag { position: absolute; pointer-events: none; z-index: 2; }
+  .hair { width: 0; border-left: 1px dashed var(--text-3); }
+  .hair.solid { border-left: 1px solid var(--accent); }
+  .rule-y { height: 0; border-top: 1px dotted color-mix(in oklab, var(--text-3) 60%, transparent); }
+  .level { width: 14px; height: 2px; margin: -1px 0 0 -7px; background: var(--accent); box-shadow: 0 0 0 2px var(--bg); }
+  .tag { font-size: 11px; line-height: 18px; padding: 0 6px; border-radius: 3px; white-space: nowrap; background: var(--text); color: var(--bg); font-family: var(--figures); box-shadow: 0 0 0 6px var(--bg); }
+  .tag.y { transform: translateY(-50%); background: var(--accent); }
+  .veil { background: color-mix(in oklab, var(--bg) 62%, transparent); }
+  .cal { width: 9px; margin-left: -4px; border: 1.5px solid var(--accent); border-left: 0; border-right: 0; }
+  .cal::before { content: ""; position: absolute; left: 4px; top: 0; bottom: 0; border-left: 1.5px solid var(--accent); }
+  .cal.neg, .cal.neg::before { border-color: var(--negative); }
+  .cal-tag { transform: translate(10px, -50%); font-size: 12px; font-weight: 600; color: var(--accent); background: var(--bg); padding: 1px 5px; border-radius: 3px; white-space: nowrap; display: flex; flex-direction: column; line-height: 1.2; }
+  .cal-tag span { font-family: var(--font); font-weight: 400; font-size: 11px; color: var(--text-3); }
+  .cal-tag.flip { transform: translate(calc(-100% - 10px), -50%); text-align: right; }
+  .cal-tag.neg { color: var(--negative); }
+  .readout .sep { margin: 0 6px; color: var(--text-3); }
+  .readout .gk i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; }
   .plot :global(.uplot) { font-family: var(--font); }
-  .tip { position: absolute; top: 6px; z-index: 2; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 12px; pointer-events: none; min-width: 164px; }
-  .tip .top { display: flex; flex-direction: column; margin-bottom: 4px; }
-  .tip .top b { font-size: 13px; }
-  .tip .top span { color: var(--text-3); }
-  .tip .row { display: flex; justify-content: space-between; gap: 14px; color: var(--text-2); }
-  .tip i { display: inline-block; width: 10px; height: 2px; vertical-align: middle; margin-right: 6px; border-radius: 1px; }
-  .tip .ev { color: var(--text-3); margin-top: 4px; }
+  /* A new range or view draws in from the left, so the eye follows time forward. */
+  @media (prefers-reduced-motion: no-preference) {
+    .plot :global(.uplot canvas) { animation: draw 560ms var(--ease-out) both; }
+  }
+  @keyframes draw { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
   .empty { color: var(--text-3); font-size: 13px; padding: 90px 0; text-align: center; margin: 0; }
   .legend { display: flex; gap: 14px; margin-top: 8px; font-size: 12px; color: var(--text-2); flex-wrap: wrap; }
   .legend i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }

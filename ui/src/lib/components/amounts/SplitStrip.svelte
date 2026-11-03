@@ -42,5 +42,8 @@
   i.down { background: var(--negative); }
   .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--text-2); }
   .legend i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; background: var(--fill); }
+  /* The swatch takes its segment's colour (the rule above is more specific than i.up on its own). */
+  .legend i.up { background: var(--positive); }
+  .legend i.down { background: var(--negative); }
   .legend b { font-weight: 500; color: var(--text); }
 </style>

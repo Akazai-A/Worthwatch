@@ -95,7 +95,8 @@
       {/each}
       {#each milestones as m}
         <circle cx={x(sec(m.date))} cy={y(Number(m.net_worth))} r="3" class="dot" />
-        <text x={x(sec(m.date))} y={y(Number(m.net_worth)) + 16} text-anchor="middle" class="tag">{m.years}y</text>
+        {@const mx = x(sec(m.date))}
+        <text x={mx} y={y(Number(m.net_worth)) + 16} text-anchor={mx > width - R - 24 ? "end" : "middle"} class="tag">{m.years}y</text>
       {/each}
     {/if}
     {#if hit && target != null}
@@ -104,7 +105,8 @@
     {/if}
     {#if hovered}
       <line x1={x(hovered.t)} x2={x(hovered.t)} y1={T} y2={height - B} class="cursor" />
-      <circle cx={x(hovered.t)} cy={y(hovered.v)} r="3.5" class="dot" />
+      <!-- A brass level mark across the line, not a dot (same as the net worth chart). -->
+      <line x1={x(hovered.t) - 7} x2={x(hovered.t) + 7} y1={y(hovered.v)} y2={y(hovered.v)} class="level" />
     {/if}
   </svg>
   {#if hovered}
@@ -138,7 +140,8 @@
   .payoff { stroke: var(--g-debt); stroke-width: 2; }
   .dot { fill: var(--accent); }
   .hit { fill: var(--bg); stroke: var(--accent); stroke-width: 1.5; }
-  .cursor { stroke: var(--text-3); }
+  .cursor { stroke: var(--text-3); stroke-dasharray: 3 3; }
+  .level { stroke: var(--accent); stroke-width: 2; paint-order: stroke; }
   .tip { position: absolute; top: 8px; width: 182px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 12px; pointer-events: none; }
   .tip .top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
   .tip .top span, .tip .row span:first-child { color: var(--text-3); }

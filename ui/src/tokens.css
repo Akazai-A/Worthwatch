@@ -32,6 +32,8 @@
   /* Coins and won cards in the budget game: brass, lit from the top left. */
   --coin-hi: #f0cf7a; --coin-lo: #8a6a2a; --gold-card: linear-gradient(160deg, #5a4414, #2a2010); --on-gold: #f0cf7a;
   --radius: 8px;
+  /* Motion: confident arrivals, no bounce. */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --font: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
   --display: "Newsreader", Georgia, "Times New Roman", serif;
   --figures: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -63,7 +65,7 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; line-height: 1.45; }
-a { color: var(--accent); }
+a { color: var(--accent); text-underline-offset: 0.18em; text-decoration-thickness: 1px; }
 .num, .money { font-family: var(--figures); font-variant-numeric: tabular-nums; }
 /* Section names: sentence case, set like a ledger heading, not a micro-label. */
 .label { font-size: 13px; font-weight: 600; color: var(--text); }
@@ -71,4 +73,15 @@ a { color: var(--accent); }
 .card { border-top: 1px solid var(--border); padding: 16px 0 18px; }
 .muted { color: var(--text-2); }
 .faint { color: var(--text-3); }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+/* Browser surfaces in the palette: selection, caret, scrollbars. */
+::selection { background: color-mix(in oklab, var(--accent) 32%, transparent); color: var(--text); }
+input, textarea { caret-color: var(--accent); }
+html { scrollbar-color: color-mix(in oklab, var(--text-3) 55%, transparent) transparent; }
+/* Reduced motion keeps every state change but drops the movement: animations jump to their end,
+   and transitions keep only colour, opacity and filter. */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 1ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important;
+    transition-property: color, background-color, border-color, opacity, filter !important;
+  }
+}

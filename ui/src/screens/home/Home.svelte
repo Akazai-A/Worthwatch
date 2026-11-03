@@ -1,6 +1,6 @@
 <script lang="ts">
   import PrivacyToggle from "../../lib/components/shell/PrivacyToggle.svelte";
-  import { GROUPS, GROUP_LABEL, getChanges, getGrowth, type AccountView, type Changes, type GrowthPoint, type LedgerView } from "../../lib/api";
+  import { GROUPS, GROUP_LABEL, getChanges, getGrowth, type AccountView, type Changes, type GrowthPoint, type LedgerView, type Point } from "../../lib/api";
   import { formatDate, formatMoney, formatSigned } from "../../lib/format/money";
   import { parts } from "../../lib/portfolio/changes";
   import SplitStrip from "../../lib/components/amounts/SplitStrip.svelte";
@@ -10,6 +10,8 @@
   import MarketLine from "../../lib/components/portfolio/MarketLine.svelte";
 
   let { view }: { view: LedgerView } = $props();
+  // The day under the pointer when the chart scrubs; the hero reads it out instead of today.
+  let scrub = $state<Point | null>(null);
   const STALE_DAYS = 45;
 
   const cur = $derived(view.base_currency);
@@ -77,8 +79,12 @@
     </section>
   {:else}
     <section class="hero">
-      <div class="label">Net worth</div>
-      <Money value={view.totals.net_worth} currency={cur} size="xl" />
+      <div class="label">Net worth{#if scrub}<span class="on">&nbsp;on {formatDate(scrub.date, "long")}</span>{/if}</div>
+      <Money value={scrub ? scrub.net_worth : view.totals.net_worth} currency={cur} size="xl" />
+      {#if scrub}
+        {@const back = Number(scrub.net_worth) - Number(view.totals.net_worth)}
+        <div class="sub"><span class="chip"><Money value={-back} currency={cur} signed tone="delta" /><span class="muted">from then to today</span></span></div>
+      {:else}
       <div class="sub">
         <PrivacyToggle />
         {#if view.deltas.previous}
@@ -95,8 +101,9 @@
           <span class="muted">One check-in so far. The change line appears after the next one.</span>
         {/if}
       </div>
+      {/if}
       {#if whyParts.length}
-        <a class="why" href="#/changes" title="What moved it: Changes">
+        <a class="why" class:dim={scrub} href="#/changes" title="What moved it: Changes">
           <SplitStrip parts={whyParts} currency={cur} height={6} legend blur={prefs.blur} />
           <span class="go">Why it moved →</span>
         </a>
@@ -104,31 +111,31 @@
     </section>
 
     <section class="card">
-      <NetWorthChart series={view.series} events={view.events} currency={cur} blur={prefs.blur} {growth} />
+      <NetWorthChart series={view.series} events={view.events} currency={cur} blur={prefs.blur} {growth} cursor="scrub" bind:scrub />
     </section>
 
     <section class="tiles">
       <a class="card tile" style="--gc:var(--g-investments)" href="#/portfolio"><div class="label">Investments</div><div class="v"><Money value={groupVal("investments")} currency={cur} size="l" /></div>{@render shareOf(groupVal("investments"))}{#if view.portfolio.day_change != null}<div class="d"><Money value={view.portfolio.day_change} currency={cur} signed tone="delta" /> <span class="faint">today</span></div>{/if}</a>
       <div class="card tile" style="--gc:var(--g-cash)"><div class="label">Cash</div><div class="v"><Money value={groupVal("cash")} currency={cur} size="l" /></div>{@render shareOf(groupVal("cash"))}</div>
       <div class="card tile" style="--gc:var(--g-debt)"><div class="label">Debt</div><div class="v"><Money value={debt} currency={cur} size="l" /></div>{@render shareOf(debt)}</div>
-      <div class="card tile" title="Cash and investments, less debt other than the mortgage. The condo and its mortgage sit apart."><div class="label">Liquid net worth</div><div class="v"><Money value={liquid} currency={cur} size="l" /></div><div class="d faint lq">cash and investments, less card and loan debt; the condo and mortgage sit apart</div></div>
+      <div class="card tile" style="--gc:var(--text-2)" title="Cash and investments, less debt other than the mortgage. The condo and its mortgage sit apart."><div class="label">Liquid net worth</div><div class="v"><Money value={liquid} currency={cur} size="l" /></div>{@render shareOf(liquid, "without the condo and mortgage")}</div>
     </section>
 
-{#snippet shareOf(v: number)}
+{#snippet shareOf(v: number, note = "")}
   <div class="sh"><i style="width:{assets > 0 ? Math.max(0, Math.min(100, (v / assets) * 100)) : 0}%"></i></div>
-  <div class="d faint">{assets > 0 ? Math.round((v / assets) * 100) : 0}% of assets</div>
+  <div class="d faint">{assets > 0 ? Math.round((v / assets) * 100) : 0}% of assets{#if note}<br />{note}{/if}</div>
 {/snippet}
 
     {#each byGroup as { g, rows }}
       <section class="group" style="--gc:var(--g-{g})">
         <div class="gh"><h2 class="label">{GROUP_LABEL[g]}</h2><Money value={subtotal(g, rows)} currency={cur} /></div>
         <div class="rows">
-          {#each rows as a}
+          {#each rows as a, ri}
             {@const m = moves.get(a.id) ?? null}
-            <a class="row" href="#/accounts/{encodeURIComponent(a.id)}">
+            <a class="row" style="--i:{Math.min(ri, 8)}" href="#/accounts/{encodeURIComponent(a.id)}">
               <span class="name">
                 <span class="n">{a.name}<span class="inst faint">{a.institution ?? ""}{a.currency !== cur ? ` · ${a.currency}` : ""}</span></span>
-                <i class="size" style="width:{sizeOf(a)}%" title="{sizeOf(a).toFixed(0)}% of assets"></i>
+                <span class="size" title="{sizeOf(a).toFixed(0)}% of assets"><i style="width:{sizeOf(a)}%"></i></span>
               </span>
               <span class="move" title={m == null ? "no value 30 days back" : `${formatSigned(m, cur)} in the last 30 days${a.liability ? " (paid down counts as a gain)" : ""}`}>
                 <span class="dv" aria-hidden="true"><i class:down={(m ?? 0) < 0} style="width:{(Math.abs(m ?? 0) / maxMove) * 50}%"></i></span>
@@ -180,7 +187,6 @@
   .sh { height: 4px; margin: 10px 0 4px; background: var(--surface-2); border-radius: 2px; overflow: hidden; }
   .sh i { display: block; height: 100%; background: var(--gc, var(--text-2)); }
   .tile .d { font-size: 12px; }
-  .tile .lq { margin-top: 10px; }
   a.tile { color: inherit; text-decoration: none; }
   a.tile:hover .label { color: var(--accent); }
   /* Groups: a margin column with the name and subtotal, rows on the right. */
@@ -193,7 +199,9 @@
   .name { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
   .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .inst { margin-left: 8px; font-size: 12px; }
-  .size { display: block; height: 2px; min-width: 2px; background: var(--gc); border-radius: 1px; }
+  /* Share of assets: a hairline track, so a small account reads as a short bar, not a dot. */
+  .size { display: block; height: 2px; background: var(--border); border-radius: 1px; max-width: 360px; }
+  .size i { display: block; height: 100%; min-width: 3px; background: var(--gc); border-radius: 1px; }
   .move { display: grid; grid-template-columns: 1fr 72px; gap: 8px; align-items: center; }
   .dv { position: relative; height: 6px; background: var(--surface-2); border-radius: 3px; }
   .dv::before { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--text-3); }
@@ -208,12 +216,23 @@
   .tick { display: block; height: 4px; border-radius: 1px; background: var(--text-3); }
   .tick.hatch { width: 16px; background: repeating-linear-gradient(-45deg, var(--warn) 0 2px, transparent 2px 4px); }
   .old { color: var(--warn); }
-  .why { display: flex; align-items: flex-end; gap: 16px; margin-top: 14px; color: inherit; text-decoration: none; font-size: 12px; }
+  .hero .label .on { font-weight: 400; color: var(--text-2); }
+  .why.dim { opacity: 0.35; }
+  .why { transition: opacity 160ms ease-out; display: flex; align-items: flex-end; gap: 16px; margin-top: 14px; color: inherit; text-decoration: none; font-size: 12px; }
   .why :global(.strip) { flex: 1; max-width: 560px; }
   .go { color: var(--text-2); white-space: nowrap; }
   .why:hover .go { color: var(--accent); }
   .stale { margin: 4px 0 0; font-size: 13px; color: var(--text-2); display: flex; gap: 12px; flex-wrap: wrap; }
   .stale a { margin-left: auto; }
+  .row { transition: background-color 120ms ease-out; }
+  .row:hover { background: color-mix(in oklab, var(--gc) 7%, transparent); }
+  .sh i, .size i, .dv i { transition: width 360ms var(--ease-out); }
+  /* Bars grow out of their baseline on arrival (delta bars out of the zero line), a row at a time. */
+  @media (prefers-reduced-motion: no-preference) {
+    .sh i, .size i, .dv i { transform-origin: left center; animation: grow 620ms var(--ease-out) both; animation-delay: calc(80ms + var(--i, 0) * 30ms); }
+    .dv i.down { transform-origin: right center; }
+  }
+  @keyframes grow { from { transform: scaleX(0); } }
   @media (max-width: 640px) {
     .tiles { grid-template-columns: 1fr 1fr; }
     .group { grid-template-columns: 1fr; gap: 6px; }

@@ -25,11 +25,12 @@
   let active = $state<number | null>(null);
 
   const ROW = 22;
-  const GUTTER = 150;
-  const RIGHT = 96;
-  // Drawn at the width it is given, so text stays at its real size on a wide page.
+  // Drawn at the width it is given, so text stays at its real size on a wide page,
+  // with a narrower label gutter on a phone so the step values stay on screen.
   let cw = $state(640);
-  const W = $derived(Math.max(460, cw));
+  const W = $derived(Math.max(300, cw));
+  const GUTTER = $derived(W < 520 ? 104 : 150);
+  const RIGHT = $derived(W < 520 ? 72 : 96);
   const rows = $derived.by(() => {
     let cum = start;
     const out = steps.map((s) => {
@@ -49,6 +50,7 @@
     return { lo, hi };
   });
   const x = (v: number) => GUTTER + ((v - domain.lo) / (domain.hi - domain.lo)) * (W - GUTTER - RIGHT);
+  const short = (t: string) => (W < 520 && t.length > 13 ? t.slice(0, 12).trimEnd() + "…" : t);
   const money = (v: number) => (blur ? "*****" : formatMoney(v, currency));
   const signed = (v: number) => (blur ? "*****" : formatSigned(v, currency));
 </script>
@@ -78,8 +80,8 @@
       onclick={() => r.folded && onunfold?.()} onkeydown={(e) => { if (r.folded && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onunfold?.(); } }}
     >
       <rect class="hit" x={0} y={-ROW / 2} width={W} height={ROW} />
-      <text class="lab" class:faint={r.folded} x={GUTTER - 10} y={4} text-anchor="end">{r.label}{r.folded && onunfold ? " ▸" : ""}</text>
-      <rect class:up={r.delta > 0} class:down={r.delta < 0} x={left} y={-6} width={width} height={12} rx="1.5" />
+      <text class="lab" class:faint={r.folded} x={GUTTER - 10} y={4} text-anchor="end">{short(r.label)}{r.folded && onunfold ? " ▸" : ""}</text>
+      <rect class:up={r.delta > 0} class:down={r.delta < 0} style="--i:{Math.min(i, 10)}" x={left} y={-6} width={width} height={12} rx="1.5" />
       <text class="val" class:up={r.delta > 0} class:down={r.delta < 0} x={left + width + 6} y={4}>{signed(r.delta)}</text>
     </g>
   {/each}
@@ -111,6 +113,13 @@
   rect.down { fill: var(--negative); }
   text.up { fill: var(--positive); }
   text.down { fill: var(--negative); }
+  /* The waterfall builds a step at a time, each bar growing from where the last one ended. */
+  @media (prefers-reduced-motion: no-preference) {
+    rect.up, rect.down { transform-box: fill-box; animation: grow 480ms var(--ease-out) both; animation-delay: calc(60ms + var(--i) * 45ms); }
+    rect.up { transform-origin: left center; }
+    rect.down { transform-origin: right center; }
+  }
+  @keyframes grow { from { transform: scaleX(0); } }
   .mark { fill: var(--text-3); }
   .mark.end { fill: var(--accent); }
 </style>

@@ -3,6 +3,7 @@
   import { prefs } from "../../stores/prefs.svelte";
   import { view } from "../../stores/view.svelte";
   import { drawer } from "../../stores/drawer.svelte";
+  import { tick } from "svelte";
   import { formatDate, formatMoney, formatSigned } from "../../format/money";
   let { onPalette }: { onPalette?: () => void } = $props();
   const waiting = $derived(view.current?.pending.length ?? 0);
@@ -11,9 +12,25 @@
   // The rail's live reading: net worth and its last move, visible from every screen.
   const v = $derived(view.current);
   const prev = $derived(v?.deltas.previous ?? null);
+
+  // One brass bookmark that slides to the current screen, instead of a rule that blinks between items.
+  let rail: HTMLElement;
+  let mark = $state<{ x: number; y: number; w: number; h: number } | null>(null);
+  function place() {
+    const on = rail?.querySelector<HTMLElement>(".nav[aria-current='page']");
+    mark = on && on.offsetParent ? { x: on.offsetLeft, y: on.offsetTop, w: on.offsetWidth, h: on.offsetHeight } : null;
+  }
+  // Re-measure after the screen changes and after the reading above the items appears.
+  $effect(() => { void name; void v?.accounts.length; void tick().then(place); });
+  $effect(() => {
+    const ro = new ResizeObserver(place);
+    ro.observe(rail);
+    return () => ro.disconnect();
+  });
 </script>
 
-<nav class="rail" aria-label="Main">
+<nav class="rail" aria-label="Main" bind:this={rail}>
+  {#if mark}<span class="mark" aria-hidden="true" style="--x:{mark.x}px;--y:{mark.y}px;--w:{mark.w}px;--h:{mark.h}px"></span>{/if}
   <a class="brand" href="#/">Worthwatch</a>
   {#if v && v.accounts.length}
     <a class="reading" href="#/changes" title="What moved it: Changes">
@@ -52,7 +69,12 @@
   .nav { display: flex; align-items: center; gap: 8px; padding: 8px 20px; color: var(--text-2); text-decoration: none; background: none; border: 0; font: inherit; text-align: left; cursor: pointer; }
   .nav:hover { color: var(--text); }
   /* The current screen: a brass rule at the edge, like a bookmark. */
-  .nav.on { color: var(--text); font-weight: 600; box-shadow: inset 2px 0 0 var(--accent); }
+  .nav.on { color: var(--text); font-weight: 600; }
+  .ask.on { box-shadow: inset 2px 0 0 var(--accent); }
+  .mark { position: absolute; left: 0; top: 0; width: 2px; height: var(--h); transform: translateY(var(--y)); background: var(--accent); pointer-events: none; }
+  @media (prefers-reduced-motion: no-preference) {
+    .mark { transition: transform 280ms var(--ease-out), height 280ms var(--ease-out); }
+  }
   .more { display: none; }
   .ask kbd { margin-left: auto; }
   .badge { margin-left: auto; font-size: 11px; background: var(--text); color: var(--bg); border-radius: 9px; padding: 0 6px; font-weight: 600; line-height: 16px; }
@@ -68,7 +90,8 @@
     .brand, .reading, .spacer, .foot, .wide { display: none; }
     .nav, .more { display: flex; flex: 1; justify-content: center; min-height: 52px; padding: 0 4px; font-size: 13px; }
     .nav.wide { display: none; }
-    .nav.on { box-shadow: inset 0 2px 0 var(--accent); }
+    .ask.on { box-shadow: none; }
+    .mark { top: auto; bottom: auto; width: var(--w); height: 2px; transform: translate(var(--x), var(--y)); }
     .more .badge { margin-left: 4px; }
   }
 </style>

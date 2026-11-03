@@ -278,6 +278,24 @@ Period and mode switches (3M / 1Y / All, Line / By group, Since last / 1M / 3M /
 - **Status dot:** a 7px dot for account freshness (sage fresh, brass stale, faint none) or transaction state (hollow for a tap, filled when matched).
 - **Command palette:** a 560px floating dialog at 12vh, opened with ⌘K.
 
+## Motion
+
+Motion explains a change; it never decorates a resting screen. Every curve is `--ease-out`
+(`cubic-bezier(0.16, 1, 0.3, 1)`), with no bounce.
+
+- **Headline figures roll** like a counter when their value changes (a check-in, a price, a scrubbed day). 420ms.
+- **Bars grow from their baseline** on arrival: share bars from the left, delta bars out of the zero line, a row at a time (30ms apart, capped).
+- **The Changes bridge builds** one step at a time, each bar growing from where the last one ended.
+- **Charts draw in** from the left when the range or view changes.
+- **The rail bookmark slides** to the current screen.
+- **Reduced motion** keeps every state change and drops the movement: animations jump to their end, and transitions keep only colour, opacity and filter.
+
+### Chart hover
+
+Hover never puts a dot or a floating box on the line it describes.
+- **Home scrubs:** the days after the pointer fade back, and the net worth figure becomes that day.
+- **Other line charts use the ruler:** a dashed hairline, a short brass level mark across the line, and the reading tagged on the axes, with details in a line under the chart.
+
 ## Do's and Don'ts
 
 ### Do:

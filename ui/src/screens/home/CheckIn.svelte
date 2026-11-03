@@ -128,7 +128,7 @@
           <div class="ci">
             <span class="name">{a.name}<span class="faint inst">{a.institution ?? ""}{a.currency !== cur ? ` · ${a.currency}` : ""}</span></span>
             <span class="r num muted">{a.as_of ? (amountsHidden() ? MASK : formatPlain(a.native_value)) : "—"}</span>
-            <span class="r upd" class:warn={stale}>{a.days_stale == null ? "never" : `${a.days_stale}d`}</span>
+            <span class="r upd" class:warn={stale}>{a.days_stale == null ? "never" : a.days_stale === 0 ? "today" : `${a.days_stale}d`}</span>
             <input type="text" id="in-{a.id}" inputmode="decimal" placeholder={a.as_of ? (amountsHidden() ? MASK : formatPlain(a.native_value)) : "0.00"} value={entries[a.id]?.balance ?? ""} oninput={(e) => setBalance(a.id, e.currentTarget.value)} class:bad={d === "invalid"} disabled={locked} aria-label="{a.name} new value" />
             <span class="r delta num" class:bad={d === "invalid"}>
               {#if d === "invalid"}not a number{:else if d == null}<span class="faint">carry</span>{:else}<Money value={d} currency={a.currency} signed digits={2} tone={a.liability ? "none" : "delta"} />{/if}
@@ -138,7 +138,7 @@
           <div class="ci">
             <span class="name">{a.name}<span class="faint inst">{a.institution ?? ""}{a.currency !== cur ? ` · ${a.currency}` : ""}</span></span>
             <span class="r num muted">{a.missing_price ? "—" : amountsHidden() ? MASK : formatPlain(a.native_value)}</span>
-            <span class="r upd" class:warn={stale}>{a.days_stale == null ? "never" : `${a.days_stale}d`}</span>
+            <span class="r upd" class:warn={stale}>{a.days_stale == null ? "never" : a.days_stale === 0 ? "today" : `${a.days_stale}d`}</span>
             <span class="r faint">from holdings</span>
             <span class="r"><button type="button" class="link" id="paste-{a.id}-open" onclick={() => (pasting = pasting === a.id ? null : a.id)} disabled={locked}>{pasting === a.id ? "Close paste" : "Paste holdings"}</button></span>
           </div>
