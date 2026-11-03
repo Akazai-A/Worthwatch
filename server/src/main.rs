@@ -1,3 +1,5 @@
+mod chat;
+mod mcp;
 mod routes;
 mod seed;
 mod seed_holdings;
@@ -17,6 +19,7 @@ fn data_dir() -> PathBuf {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
+        .with_writer(std::io::stderr)
         .with_env_filter(EnvFilter::from_default_env().add_directive("info".parse()?))
         .init();
 
@@ -28,9 +31,17 @@ async fn main() -> anyhow::Result<()> {
             println!("wrote sample ledger to {}", path.display());
             return Ok(());
         }
+        Some("mcp") => {
+            // stdio belongs to the protocol; logs go to stderr only.
+            let url = std::env::var("WORTHWATCH_URL").unwrap_or_else(|_| {
+                let bind = std::env::var("WORTHWATCH_BIND").unwrap_or_else(|_| "127.0.0.1:7777".into());
+                format!("http://{}", bind.replace("0.0.0.0", "127.0.0.1"))
+            });
+            return mcp::run(&url);
+        }
         Some("--help" | "-h" | "help") => {
             println!(
-                "worthwatch                 run the server\nworthwatch seed [--force]  write a sample ledger, quotes and fund holdings to WORTHWATCH_DATA\n\nWORTHWATCH_DATA  data dir (default data): ledger.yaml, quotes.json, holdings/\nWORTHWATCH_BIND  address (default 127.0.0.1:7777)\nWORTHWATCH_OFFLINE=1  never fetch prices, FX or holdings files"
+                "worthwatch                 run the server\nworthwatch seed [--force]  write a sample ledger, quotes and fund holdings to WORTHWATCH_DATA\nworthwatch mcp             MCP server on stdio for Claude Desktop; talks to the running app at WORTHWATCH_URL\n\nWORTHWATCH_DATA  data dir (default data): ledger.yaml, quotes.json, holdings/\nWORTHWATCH_BIND  address (default 127.0.0.1:7777)\nWORTHWATCH_OFFLINE=1  never fetch prices, FX or holdings files"
             );
             return Ok(());
         }

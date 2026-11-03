@@ -45,6 +45,41 @@ pub struct Settings {
     /// for a fund the built-in lookup cannot find. Fetched data lands in `holdings/`.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub holdings_urls: BTreeMap<Symbol, String>,
+    /// How the chat panel turns a message into a proposal. Omitted means the defaults
+    /// (a local Ollama, falling back to the built-in shorthand parser when it is not running).
+    #[serde(default, skip_serializing_if = "Assistant::is_default")]
+    pub assistant: Assistant,
+}
+
+/// Chat settings. The model only ever proposes; the API key for the cloud option
+/// comes from the `ANTHROPIC_API_KEY` environment variable, never from this file.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct Assistant {
+    #[serde(default)]
+    pub provider: AssistantProvider,
+    /// Ollama's base URL; default `http://127.0.0.1:11434`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ollama_url: Option<String>,
+    /// Model name for the chosen provider; defaults per provider.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
+}
+
+impl Assistant {
+    pub fn is_default(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// `ollama`: local model, nothing leaves the machine. `cloud`: Anthropic's API, opt-in,
+/// with a preview of what is sent. `shorthand`: no model at all, the built-in parser.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum AssistantProvider {
+    #[default]
+    Ollama,
+    Cloud,
+    Shorthand,
 }
 
 /// What you know about a security by hand: fills in or overrides what issuer files
@@ -214,6 +249,7 @@ impl Ledger {
                 fx: BTreeMap::new(),
                 providers: Providers::default(),
                 holdings_urls: BTreeMap::new(),
+                assistant: Assistant::default(),
             },
             accounts: Vec::new(),
             prices: BTreeMap::new(),

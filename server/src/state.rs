@@ -22,6 +22,12 @@ pub struct Snapshot {
     pub holdings: HoldingsStore,
     /// Bumps on every change; the UI reloads when it sees a new one.
     pub version: u64,
+    /// Proposals from MCP (or any non-chat caller) waiting for the user. In memory only:
+    /// a restart drops them, which is the safe direction.
+    pub pending: Vec<crate::chat::Pending>,
+    /// id -> outcome for proposals the user already decided, so an MCP client can poll.
+    pub decided: std::collections::BTreeMap<u64, String>,
+    pub next_id: u64,
 }
 
 impl Snapshot {
@@ -66,7 +72,16 @@ impl AppState {
         let holdings = HoldingsStore::load(&holdings_dir);
         let offline = std::env::var("WORTHWATCH_OFFLINE").is_ok_and(|v| v == "1" || v == "true");
         let (changed, _) = broadcast::channel(16);
-        let inner = Arc::new(RwLock::new(Snapshot { ledger, problem: None, quotes, holdings, version: 1 }));
+        let inner = Arc::new(RwLock::new(Snapshot {
+            ledger,
+            problem: None,
+            quotes,
+            holdings,
+            version: 1,
+            pending: Vec::new(),
+            decided: Default::default(),
+            next_id: 1,
+        }));
         Ok(Self { ledger_path, quotes_path, holdings_dir, offline, inner, changed })
     }
 
@@ -91,6 +106,57 @@ impl AppState {
         guard.version += 1;
         let _ = self.changed.send(guard.version);
         Ok(guard.clone())
+    }
+
+    /// Park a proposal for the user. Nothing is written; the UI shows it as a card.
+    pub fn propose(&self, origin: &str, text: &str, plan: assistant::Plan) -> crate::chat::Pending {
+        let mut guard = self.inner.write().expect("ledger lock");
+        let p = crate::chat::Pending {
+            id: guard.next_id,
+            created: Utc::now(),
+            origin: origin.to_string(),
+            text: text.to_string(),
+            plan,
+        };
+        guard.next_id += 1;
+        guard.pending.push(p.clone());
+        // Keep the queue small; the oldest falls off first.
+        if guard.pending.len() > 20 {
+            let dropped = guard.pending.remove(0);
+            guard.decided.insert(dropped.id, "expired".into());
+        }
+        guard.version += 1;
+        let _ = self.changed.send(guard.version);
+        p
+    }
+
+    /// Approve (apply its mutations through the one write path) or discard a pending
+    /// proposal. Approval re-validates against the ledger as it is now.
+    pub fn decide(&self, id: u64, approve: bool) -> Result<Option<Snapshot>, LedgerError> {
+        let plan = {
+            let guard = self.inner.read().expect("ledger lock");
+            match guard.pending.iter().find(|p| p.id == id) {
+                Some(p) => p.plan.clone(),
+                None => return Ok(None),
+            }
+        };
+        let outcome = if approve {
+            if plan.mutations.is_empty() {
+                return Err(LedgerError::FileHasProblem(
+                    "this proposal has nothing that can be applied".into(),
+                ));
+            }
+            self.apply_many(plan.mutations)?;
+            "approved"
+        } else {
+            "discarded"
+        };
+        let mut guard = self.inner.write().expect("ledger lock");
+        guard.pending.retain(|p| p.id != id);
+        guard.decided.insert(id, outcome.into());
+        guard.version += 1;
+        let _ = self.changed.send(guard.version);
+        Ok(Some(guard.clone()))
     }
 
     /// Fetch prices and FX for everything the ledger holds, using the providers named
