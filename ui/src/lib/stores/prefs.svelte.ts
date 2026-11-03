@@ -1,4 +1,6 @@
-// Per-device preferences: privacy blur and theme. Stored in localStorage.
+// Per-device preferences: hide amounts (⌘⇧H) and theme. Stored in localStorage.
+import { hideAmountsWhen } from "../money";
+
 export type Theme = "system" | "dark" | "light";
 
 function read<T>(key: string, fallback: T): T {
@@ -10,6 +12,7 @@ function write(key: string, v: unknown) {
 
 let blur = $state<boolean>(read("ww.blur", false));
 let theme = $state<Theme>(read("ww.theme", "system"));
+hideAmountsWhen(() => blur);
 
 function applyTheme(t: Theme) {
   if (typeof document === "undefined") return;

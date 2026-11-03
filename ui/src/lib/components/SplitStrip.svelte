@@ -28,7 +28,7 @@
   {#if legend}
     <span class="legend">
       {#each shown as p, i (p.label)}
-        <span><i class:up={p.value > 0} class:down={p.value < 0} style="opacity:{alpha(i)}"></i>{p.label} <b class="money">{blur ? "•••" : formatSigned(p.value, currency)}</b></span>
+        <span><i class:up={p.value > 0} class:down={p.value < 0} style="opacity:{alpha(i)}"></i>{p.label} <b class="money">{blur ? "*****" : formatSigned(p.value, currency)}</b></span>
       {/each}
     </span>
   {/if}

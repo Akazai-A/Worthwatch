@@ -7,7 +7,7 @@
   import { EXAMPLES, fmtUnits, providerLine } from "../lib/chat";
   import { chat, type Turn } from "../lib/stores/chat.svelte";
   import { view as viewStore } from "../lib/stores/view.svelte";
-  import { formatDate } from "../lib/money";
+  import { formatDate, maskAmounts } from "../lib/money";
   import PlanCard from "../lib/components/PlanCard.svelte";
   import Sparkline from "../lib/charts/Sparkline.svelte";
 
@@ -100,7 +100,7 @@
       {:else if t.plan}
         {#if t.plan.answer}
           <div class="card ans">
-            <span class="answer">{t.plan.answer}</span>
+            <span class="answer">{maskAmounts(t.plan.answer)}</span>
             {#if isNetWorthAnswer(t.plan.answer) && series.length > 1}<span class="sp"><Sparkline values={series} width={96} height={22} /></span>{/if}
             <span class="meta">read-only · answered from the ledger, nothing proposed</span>
           </div>
@@ -169,7 +169,6 @@
   .ans { padding: 10px 14px; border-radius: 12px 12px 12px 2px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; align-self: flex-start; }
   .ans .meta { flex-basis: 100%; font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; }
   .sp { color: var(--accent); }
-  :global(.blur) .answer { filter: blur(7px); }
   .send { border-color: var(--text-3); border-radius: 12px 12px 12px 2px; display: flex; flex-direction: column; gap: 8px; }
   pre { margin: 0; font-family: var(--mono); font-size: 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 7px; padding: 8px 10px; color: var(--text-2); white-space: pre-wrap; max-height: 180px; overflow: auto; }
   details pre { margin-top: 6px; }

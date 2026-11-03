@@ -22,8 +22,8 @@
   <a class="foot" href="#/wall">Wall view</a>
   <a class="foot" class:cur={name === "settings"} href="#/settings">Settings</a>
   <a class="foot" class:cur={name === "backups"} href="#/backups">Backups</a>
-  <button class="foot" type="button" onclick={() => prefs.toggleBlur()} title="Blur amounts (⌘⇧H)">
-    {prefs.blur ? "Unblur" : "Blur"} amounts <kbd>⌘⇧H</kbd>
+  <button class="foot" type="button" onclick={() => prefs.toggleBlur()} title="Hide amounts (⌘⇧H)">
+    {prefs.blur ? "Show" : "Hide"} amounts <kbd>⌘⇧H</kbd>
   </button>
   <button class="foot" type="button" onclick={() => prefs.cycleTheme()}>Theme: {themeLabel}</button>
 </nav>

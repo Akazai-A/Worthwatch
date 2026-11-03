@@ -37,8 +37,8 @@
     return { lo, hi };
   });
   const x = (v: number) => GUTTER + ((v - domain.lo) / (domain.hi - domain.lo)) * (W - GUTTER - RIGHT);
-  const money = (v: number) => (blur ? "•••" : formatMoney(v, currency));
-  const signed = (v: number) => (blur ? "•••" : formatSigned(v, currency));
+  const money = (v: number) => (blur ? "*****" : formatMoney(v, currency));
+  const signed = (v: number) => (blur ? "*****" : formatSigned(v, currency));
 </script>
 
 <svg class="bridge" viewBox="0 0 {W} {height}" width="100%" style="height:{height}px;min-width:460px" role="img" aria-label="Net worth bridge from {startLabel} to {endLabel}">

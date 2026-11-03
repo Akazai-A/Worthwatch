@@ -23,8 +23,8 @@
   const extraN = $derived(Number(plan.extra));
   const changed = $derived(p != null && ((plan.returnPct != null && Number(plan.returnPct) !== ledgerReturn) || (plan.target != null && Number(plan.target) !== Number(p.settings.target ?? 0))));
   const headline = $derived(P ? (P.milestones.find((m) => m.years === 10) ?? P.milestones[P.milestones.length - 1]) : null);
-  const money = (v: number | string) => (prefs.blur ? "•••" : formatMoney(v, cur));
-  const compact = (v: number | string) => (prefs.blur ? "•••" : formatCompact(Number(v)));
+  const money = (v: number | string) => (prefs.blur ? "*****" : formatMoney(v, cur));
+  const compact = (v: number | string) => (prefs.blur ? "*****" : formatCompact(Number(v)));
   const maxDebt = $derived(P ? Math.max(1, ...P.debts.map((d) => Number(d.balance))) : 1);
   const groupOf = (id: string) => view.accounts.find((a) => a.id === id)?.group ?? "cash";
 

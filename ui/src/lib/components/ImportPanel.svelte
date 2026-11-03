@@ -29,7 +29,7 @@
   let err = $state<string | null>(null);
   let busy = $state(false);
   let dragging = $state(false);
-  const money = (v: string | number) => (prefs.blur ? "•••" : formatMoney(v, currency, 2));
+  const money = (v: string | number) => (prefs.blur ? "*****" : formatMoney(v, currency, 2));
 
   let seq = 0;
   $effect(() => {

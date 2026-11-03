@@ -71,7 +71,7 @@
         },
         {
           side: 1, stroke: text, grid: { stroke: grid, width: 1 }, ticks: { show: false }, font: "11px " + css("--figures"),
-          size: 60, gap: 8, values: (_u, vals) => vals.map((v) => (blur ? "•••" : formatCompact(v))),
+          size: 60, gap: 8, values: (_u, vals) => vals.map((v) => (blur ? "*****" : formatCompact(v))),
         },
       ],
       series: [{}],
@@ -217,7 +217,6 @@
   .seg button:disabled { color: var(--text-3); cursor: default; }
   .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
   .plot { position: relative; min-height: 240px; }
-  .plot.blur :global(.u-axis) { filter: blur(6px); }
   .plot :global(.u-cursor-x) { border-right: 1px solid var(--text-2); }
   .plot :global(.uplot) { font-family: var(--font); }
   .tip { position: absolute; top: 6px; z-index: 2; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 12px; pointer-events: none; min-width: 164px; }

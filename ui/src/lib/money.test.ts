@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { formatCompact, formatMoney, formatSigned, parseAmount, parseNumber } from "./money";
+import { afterEach, describe, expect, it } from "vitest";
+import { MASK, formatCompact, formatMoney, formatSigned, hideAmountsWhen, maskAmounts, parseAmount, parseNumber } from "./money";
 
 describe("parseAmount", () => {
   it("handles plain, comma, k, negative and unicode minus", () => {
@@ -42,5 +42,27 @@ describe("format", () => {
     expect(formatCompact(284_310)).toBe("$284K");
     expect(formatCompact(1_250_000)).toBe("$1.3M");
     expect(formatCompact(-42_000)).toBe("−$42K");
+  });
+});
+
+describe("hidden amounts", () => {
+  afterEach(() => hideAmountsWhen(() => false));
+
+  it("every formatter shows the mask while hidden, and the amount again after", () => {
+    let on = true;
+    hideAmountsWhen(() => on);
+    expect(formatMoney("5102.1")).toBe(MASK);
+    expect(formatSigned(1240)).toBe(MASK);
+    expect(formatCompact(12_000)).toBe(MASK);
+    expect(MASK).toBe("*****");
+    on = false;
+    expect(formatMoney("5102.1")).toBe("$5,102");
+  });
+
+  it("masks dollar amounts inside prose, leaving other numbers", () => {
+    hideAmountsWhen(() => true);
+    expect(maskAmounts("Net worth is $279,877, up +$3,939 (1.4%) since Oct 31.")).toBe("Net worth is *****, up ***** (1.4%) since Oct 31.");
+    hideAmountsWhen(() => false);
+    expect(maskAmounts("Net worth is $279,877.")).toBe("Net worth is $279,877.");
   });
 });

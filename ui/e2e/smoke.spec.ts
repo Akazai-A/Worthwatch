@@ -298,17 +298,16 @@ test("Budget: a tap needs the token, shows at once as provisional, and the state
   expect((await (await request.get("/api/budget")).json()).txns).toHaveLength(1);
 });
 
-test("⌘⇧H blurs every amount, not only the charts", async ({ page }) => {
+test("⌘⇧H hides every amount as stars, and shows them again", async ({ page }) => {
   await page.goto("/#/");
   const amount = page.locator(".hero .money.xl");
-  await expect(amount).toBeVisible();
-  const filter = () => amount.evaluate((el) => getComputedStyle(el).filter);
-  expect(await filter()).toBe("none");
+  await expect(amount).toHaveText(/^\$[\d,]+$/);
   await page.keyboard.press("Control+Shift+H");
-  await expect(page.locator("body")).toHaveClass(/\bblur\b/);
-  expect(await filter()).toContain("blur");
+  await expect(amount).toHaveText("*****");
+  await expect(page.locator(".money").filter({ hasText: /\d/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Show amounts/ })).toBeVisible();
   await page.keyboard.press("Control+Shift+H");
-  await expect(page.locator("body")).not.toHaveClass(/\bblur\b/);
+  await expect(amount).toHaveText(/^\$[\d,]+$/);
 });
 
 test("Check-in: Enter in ⌘K doesn't save, and a live update doesn't move the cursor", async ({ page }) => {

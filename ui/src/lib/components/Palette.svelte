@@ -38,7 +38,7 @@
     ];
     const nav: Item[] = screens.map(([label, hash, hint]) => ({ id: `g:${hash}`, section: "Go to", label, hint, run: go(hash) }));
     const act: Item[] = [
-      { id: "x:blur", section: "Actions", label: prefs.blur ? "Unblur amounts" : "Blur amounts", hint: "privacy hide", run: () => prefs.toggleBlur() },
+      { id: "x:blur", section: "Actions", label: prefs.blur ? "Show amounts" : "Hide amounts", hint: "privacy hide", run: () => prefs.toggleBlur() },
       { id: "x:theme", section: "Actions", label: "Cycle theme", hint: "dark light", run: () => prefs.cycleTheme() },
       { id: "x:backup", section: "Actions", label: "Back up now", hint: "backup", run: async () => { const b = await createBackup(); note = `Saved ${b[0]?.name ?? "a backup"}`; location.hash = "#/backups"; } },
       { id: "x:refresh", section: "Actions", label: "Refresh prices", hint: "quotes fx", run: async () => viewStore.set(await refresh()) },

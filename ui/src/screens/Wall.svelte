@@ -27,7 +27,7 @@
     return view.series.filter((p) => Date.parse(`${p.date}T00:00:00Z`) >= cut);
   });
   const tfsa = $derived(plan.current?.room.find((r) => r.kind === "tfsa") ?? plan.current?.room[0] ?? null);
-  const hide = (s: string) => (prefs.blur ? "•••" : s);
+  const hide = (s: string) => (prefs.blur ? "*****" : s);
   let h = $state(400);
   const clock = $derived(
     `${now.toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" })} · ${now.toLocaleTimeString("en-CA", { hour: "2-digit", minute: "2-digit", hour12: false })}`,

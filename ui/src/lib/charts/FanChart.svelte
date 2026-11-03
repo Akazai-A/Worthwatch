@@ -66,7 +66,7 @@
     return h ? { past: true, t: h.t, v: h.v, lo: h.v, hi: h.v, c: 0 } : { past: false, ...best };
   });
   const iso = (t: number) => new Date(t * 1000).toISOString().slice(0, 10);
-  const money = (v: number) => (blur ? "•••" : formatMoney(v, currency));
+  const money = (v: number) => (blur ? "*****" : formatMoney(v, currency));
 </script>
 
 <div class="fan" bind:clientWidth={width} style="height:{height}px" class:blur class:compact>
@@ -74,7 +74,7 @@
     onpointermove={(e) => (hoverX = e.offsetX)} onpointerleave={() => (hoverX = null)}>
     {#each ticks as v}
       <line x1={L} x2={width - R} y1={y(v)} y2={y(v)} class="grid" />
-      <text x={width - R + 8} y={y(v) + 4} class="ax">{blur ? "•••" : formatCompact(v)}</text>
+      <text x={width - R + 8} y={y(v) + 4} class="ax">{blur ? "*****" : formatCompact(v)}</text>
     {/each}
     {#each years as yr}
       <text x={x(sec(`${yr}-01-01`))} y={height - 6} text-anchor="middle" class="ax">{yr}</text>
@@ -111,7 +111,7 @@
     <div class="tip" style="left:{x(hovered.t) > width / 2 ? x(hovered.t) - 196 : x(hovered.t) + 14}px">
       <div class="top"><b class="money">{money(hovered.v)}</b><span>{monthYear(iso(hovered.t))}</span></div>
       {#if !hovered.past}
-        <div class="row"><span>range</span><span class="money">{blur ? "•••" : `${formatCompact(hovered.lo)}–${formatCompact(hovered.hi)}`}</span></div>
+        <div class="row"><span>range</span><span class="money">{blur ? "*****" : `${formatCompact(hovered.lo)}–${formatCompact(hovered.hi)}`}</span></div>
         <div class="row"><span>put in by then</span><span class="money">{money(hovered.c)}</span></div>
         <div class="row"><span>growth and paydown</span><span class="money">{money(hovered.v - startNW - hovered.c)}</span></div>
       {:else}

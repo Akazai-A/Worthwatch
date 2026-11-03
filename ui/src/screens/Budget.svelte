@@ -14,7 +14,7 @@
   $effect(() => { void budget.ensure(view.version, month); });
   const b = $derived(budget.current);
   const cur = $derived(view.base_currency);
-  const money = (v: string | number, digits = 0) => (prefs.blur ? "•••" : formatMoney(v, cur, digits));
+  const money = (v: string | number, digits = 0) => (prefs.blur ? "*****" : formatMoney(v, cur, digits));
   const labels = $derived(Object.fromEntries((b?.options ?? []).map((o) => [o.id, o.label])));
   const pace = $derived(b ? paceLine(b) : null);
   const paceFrac = $derived(b ? b.day / b.days : 0);

@@ -10,8 +10,8 @@
   let { v }: { v: BudgetView } = $props();
   const W = 780, H = 236, STRIP = 34;
   const c = $derived(chart(v, W, H, STRIP));
-  const money = (n: number) => (prefs.blur ? "•••" : formatMoney(n, v.base_currency));
-  const compact = (n: number) => (prefs.blur ? "•••" : formatCompact(n));
+  const money = (n: number) => (prefs.blur ? "*****" : formatMoney(n, v.base_currency));
+  const compact = (n: number) => (prefs.blur ? "*****" : formatCompact(n));
   let hover = $state<number | null>(null);
   const stripTop = H - STRIP - 18;
   const monthShort = $derived(new Intl.DateTimeFormat("en-CA", { month: "short", timeZone: "UTC" }).format(new Date(v.month + "T00:00:00Z")));
