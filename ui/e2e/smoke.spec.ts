@@ -34,6 +34,9 @@ test("first run: add an account, check in, the chart gets a point", async ({ pag
   await page.goto("/#/check-in");
   await page.locator("#ci-date").fill("2026-01-31");
   await page.getByLabel("TD Chequing new value").fill("4000");
+  // A 22% drop is flagged as a likely typo first; saving again keeps it.
+  await page.getByRole("button", { name: "Save check-in" }).click();
+  await expect(page.locator(".swing")).toContainText("-22% from last time");
   await page.getByRole("button", { name: "Save check-in" }).click();
   await expect(page.locator(".hero .money.xl")).toHaveText("$5,102");
   await expect(page.locator(".hero .sub")).toContainText("+$1,102");
@@ -404,7 +407,8 @@ test("⌘⇧H hides every amount as stars, and shows them again", async ({ page 
   await page.keyboard.press("Control+Shift+H");
   await expect(amount).toHaveText("*****");
   await expect(page.locator(".money").filter({ hasText: /\d/ })).toHaveCount(0);
-  await expect(page.locator(".rail").getByRole("button", { name: /Show amounts/ })).toBeVisible();
+  // The rail's utilities live in ⌘K now; the eye under the big figure shows the state.
+  await expect(page.locator(".hero").getByRole("button", { name: "Show amounts" })).toHaveAttribute("aria-pressed", "true");
   // Unit counts are personal too; share prices are public and stay.
   await page.goto("/#/portfolio");
   await expect(page.locator("table td.num").filter({ hasText: /^\*{5}$/ }).first()).toBeVisible();
