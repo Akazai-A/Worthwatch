@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: light)" srcset="docs/assets/logo-light.svg">
-    <img src="docs/assets/logo-dark.svg" alt="worthwatch" width="300">
+    <img src="docs/assets/logo-dark.svg" alt="Worthwatch" width="300">
   </picture>
 </p>
 
@@ -109,7 +109,7 @@ Everything stays in one folder you can read, edit in a text editor, and back up.
 ### Docker
 
 ```sh
-git clone https://github.com/Akazai-A/worthwatch.git && cd worthwatch
+git clone https://github.com/Akazai-A/Worthwatch.git && cd Worthwatch
 docker compose -f deploy/docker-compose.yml up -d --build
 ```
 
@@ -124,7 +124,7 @@ docker compose -f deploy/docker-compose.yml exec worthwatch /worthwatch seed --f
 You need Rust (stable) and Node.js 22 with pnpm.
 
 ```sh
-git clone https://github.com/Akazai-A/worthwatch.git && cd worthwatch
+git clone https://github.com/Akazai-A/Worthwatch.git && cd Worthwatch
 pnpm --dir ui install && pnpm --dir ui build
 cargo run --release
 ```
@@ -136,7 +136,7 @@ Open <http://127.0.0.1:7777>. Your data goes to `./data`. Run `cargo run --relea
 To run it in the background on a Mac mini, starting at login:
 
 ```sh
-git clone https://github.com/Akazai-A/worthwatch.git && cd worthwatch
+git clone https://github.com/Akazai-A/Worthwatch.git && cd Worthwatch
 ./deploy/macos/install.sh
 ```
 

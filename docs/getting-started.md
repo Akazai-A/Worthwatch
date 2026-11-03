@@ -17,8 +17,8 @@ All three run the same single binary. The web UI is built into it.
 1. Clone the repository:
 
    ```sh
-   git clone https://github.com/Akazai-A/worthwatch.git
-   cd worthwatch
+   git clone https://github.com/Akazai-A/Worthwatch.git
+   cd Worthwatch
    ```
 
 2. Build and start the container:
@@ -36,8 +36,8 @@ Your data lives in the `worthwatch-data` Docker volume, mounted at `/data` in th
 1. Clone the repository:
 
    ```sh
-   git clone https://github.com/Akazai-A/worthwatch.git
-   cd worthwatch
+   git clone https://github.com/Akazai-A/Worthwatch.git
+   cd Worthwatch
    ```
 
 2. Build the UI. The server embeds it at compile time, so build it first:

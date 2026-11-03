@@ -4,7 +4,7 @@ use std::path::Path;
 use crate::schema::Ledger;
 use crate::validate::{validate, LedgerError};
 
-pub const HEADER: &str = "# worthwatch ledger. Edit freely; the app reloads on save and refuses to\n# overwrite this file while it has an error. See ledger.example.yaml for the shape.\n# Liabilities are entered as positive amounts owed.\n";
+pub const HEADER: &str = "# Worthwatch ledger. Edit freely; the app reloads on save and refuses to\n# overwrite this file while it has an error. See ledger.example.yaml for the shape.\n# Liabilities are entered as positive amounts owed.\n";
 
 pub fn parse(yaml: &str) -> Result<Ledger, LedgerError> {
     let l: Ledger = serde_yaml_ng::from_str(yaml)?;
@@ -108,7 +108,7 @@ mod tests {
         save(&p, &l).unwrap();
         assert!(!p.with_extension("yaml.tmp").exists());
         assert_eq!(load(&p).unwrap(), l);
-        assert!(fs::read_to_string(&p).unwrap().starts_with("# worthwatch ledger"));
+        assert!(fs::read_to_string(&p).unwrap().starts_with("# Worthwatch ledger"));
     }
 
     #[test]

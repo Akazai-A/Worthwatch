@@ -9,7 +9,7 @@
 </script>
 
 <nav class="rail" aria-label="Main">
-  <a class="brand" href="#/">worthwatch</a>
+  <a class="brand" href="#/">Worthwatch</a>
   <a class="nav" class:on={name === "home" || name === "account"} href="#/"><span class="dot"></span>Home</a>
   <a class="nav" class:on={name === "checkin"} href="#/check-in"><span class="dot"></span>Check-in</a>
   <a class="nav" class:on={name === "portfolio"} href="#/portfolio"><span class="dot"></span>Portfolio</a>

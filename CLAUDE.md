@@ -1,4 +1,4 @@
-# worthwatch — conventions for AI-assisted work
+# Worthwatch — conventions for AI-assisted work
 
 ## Models
 - From Stage 5 on (owner's decision, Nov 3 2026), all work, UI included, is done with

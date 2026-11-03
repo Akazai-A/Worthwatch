@@ -18,8 +18,8 @@ This page shows you how to run Worthwatch on a Mac that stays on, such as a Mac 
 - A copy of the repository:
 
   ```sh
-  git clone https://github.com/Akazai-A/worthwatch.git
-  cd worthwatch
+  git clone https://github.com/Akazai-A/Worthwatch.git
+  cd Worthwatch
   ```
 
 ## Install Worthwatch

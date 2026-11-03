@@ -88,7 +88,7 @@ fn tools() -> Value {
         },
         {
             "name": "propose_update",
-            "description": "Propose changes to the ledger. NOTHING IS WRITTEN: the proposal appears as a card in worthwatch's Chat screen and the user approves or discards it there. Either pass `text` in the user's shorthand (\"td chq 5102, visa 640, sold 20 XEQT in the TFSA\") or a structured `items` list. Items: {kind:'balance',account,value} (liabilities: amount owed), {kind:'adjust',account,delta}, {kind:'trade',account?,symbol,units (+buy/-sell),price?}, {kind:'price',symbol,price}, {kind:'new_account',name,account_kind,currency?,value?}, {kind:'note',note}. `account` is an id from get_accounts. Returns the checked plan with any rejections and a pending id for check_proposal.",
+            "description": "Propose changes to the ledger. NOTHING IS WRITTEN: the proposal appears as a card in Worthwatch's Chat screen and the user approves or discards it there. Either pass `text` in the user's shorthand (\"td chq 5102, visa 640, sold 20 XEQT in the TFSA\") or a structured `items` list. Items: {kind:'balance',account,value} (liabilities: amount owed), {kind:'adjust',account,delta}, {kind:'trade',account?,symbol,units (+buy/-sell),price?}, {kind:'price',symbol,price}, {kind:'new_account',name,account_kind,currency?,value?}, {kind:'note',note}. `account` is an id from get_accounts. Returns the checked plan with any rejections and a pending id for check_proposal.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -198,7 +198,7 @@ fn call_tool(b: &dyn Backend, name: &str, args: &Value) -> Result<Value, String>
                 "queued": queued,
                 "pending_id": r["pending"]["id"],
                 "message": if queued {
-                    "Shown to the user in worthwatch › Chat. Nothing is written until they approve it there."
+                    "Shown to the user in Worthwatch › Chat. Nothing is written until they approve it there."
                 } else {
                     "Nothing could be proposed; see rejected."
                 },
@@ -225,7 +225,7 @@ pub fn handle(b: &dyn Backend, msg: &Value) -> Option<Value> {
             "protocolVersion": msg.pointer("/params/protocolVersion").and_then(Value::as_str).unwrap_or(PROTOCOL_VERSION),
             "capabilities": { "tools": {} },
             "serverInfo": { "name": "worthwatch", "version": env!("CARGO_PKG_VERSION") },
-            "instructions": "Read-only tools report the user's net worth, accounts, portfolio and exposure. propose_update never writes: the user approves each proposal in worthwatch's Chat screen.",
+            "instructions": "Read-only tools report the user's net worth, accounts, portfolio and exposure. propose_update never writes: the user approves each proposal in Worthwatch's Chat screen.",
         })),
         "ping" => Ok(json!({})),
         "tools/list" => Ok(json!({ "tools": tools() })),
