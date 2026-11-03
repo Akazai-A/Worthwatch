@@ -2,7 +2,6 @@
   // Portfolio › Overlap: every pair of funds once, ranked by how much they hold in
   // common. Click a pair for the shared names.
   import type { LookThroughView } from "../../lib/api";
-  import { compactMoney } from "../../lib/portfolio/lookthrough";
   import Money from "../../lib/components/amounts/Money.svelte";
   import { formatPct } from "../../lib/format/money";
 
@@ -37,7 +36,7 @@
 </script>
 
 <div class="top">
-  <div class="label">Overlap</div>
+  <h1 class="label">Overlap</h1>
   <div class="muted lead">How much any two of your funds hold in common, by weight</div>
 </div>
 
@@ -53,7 +52,7 @@
         <button type="button" class="pair" class:on aria-pressed={on} onclick={() => (pick = [q.i, q.j])}>
           <span class="ph"><span><b>{o.symbols[q.i]}</b> and <b>{o.symbols[q.j]}</b></span><span class="num">{q.pct.toFixed(0)}% the same</span></span>
           <span class="pb"><i class:hi={q.pct >= 80} style="width:{q.pct}%"></i></span>
-          <span class="faint ps"><span class="money">{compactMoney(q.value)}</span> of your {o.symbols[q.i]} is already in {o.symbols[q.j]}</span>
+          <span class="faint ps"><Money value={q.value} /> of your {o.symbols[q.i]} is already in {o.symbols[q.j]}</span>
         </button>
       {/each}
       {#if pairs.length > shown.length || showAll}

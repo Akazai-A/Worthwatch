@@ -278,7 +278,7 @@
       {#each hoverEvents as e}<span class="sep">·</span><span class="faint">{e.note}</span>{/each}
     </p>
   {:else if mode === "line"}
-    <p class="totals hint faint">Hover the line to read any day.</p>
+    <p class="totals hint faint"><span class="on-hover">Hover</span><span class="on-touch">Tap</span> the line to read any day.</p>
   {:else if mode === "added"}
     {#if totals}
       <p class="totals">

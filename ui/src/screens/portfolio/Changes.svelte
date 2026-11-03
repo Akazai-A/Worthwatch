@@ -135,7 +135,7 @@
     {:else}
       <div class="board" class:solo={!c.holdings.length}>
       <section class="hero">
-        <div class="label">Net worth change</div>
+        <h1 class="label">Net worth change</h1>
         <Money value={c.change} currency={cur} size="xl" signed tone="delta" />
         <div class="sub">
           <PrivacyToggle />
@@ -148,14 +148,14 @@
 
       {#if steps.length}
         <section class="card panel bridge">
-          <div class="head"><h2 class="label">What moved it</h2><span class="faint small">one step per account · hover or tab to a step for from → to and what made it · debt paid down = gain{#if unfold}&nbsp;· <button type="button" class="linkish" onclick={() => (unfold = false)}>fold the small ones</button>{/if}</span></div>
+          <div class="head"><h2 class="label">What moved it</h2><span class="faint small">one step per account · <span class="on-hover">hover</span><span class="on-touch">tap</span> or tab to a step for from → to and what made it · debt paid down = gain{#if unfold}&nbsp;· <button type="button" class="linkish" onclick={() => (unfold = false)}>fold the small ones</button>{/if}</span></div>
           <div class="bridge-wrap"><Bridge start={Number(c.from_net_worth)} end={Number(c.to_net_worth)} {steps} startLabel={endLabel(c.from)} endLabel={endLabel(c.to)} currency={cur} blur={prefs.blur} tip={stepTip} onunfold={() => (unfold = true)} /></div>
         </section>
       {/if}
 
       {#if c.holdings.length}
         <section class="card panel hold-panel">
-          <div class="head"><h2 class="label">Holdings</h2><span class="faint small" title="Market: the price move on units already held. Trades: units bought or sold, at the end price. FX: the rate move on the starting value. The three add up to the change exactly.">change = market + trades + FX · hover a row</span></div>
+          <div class="head"><h2 class="label">Holdings</h2><span class="faint small" title="Market: the price move on units already held. Trades: units bought or sold, at the end price. FX: the rate move on the starting value. The three add up to the change exactly.">change = market + trades + FX · <span class="on-hover">hover</span><span class="on-touch">tap</span> a row</span></div>
           <div class="body">
           <table class="hold">
             <thead><tr><th>Symbol</th><th class="bar"></th><th class="r">Change</th><th class="r why" title="market · trades · FX, left to right">Why</th></tr></thead>
@@ -260,7 +260,7 @@
               </div>
             {/each}
           </div>
-          <p class="faint note" title="Each line compares the fund's holdings file in effect at the start of the period with the one at the end. The right-hand dollars are your money in that fund × the weight change.">{#if v.same_file.length}{v.same_file.length} {v.same_file.length === 1 ? "fund" : "funds"} had no new file this period ({v.same_file.join(", ")}). {/if}Mark = old weight, bar = move; hover for words.</p>
+          <p class="faint note" title="Each line compares the fund's holdings file in effect at the start of the period with the one at the end. The right-hand dollars are your money in that fund × the weight change.">{#if v.same_file.length}{v.same_file.length} {v.same_file.length === 1 ? "fund" : "funds"} had no new file this period ({v.same_file.join(", ")}). {/if}Mark = old weight, bar = move; <span class="on-hover">hover</span><span class="on-touch">tap</span> for words.</p>
         {/if}
         </div>
       </section>
@@ -342,7 +342,8 @@
   .toggle button.on { background: var(--accent-soft); color: var(--text); }
   .toggle button:disabled { opacity: 0.5; cursor: default; }
   .bridge-wrap { overflow: visible; }
-  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 24px; margin-top: 6px; }
+  /* Sector and country side by side only when each gets room for its bars (the panel is narrow on desktop). */
+  .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px 24px; margin-top: 6px; }
   .set .label { margin-bottom: 6px; }
   .drow { display: grid; grid-template-columns: minmax(96px, 130px) 1fr 76px 42px; gap: 10px; align-items: center; font-size: 12px; padding: 3px 0; }
   .drow .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

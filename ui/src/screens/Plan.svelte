@@ -24,7 +24,8 @@
   const tgt = $derived(plan.target != null ? Number(plan.target) : p?.settings.target != null ? Number(p.settings.target) : null);
   const extraN = $derived(Number(plan.extra));
   const changed = $derived(p != null && ((plan.returnPct != null && Number(plan.returnPct) !== ledgerReturn) || (plan.target != null && Number(plan.target) !== Number(p.settings.target ?? 0))));
-  const headline = $derived(P ? (P.milestones.find((m) => m.years === 10) ?? P.milestones[P.milestones.length - 1]) : null);
+  // The headline follows the 10y / 20y / 30y toggle.
+  const headline = $derived(P ? (P.milestones.find((m) => m.years === plan.years) ?? P.milestones[P.milestones.length - 1]) : null);
   const money = (v: number | string) => (prefs.blur ? "*****" : formatMoney(v, cur));
   const compact = (v: number | string) => (prefs.blur ? "*****" : formatCompact(Number(v)));
   const COLH = 180;
@@ -121,7 +122,7 @@
   {:else}
     {#if headline}
       <section class="hero">
-        <div class="label">In {headline.years} year{headline.years > 1 ? "s" : ""}, at {ret}%</div>
+        <h1 class="label">In {headline.years} year{headline.years > 1 ? "s" : ""}, at {ret}%</h1>
         <Money value={headline.net_worth} currency={cur} size="xl" />
         <div class="sub">
           <PrivacyToggle />

@@ -243,7 +243,7 @@
       </section>
     {:else}
       <section class="card">
-        <div class="hrow"><h2 class="label">Running total</h2><span class="faint small">hover a day</span></div>
+        <div class="hrow"><h2 class="label">Running total</h2><span class="faint small"><span class="on-hover">hover</span><span class="on-touch">tap</span> a day</span></div>
         <RunningTotal v={b} />
         <div class="legend">
           <span><i class="ln"></i>On a statement</span>
@@ -429,6 +429,8 @@
   .addbtn.on { background: var(--accent); color: var(--bg); border-style: solid; }
   .tl { margin-top: 12px; }
   .more { margin-top: 10px; font-size: 13px; }
+  /* Two category columns need about 1000px; a tablet gets one, so nothing scrolls sideways. */
+  @media (max-width: 1000px) { .cats { grid-template-columns: 1fr; } }
   @media (max-width: 760px) {
     .hero { grid-template-columns: 1fr; }
     .big { font-size: 2.6rem; }

@@ -77,7 +77,7 @@
     </section>
   {:else}
     <section class="hero">
-      <div class="label">Net worth</div>
+      <h1 class="label">Net worth</h1>
       <Money value={view.totals.net_worth} currency={cur} size="xl" />
       <div class="sub">
         <PrivacyToggle />
@@ -224,6 +224,11 @@
     .dv i.down { transform-origin: right center; }
   }
   @keyframes grow { from { transform: scaleX(0); } }
+  /* Tablet: the group name moves above its rows, so the rows keep their columns without scrolling sideways. */
+  @media (max-width: 960px) {
+    .group { grid-template-columns: 1fr; gap: 6px; }
+    .gh { flex-direction: row; justify-content: space-between; }
+  }
   @media (max-width: 640px) {
     .tiles { grid-template-columns: 1fr 1fr; }
     .group { grid-template-columns: 1fr; gap: 6px; }

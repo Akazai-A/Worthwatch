@@ -72,7 +72,7 @@
     </section>
   {:else}
     <section class="hero">
-      <div class="label">Investments</div>
+      <h1 class="label">Investments</h1>
       <Money value={p.total} currency={cur} size="xl" />
       <div class="sub">
         <PrivacyToggle />
@@ -124,7 +124,7 @@
             <tr class="sec" class:multi onclick={() => multi && toggle(r.symbol)}>
               <td>
                 <span class="sym">{r.symbol}</span>
-                <span class="sub2">{r.accounts.map((a) => a.name).join(" + ")} · {r.currency}{#if r.currency !== cur && !r.missing_fx}&nbsp;→ {cur}{/if}{#if multi}&nbsp;<span class="tw">{open[r.symbol] ? "▾" : "▸"}</span>{/if}</span>
+                <span class="sub2">{r.accounts.map((a) => a.name).join(" + ")} · {r.currency}{#if r.currency !== cur && !r.missing_fx}&nbsp;→ {cur}{/if}{#if multi}&nbsp;<button type="button" class="tw" aria-expanded={!!open[r.symbol]} aria-label="Show each account holding {r.symbol}" onclick={(e) => { e.stopPropagation(); toggle(r.symbol); }}>{open[r.symbol] ? "▾" : "▸"}</button>{/if}</span>
               </td>
               <td class="r num">{formatUnits(r.units)}</td>
               <td class="r num">
@@ -199,7 +199,8 @@
   .sub2 { display: block; font-size: 11px; color: var(--text-3); }
   .multi { cursor: pointer; }
   .multi:hover .sym { color: var(--accent); }
-  .tw { font-size: 10px; }
+  .tw { font-size: 10px; background: none; border: 0; color: inherit; padding: 2px 4px; cursor: pointer; }
+  .tw:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 3px; }
   .wt { display: inline-block; width: 64px; height: 6px; background: var(--surface-2); border-radius: 3px; vertical-align: middle; margin-right: 8px; overflow: hidden; }
   .wt i { display: block; height: 100%; background: var(--fill); }
   .acct td { padding: 6px 0 6px 18px; font-size: 12px; color: var(--text-2); border-top: 1px dashed var(--border); }

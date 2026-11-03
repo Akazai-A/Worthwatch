@@ -25,7 +25,7 @@
 
 <div class="top">
   <div>
-    <div class="label">Exposure</div>
+    <h1 class="label">Exposure</h1>
     <div class="muted lead"><Money value={x.total} currency={cur} /> across {lt.holdings.length} {lt.holdings.length === 1 ? "holding" : "holdings"}{#if x.as_of}&nbsp;· holdings as of {formatDate(x.as_of)}{/if}</div>
   </div>
   <div class="toggle" role="radiogroup" aria-label="View">

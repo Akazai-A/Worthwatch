@@ -33,31 +33,31 @@ colors:
   sage-gain-deep: "#4f7f52"
 typography:
   display:
-    fontFamily: "IBM Plex Mono, ui-monospace, SFMono-Regular, Menlo, monospace"
-    fontSize: "3.5rem"
+    fontFamily: "Newsreader, Georgia, serif"
+    fontSize: "4.25rem"
     fontWeight: 500
-    lineHeight: 1.05
-    letterSpacing: "-0.04em"
+    lineHeight: 1
+    letterSpacing: "-0.01em"
   headline:
-    fontFamily: "Instrument Sans, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "IBM Plex Sans, ui-sans-serif, system-ui, sans-serif"
     fontSize: "22px"
     fontWeight: 600
     letterSpacing: "-0.01em"
   title:
-    fontFamily: "Instrument Sans, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "IBM Plex Sans, ui-sans-serif, system-ui, sans-serif"
     fontSize: "20px"
     fontWeight: 600
   body:
-    fontFamily: "Instrument Sans, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "IBM Plex Sans, ui-sans-serif, system-ui, sans-serif"
     fontSize: "14px"
     fontWeight: 400
     lineHeight: 1.45
   body-small:
-    fontFamily: "Instrument Sans, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "IBM Plex Sans, ui-sans-serif, system-ui, sans-serif"
     fontSize: "12px"
     fontWeight: 400
   label:
-    fontFamily: "Instrument Sans, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "IBM Plex Sans, ui-sans-serif, system-ui, sans-serif"
     fontSize: "11px"
     fontWeight: 400
     letterSpacing: "0.1em"
@@ -137,7 +137,7 @@ The system is coherent in its colours and figures. It is generic in its scaffold
 - Warm graphite ground with bone text. Dark-first, with an equal light theme.
 - One brass accent, kept rare.
 - Fixed group colours: cash blue, investments orange, property green, debt violet. They mean the same thing on every chart.
-- Money set in IBM Plex Mono with tabular numerals. Prose in Instrument Sans.
+- Headline figures in the Newsreader serif; every other amount in IBM Plex Mono with tabular numerals. Prose in IBM Plex Sans.
 - Flat, bordered surfaces. Depth comes from tone, not shadow.
 - Small type: most UI text is 11–13px.
 
@@ -175,18 +175,19 @@ A warm, low-chroma neutral system with one metallic accent and four fixed catego
 
 ## Typography
 
-**Body Font:** Instrument Sans (400, 500, 600), with a system sans fallback.
+**Display Font:** Newsreader (500), lining tabular numerals, for headline figures.
+**Body Font:** IBM Plex Sans (400, 500, 600), with a system sans fallback.
 **Figures Font:** IBM Plex Mono (400, 500), with a system mono fallback.
 
-**Character:** Instrument Sans is a quiet grotesque for labels and prose. Plex Mono gives every amount a ledger feel, and tabular numerals keep columns aligned.
+**Character:** Newsreader gives the headline figure a printed, private-ledger voice. Plex Sans is a quiet grotesque for labels and prose. Plex Mono gives every amount a ledger feel, and tabular numerals keep columns aligned.
 
 ### Hierarchy
-- **Display** (Plex Mono 500, 3.5rem, line-height 1.05, −0.04em): the net worth figure on Home, and Spent on Budget (3.2rem). It drops to 2.75rem below 760px. Wall view scales to `clamp(64px, 10vw, 128px)`.
-- **Headline** (Instrument Sans 600, 22px, −0.01em): screen titles on Check-in, Chat and Account detail.
-- **Title** (Instrument Sans 600, 20px): empty-state and detail headings.
-- **Body** (Instrument Sans 400, 14px, line-height 1.45): base text. Explanatory paragraphs are capped near 52ch.
+- **Display** (Newsreader 500, 4.25rem, line-height 1, −0.01em): the headline figure on Home, Portfolio, Changes, Plan, Account and Budget. It drops to 3.25rem below 760px, and rolls like a counter when its value changes. Wall view scales to `clamp(64px, 10vw, 128px)`.
+- **Headline** (Plex Sans 600, 22px, −0.01em): screen titles on Check-in, Chat and Account detail.
+- **Title** (Plex Sans 600, 20px): empty-state and detail headings.
+- **Body** (Plex Sans 400, 14px, line-height 1.45): base text. Explanatory paragraphs are capped near 52ch.
 - **Body Small** (12–13px): most row text, controls and legends. 12px is the most common size in the codebase.
-- **Label** (Instrument Sans 400, 11px, uppercase, 0.1em tracking, faint): section and tile labels.
+- **Label** (Plex Sans 600, 13px, sentence case): section and tile names, set like a ledger heading. Each screen's main label is its h1.
 - **Figures** (Plex Mono 400, tabular): every amount, axis tick and percentage, through `.num` and `.money`.
 
 ### Named Rules

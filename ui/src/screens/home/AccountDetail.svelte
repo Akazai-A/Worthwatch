@@ -43,7 +43,7 @@
       </div>
       <div class="val">
         <Money value={a.value} currency={cur} size="xl" />
-        <div class="faint"><PrivacyToggle /> {a.as_of ? `updated ${formatDate(a.as_of, "long")}` : "no value yet"}{a.days_stale != null ? ` · ${a.days_stale}d ago` : ""}</div>
+        <div class="faint"><PrivacyToggle /> {a.as_of ? `updated ${formatDate(a.as_of, "long")}` : "no value yet"}{a.days_stale ? ` · ${a.days_stale}d ago` : ""}</div>
       </div>
     </div>
 

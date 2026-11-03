@@ -69,13 +69,18 @@ a { color: var(--accent); text-underline-offset: 0.18em; text-decoration-thickne
 .num, .money { font-family: var(--figures); font-variant-numeric: tabular-nums; }
 /* Section names: sentence case, set like a ledger heading, not a micro-label. */
 .label { font-size: 13px; font-weight: 600; color: var(--text); }
+h1.label { margin: 0; }
 /* A ledger section: a hairline rule above, no box. */
 .card { border-top: 1px solid var(--border); padding: 16px 0 18px; }
 .muted { color: var(--text-2); }
+/* Help copy names the gesture the device has: "hover" with a mouse, "tap" on touch. */
+.on-touch { display: none; }
+@media (hover: none) { .on-hover { display: none; } .on-touch { display: inline; } }
 .faint { color: var(--text-3); }
 /* Browser surfaces in the palette: selection, caret, scrollbars. */
 ::selection { background: color-mix(in oklab, var(--accent) 32%, transparent); color: var(--text); }
 input, textarea { caret-color: var(--accent); }
+::placeholder { color: var(--text-3); opacity: 1; }
 html { scrollbar-color: color-mix(in oklab, var(--text-3) 55%, transparent) transparent; }
 /* Reduced motion keeps every state change but drops the movement: animations jump to their end,
    and transitions keep only colour, opacity and filter. */

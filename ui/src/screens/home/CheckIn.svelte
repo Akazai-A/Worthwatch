@@ -107,7 +107,7 @@
 
 <div class="checkin">
   <div class="head">
-    <h1>Check-in for <input type="date" id="ci-date" bind:value={date} max={todayIso()} /></h1>
+    <h1>Check-in for <input type="date" id="ci-date" bind:value={date} max={todayIso()} aria-label="Check-in date" /></h1>
     <span class="faint hint">Tab moves down · Enter saves · empty carries forward</span>
   </div>
 
@@ -252,5 +252,11 @@
     .ci .r:not(.delta), .ci .upd, .ci.h { display: none; }
     .ci .delta { grid-column: 2; text-align: right; }
     .add { grid-template-columns: 1fr; }
+    .ci.pos { grid-template-columns: 1fr 180px; }
+    .ci.pos .delta { display: none; }
+  }
+  /* Phone: the bottom tab bar is fixed, so the sticky footer (and Save) sits just above it. */
+  @media (max-width: 760px) {
+    .foot { bottom: calc(53px + env(safe-area-inset-bottom)); }
   }
 </style>

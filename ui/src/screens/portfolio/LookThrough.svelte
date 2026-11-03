@@ -30,7 +30,7 @@
 </script>
 
 <section class="hero">
-  <div class="label">Where the money actually is</div>
+  <h1 class="label">Where the money actually is</h1>
   <Money value={x.total} currency={cur} size="xl" />
   <div class="sub">
     <PrivacyToggle />

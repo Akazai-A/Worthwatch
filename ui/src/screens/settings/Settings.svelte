@@ -204,7 +204,7 @@
         <input bind:value={bName} placeholder="Rent" aria-label="Bill name" />
         <input bind:value={bAmount} placeholder="1950" aria-label="Amount" class="n" />
         <input bind:value={bDay} placeholder="day" aria-label="Day of month" class="d" />
-        <input bind:value={bMatch} placeholder="statement text (optional)" aria-label="Statement text" />
+        <input bind:value={bMatch} placeholder="text on the statement" aria-label="Statement text" />
         <button class="btn">Add</button>
       </form>
     </section>
