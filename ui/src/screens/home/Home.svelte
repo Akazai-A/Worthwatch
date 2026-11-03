@@ -1,6 +1,6 @@
 <script lang="ts">
   import PrivacyToggle from "../../lib/components/shell/PrivacyToggle.svelte";
-  import { GROUPS, GROUP_LABEL, getChanges, getGrowth, type AccountView, type Changes, type GrowthPoint, type LedgerView, type Point } from "../../lib/api";
+  import { GROUPS, GROUP_LABEL, getChanges, getGrowth, type AccountView, type Changes, type GrowthPoint, type LedgerView } from "../../lib/api";
   import { formatDate, formatMoney, formatSigned } from "../../lib/format/money";
   import { parts } from "../../lib/portfolio/changes";
   import SplitStrip from "../../lib/components/amounts/SplitStrip.svelte";
@@ -10,8 +10,6 @@
   import MarketLine from "../../lib/components/portfolio/MarketLine.svelte";
 
   let { view }: { view: LedgerView } = $props();
-  // The day under the pointer when the chart scrubs; the hero reads it out instead of today.
-  let scrub = $state<Point | null>(null);
   const STALE_DAYS = 45;
 
   const cur = $derived(view.base_currency);
@@ -79,12 +77,8 @@
     </section>
   {:else}
     <section class="hero">
-      <div class="label">Net worth{#if scrub}<span class="on">&nbsp;on {formatDate(scrub.date, "long")}</span>{/if}</div>
-      <Money value={scrub ? scrub.net_worth : view.totals.net_worth} currency={cur} size="xl" />
-      {#if scrub}
-        {@const back = Number(scrub.net_worth) - Number(view.totals.net_worth)}
-        <div class="sub"><span class="chip"><Money value={-back} currency={cur} signed tone="delta" /><span class="muted">from then to today</span></span></div>
-      {:else}
+      <div class="label">Net worth</div>
+      <Money value={view.totals.net_worth} currency={cur} size="xl" />
       <div class="sub">
         <PrivacyToggle />
         {#if view.deltas.previous}
@@ -101,9 +95,8 @@
           <span class="muted">One check-in so far. The change line appears after the next one.</span>
         {/if}
       </div>
-      {/if}
       {#if whyParts.length}
-        <a class="why" class:dim={scrub} href="#/changes" title="What moved it: Changes">
+        <a class="why" href="#/changes" title="What moved it: Changes">
           <SplitStrip parts={whyParts} currency={cur} height={6} legend blur={prefs.blur} />
           <span class="go">Why it moved →</span>
         </a>
@@ -111,7 +104,7 @@
     </section>
 
     <section class="card">
-      <NetWorthChart series={view.series} events={view.events} currency={cur} blur={prefs.blur} {growth} cursor="scrub" bind:scrub />
+      <NetWorthChart series={view.series} events={view.events} currency={cur} blur={prefs.blur} {growth} />
     </section>
 
     <section class="tiles">
@@ -216,9 +209,7 @@
   .tick { display: block; height: 4px; border-radius: 1px; background: var(--text-3); }
   .tick.hatch { width: 16px; background: repeating-linear-gradient(-45deg, var(--warn) 0 2px, transparent 2px 4px); }
   .old { color: var(--warn); }
-  .hero .label .on { font-weight: 400; color: var(--text-2); }
-  .why.dim { opacity: 0.35; }
-  .why { transition: opacity 160ms ease-out; display: flex; align-items: flex-end; gap: 16px; margin-top: 14px; color: inherit; text-decoration: none; font-size: 12px; }
+  .why { display: flex; align-items: flex-end; gap: 16px; margin-top: 14px; color: inherit; text-decoration: none; font-size: 12px; }
   .why :global(.strip) { flex: 1; max-width: 560px; }
   .go { color: var(--text-2); white-space: nowrap; }
   .why:hover .go { color: var(--accent); }

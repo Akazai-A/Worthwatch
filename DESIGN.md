@@ -292,9 +292,11 @@ Motion explains a change; it never decorates a resting screen. Every curve is `-
 
 ### Chart hover
 
-Hover never puts a dot or a floating box on the line it describes.
-- **Home scrubs:** the days after the pointer fade back, and the net worth figure becomes that day.
-- **Other line charts use the ruler:** a dashed hairline, a short brass level mark across the line, and the reading tagged on the axes, with details in a line under the chart.
+Hover never puts a dot or a floating box on the line it describes. A **caliper** measures the hovered day: a
+dashed hairline, a brass bracket from the reference line to net worth, and the gain it spans beside it
+(what the market added on Added vs grown, otherwise the gain since the window opened). The date and value are
+tagged on the axes, and the full reading goes in the line under the chart. Plan's projection marks the hovered
+month with a short brass level mark.
 
 ## Do's and Don'ts
 

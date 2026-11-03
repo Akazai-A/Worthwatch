@@ -8,7 +8,6 @@
 
   type Range = "3m" | "1y" | "all";
   type Mode = "line" | "groups" | "added";
-  export type Cursor = "ruler" | "caliper" | "scrub";
 
   let {
     series,
@@ -18,14 +17,8 @@
     groups = true,
     growth = null,
     range = $bindable("1y"),
-    cursor = "ruler",
-    scrub = $bindable(null),
   }: {
     series: Point[]; events?: { date: string; note: string }[]; currency?: string; blur?: boolean; groups?: boolean; growth?: GrowthPoint[] | null; range?: Range;
-    /** How hovering reads out a day. ruler: tags on both axes; caliper: measures the gain; scrub: the page follows the day. */
-    cursor?: Cursor;
-    /** The hovered day, for a parent that follows it (scrub). */
-    scrub?: Point | null;
   } = $props();
 
   // Added vs grown is the default view once the growth series has loaded: it is the
@@ -230,7 +223,6 @@
 
   const hovered = $derived(hover ? visible[hover.i] : null);
   const hoverEvents = $derived(hovered ? events.filter((e) => e.date === hovered.date) : []);
-  $effect(() => { scrub = cursor === "scrub" ? hovered : null; });
   // The gain the caliper measures: since the window opened (line, groups) or over what you added.
   const measured = $derived.by(() => {
     if (!hover || !hovered) return null;
@@ -257,37 +249,23 @@
   <div class="plot" bind:this={host} class:blur>
     {#if hovered && hover}
       {@const b = hover.box}
-      {#if cursor === "scrub"}
-        <!-- Scrub: the days after the hovered one fall back; the page above reads out the day. -->
-        <div class="veil" style="left:{hover.left}px;top:{b.t}px;width:{b.l + b.w - hover.left}px;height:{b.h}px"></div>
-        <div class="hair solid" style="left:{hover.left}px;top:{b.t}px;height:{b.h}px"></div>
-        <div class="tag x" style="left:{clampX(hover.left, 92)}px;top:{b.t + b.h + 4}px">{formatDate(hovered.date, "long")}</div>
-      {:else if cursor === "caliper"}
-        <!-- Caliper: a bracket from the reference line to net worth, labelled with what it measures. -->
-        {@const top = Math.min(hover.y, hover.y0)}
-        {@const h = Math.max(1, Math.abs(hover.y0 - hover.y))}
-        <div class="hair" style="left:{hover.left}px;top:{b.t}px;height:{b.h}px"></div>
-        <div class="cal" class:neg={(measured ?? 0) < 0} style="left:{hover.left}px;top:{top}px;height:{h}px"></div>
-        <div class="cal-tag money num" class:neg={(measured ?? 0) < 0} class:flip={hover.left > b.l + b.w * 0.75} style="left:{hover.left}px;top:{top + h / 2}px">
-          {formatSigned(measured ?? 0, currency)}<span>{mode === "added" ? "market" : `since ${formatDate(visible[0].date)}`}</span>
-        </div>
-        <div class="tag x" style="left:{clampX(hover.left, 92)}px;top:{b.t + b.h + 4}px">{formatDate(hovered.date, "long")}</div>
-        <div class="tag y money num" style="left:{b.l + b.w + 4}px;top:{hover.y}px">{formatCompact(Number(hovered.net_worth))}</div>
-      {:else}
-        <!-- Ruler: a hairline, a level mark across the line, and the reading on both axes. -->
-        <div class="hair" style="left:{hover.left}px;top:{b.t}px;height:{b.h}px"></div>
-        <div class="level" style="left:{hover.left}px;top:{hover.y}px"></div>
-        <div class="rule-y" style="left:{b.l}px;top:{hover.y}px;width:{b.w}px"></div>
-        <div class="tag x" style="left:{clampX(hover.left, 92)}px;top:{b.t + b.h + 4}px">{formatDate(hovered.date, "long")}</div>
-        <div class="tag y money num" style="left:{b.l + b.w + 4}px;top:{hover.y}px">{formatMoney(hovered.net_worth, currency)}</div>
-      {/if}
+      <!-- Caliper: a bracket from the reference line to net worth, labelled with what it measures. -->
+      {@const top = Math.min(hover.y, hover.y0)}
+      {@const h = Math.max(1, Math.abs(hover.y0 - hover.y))}
+      <div class="hair" style="left:{hover.left}px;top:{b.t}px;height:{b.h}px"></div>
+      <div class="cal" class:neg={(measured ?? 0) < 0} style="left:{hover.left}px;top:{top}px;height:{h}px"></div>
+      <div class="cal-tag money num" class:neg={(measured ?? 0) < 0} class:flip={hover.left > b.l + b.w * 0.75} style="left:{hover.left}px;top:{top + h / 2}px">
+        {formatSigned(measured ?? 0, currency)}<span>{mode === "added" ? "market" : `since ${formatDate(visible[0].date)}`}</span>
+      </div>
+      <div class="tag x" style="left:{clampX(hover.left, 92)}px;top:{b.t + b.h + 4}px">{formatDate(hovered.date, "long")}</div>
+      <div class="tag y money num" style="left:{b.l + b.w + 4}px;top:{hover.y}px">{formatCompact(Number(hovered.net_worth))}</div>
     {/if}
     {#if visible.length === 0}
       <p class="empty">No history yet. Your first check-in adds the first point.</p>
     {/if}
   </div>
 
-  {#if hovered && hover && cursor !== "scrub"}
+  {#if hovered && hover}
     <p class="totals readout">
       <b class="money num">{formatMoney(hovered.net_worth, currency)}</b> on {formatDate(hovered.date, "long")}
       {#if mode === "added"}
@@ -299,7 +277,7 @@
       {/if}
       {#each hoverEvents as e}<span class="sep">·</span><span class="faint">{e.note}</span>{/each}
     </p>
-  {:else if mode === "line" && cursor !== "scrub"}
+  {:else if mode === "line"}
     <p class="totals hint faint">Hover the line to read any day.</p>
   {:else if mode === "added"}
     {#if totals}
@@ -330,15 +308,12 @@
   .seg button:disabled { color: var(--text-3); cursor: default; }
   .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
   .plot { position: relative; min-height: 240px; }
-  /* Hover readouts. Hairlines and tags only: nothing sits on top of the line it describes. */
-  .hair, .veil, .level, .rule-y, .tag, .cal, .cal-tag { position: absolute; pointer-events: none; z-index: 2; }
+  /* Hover: a caliper measures the day's gain; tags sit on the axes, details go in the line under the chart.
+     Nothing sits on top of the line it describes. */
+  .hair, .tag, .cal, .cal-tag { position: absolute; pointer-events: none; z-index: 2; }
   .hair { width: 0; border-left: 1px dashed var(--text-3); }
-  .hair.solid { border-left: 1px solid var(--accent); }
-  .rule-y { height: 0; border-top: 1px dotted color-mix(in oklab, var(--text-3) 60%, transparent); }
-  .level { width: 14px; height: 2px; margin: -1px 0 0 -7px; background: var(--accent); box-shadow: 0 0 0 2px var(--bg); }
   .tag { font-size: 11px; line-height: 18px; padding: 0 6px; border-radius: 3px; white-space: nowrap; background: var(--text); color: var(--bg); font-family: var(--figures); box-shadow: 0 0 0 6px var(--bg); }
-  .tag.y { transform: translateY(-50%); background: var(--accent); }
-  .veil { background: color-mix(in oklab, var(--bg) 62%, transparent); }
+  .tag.y { transform: translateY(-50%); background: var(--accent); box-shadow: 0 0 0 2px var(--bg); }
   .cal { width: 9px; margin-left: -4px; border: 1.5px solid var(--accent); border-left: 0; border-right: 0; }
   .cal::before { content: ""; position: absolute; left: 4px; top: 0; bottom: 0; border-left: 1.5px solid var(--accent); }
   .cal.neg, .cal.neg::before { border-color: var(--negative); }
