@@ -757,19 +757,15 @@ async fn get_context(State(s): State<AppState>) -> Json<assistant::Context> {
     Json(crate::chat::context(&s.snapshot(), Local::now().date_naive()))
 }
 
+/// The caller can't name itself: the card always says where a proposal came from
+/// (`/api/propose` is the MCP bridge's route), so nothing can dress one up as the chat box.
 #[derive(Deserialize)]
 pub struct ProposeRequest {
-    #[serde(default = "default_origin")]
-    pub origin: String,
     /// What the user said, for the card.
     #[serde(default)]
     pub text: String,
     #[serde(default)]
     pub proposal: Option<assistant::Proposal>,
-}
-
-fn default_origin() -> String {
-    "mcp".into()
 }
 
 #[derive(Serialize)]
@@ -788,7 +784,7 @@ async fn propose(State(s): State<AppState>, Json(req): Json<ProposeRequest>) -> 
     let ctx = crate::chat::context(&snap, today);
     let p = req.proposal.unwrap_or_else(|| assistant::shorthand::parse(&req.text, &ctx));
     let plan = assistant::resolve(&snap.ledger, &ctx, &p);
-    let pending = (!plan.mutations.is_empty()).then(|| s.propose(&req.origin, &req.text, plan.clone()));
+    let pending = (!plan.mutations.is_empty()).then(|| s.propose("mcp", &req.text, plan.clone()));
     Json(ProposeReply { pending, plan })
 }
 

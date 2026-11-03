@@ -40,22 +40,12 @@ fn token_path(s: &AppState) -> PathBuf {
     s.data_dir().join(TOKEN_FILE)
 }
 
-fn new_token() -> String {
-    use std::io::Read;
+/// 24 random bytes from the operating system, as 48 hex characters. Never falls back to
+/// anything guessable: no randomness, no token.
+fn new_token() -> std::io::Result<String> {
     let mut buf = [0u8; 24];
-    let ok = std::fs::File::open("/dev/urandom").and_then(|mut f| f.read_exact(&mut buf)).is_ok();
-    if !ok {
-        // No /dev/urandom (not macOS or Linux): mix the clock and the process id.
-        let seed = format!("{:?}{}", SystemTime::now(), std::process::id());
-        let h = budget_fnv(&seed);
-        buf[..8].copy_from_slice(&h.to_le_bytes());
-        buf[8..16].copy_from_slice(&budget_fnv(&format!("{seed}x")).to_le_bytes());
-    }
-    buf.iter().map(|b| format!("{b:02x}")).collect()
-}
-
-fn budget_fnv(s: &str) -> u64 {
-    s.bytes().fold(0xcbf29ce484222325u64, |h, b| (h ^ u64::from(b)).wrapping_mul(0x100000001b3))
+    getrandom::fill(&mut buf).map_err(|e| std::io::Error::other(format!("no system randomness: {e}")))?;
+    Ok(buf.iter().map(|b| format!("{b:02x}")).collect())
 }
 
 /// The token in `data/ingest-token`, made on first use.
@@ -63,7 +53,7 @@ pub fn token(s: &AppState) -> std::io::Result<String> {
     let p = token_path(s);
     match std::fs::read_to_string(&p) {
         Ok(t) if !t.trim().is_empty() => Ok(t.trim().to_string()),
-        _ => write_token(&p, &new_token()),
+        _ => write_token(&p, &new_token()?),
     }
 }
 
@@ -71,12 +61,18 @@ fn write_token(p: &Path, t: &str) -> std::io::Result<String> {
     if let Some(dir) = p.parent() {
         std::fs::create_dir_all(dir)?;
     }
-    std::fs::write(p, format!("{t}\n"))?;
+    let mut opts = std::fs::OpenOptions::new();
+    opts.write(true).create(true).truncate(true);
     #[cfg(unix)]
     {
-        use std::os::unix::fs::PermissionsExt;
-        let _ = std::fs::set_permissions(p, std::fs::Permissions::from_mode(0o600));
+        use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+        // Created private, and made private if an older version left it readable.
+        opts.mode(0o600);
+        if p.exists() {
+            std::fs::set_permissions(p, std::fs::Permissions::from_mode(0o600))?;
+        }
     }
+    std::io::Write::write_all(&mut opts.open(p)?, format!("{t}\n").as_bytes())?;
     Ok(t.to_string())
 }
 
@@ -183,6 +179,10 @@ pub fn shortcuts_icloud_root() -> Option<PathBuf> {
 }
 
 pub fn icloud_dir(l: &Ledger) -> Option<PathBuf> {
+    // In a container: the one taps folder, mounted read-only (see docs/security.md).
+    if let Some(d) = std::env::var_os("WORTHWATCH_TAPS_DIR").filter(|d| !d.is_empty()) {
+        return Some(PathBuf::from(d));
+    }
     match &l.budget.feed.icloud_dir {
         Some(d) if !d.trim().is_empty() => {
             let d = d.trim();
@@ -214,7 +214,7 @@ pub fn scan_icloud(
             status.files = 0;
             if e.kind() == std::io::ErrorKind::PermissionDenied {
                 status.errors.push(
-                    "macOS blocked reading this folder: give worthwatch Full Disk Access in System Settings › Privacy & Security"
+                    "macOS blocked reading this folder. Use the Tailscale feed instead: Full Disk Access would also open your Mail, Messages and the rest of iCloud Drive to Worthwatch"
                         .into(),
                 );
             }
@@ -586,7 +586,9 @@ async fn set_category(
 #[derive(Serialize)]
 pub struct SettingsView {
     pub mode: FeedMode,
-    pub token: String,
+    /// The token's last 4 characters. The whole token comes only from
+    /// `POST /api/settings/token/reveal`, so a page that can merely read can't take it.
+    pub token_hint: String,
     pub ingest_path: &'static str,
     /// The folder read in iCloud mode, and what was seen there.
     pub icloud_dir: Option<String>,
@@ -668,7 +670,7 @@ fn settings_view(s: &AppState) -> Result<SettingsView, (StatusCode, Json<ApiErro
     let store = s.txns.read().expect("txn lock");
     Ok(SettingsView {
         mode: l.budget.feed.mode,
-        token,
+        token_hint: token.chars().rev().take(4).collect::<Vec<_>>().into_iter().rev().collect(),
         ingest_path: "/api/ingest/transaction",
         icloud_dir: icloud_dir(&l).map(|d| d.display().to_string()),
         icloud: s.feed.read().expect("feed lock").clone(),
@@ -696,9 +698,23 @@ async fn get_settings(State(s): State<AppState>) -> ApiResult<SettingsView> {
 
 /// A new token. The Shortcut on the phone stops working until it is made again.
 async fn rotate_token(State(s): State<AppState>) -> ApiResult<SettingsView> {
-    write_token(&token_path(&s), &new_token())
+    new_token()
+        .and_then(|t| write_token(&token_path(&s), &t))
         .map_err(|e| bad(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     get_settings(State(s)).await
+}
+
+#[derive(Serialize)]
+pub struct TokenReveal {
+    pub token: String,
+}
+
+/// The whole token, for setting the Shortcut up by hand. A POST, so only the app itself
+/// (same origin) can ask for it.
+async fn reveal_token(State(s): State<AppState>) -> ApiResult<TokenReveal> {
+    token(&s)
+        .map(|token| Json(TokenReveal { token }))
+        .map_err(|e| bad(StatusCode::INTERNAL_SERVER_ERROR, format!("ingest token: {e}")))
 }
 
 fn plist_for(s: &AppState, which: Which) -> Result<String, (StatusCode, Json<ApiError>)> {
@@ -712,13 +728,15 @@ fn plist_for(s: &AppState, which: Which) -> Result<String, (StatusCode, Json<Api
         FeedMode::Icloud => Ok(make(budget::shortcut::Transport::Icloud)),
         FeedMode::Tailscale => {
             let view = settings_view(s)?;
+            let token =
+                token(s).map_err(|e| bad(StatusCode::INTERNAL_SERVER_ERROR, format!("ingest token: {e}")))?;
             let Some(url) = view.tailscale_url else {
                 return Err(bad(
                     StatusCode::CONFLICT,
                     "enter this Mac's Tailscale address first (https://<name>.<tailnet>.ts.net)",
                 ));
             };
-            Ok(make(budget::shortcut::Transport::Tailscale { url: &url, token: &view.token }))
+            Ok(make(budget::shortcut::Transport::Tailscale { url: &url, token: &token }))
         }
     }
 }
@@ -772,7 +790,8 @@ fn sign_and_save(st: &AppState, which: Which) -> Result<(), (StatusCode, Json<Ap
     let tmp = std::env::temp_dir().join(format!("worthwatch-{}.plist", std::process::id()));
     std::fs::write(&tmp, xml).map_err(|e| bad(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     let out = std::process::Command::new(tool)
-        .args(["sign", "--mode", "anyone", "--input"])
+        // Only people who know you (your own iPhone) can import it: it carries the token.
+        .args(["sign", "--mode", "people-who-know-me", "--input"])
         .arg(&tmp)
         .arg("--output")
         .arg(&target)
@@ -799,6 +818,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/budget/category", post(set_category))
         .route("/api/settings", get(get_settings))
         .route("/api/settings/token", post(rotate_token))
+        .route("/api/settings/token/reveal", post(reveal_token))
         .route("/api/settings/shortcut", post(make_shortcut))
         .route("/api/settings/shortcut.plist", get(shortcut_plist))
         .with_state(state)
@@ -979,5 +999,39 @@ mod tests {
         assert!(xml.contains(&token(&s).unwrap()));
         s.apply_many(vec![Mutation::SetFeed { feed: Feed::default() }]).unwrap();
         assert!(plist_for(&s, Which::Tap).is_err());
+    }
+
+    #[tokio::test]
+    async fn settings_never_hands_out_the_whole_token_but_reveal_does() {
+        let (_dir, s) = app();
+        let t = token(&s).unwrap();
+        let get = router(s.clone())
+            .oneshot(Request::get("/api/settings").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        let body = axum::body::to_bytes(get.into_body(), usize::MAX).await.unwrap();
+        let text = String::from_utf8_lossy(&body);
+        assert!(!text.contains(&t), "GET /api/settings leaked the token");
+        assert!(text.contains(&t[t.len() - 4..]));
+        let post = router(s.clone())
+            .oneshot(Request::post("/api/settings/token/reveal").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        let body = axum::body::to_bytes(post.into_body(), usize::MAX).await.unwrap();
+        assert!(String::from_utf8_lossy(&body).contains(&t));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn the_token_file_is_private_even_if_it_was_not() {
+        use std::os::unix::fs::PermissionsExt;
+        let (dir, s) = app();
+        let p = dir.path().join(TOKEN_FILE);
+        std::fs::write(&p, "").unwrap();
+        std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o644)).unwrap();
+        let t = token(&s).unwrap();
+        assert_eq!(t.len(), 48);
+        assert_eq!(std::fs::metadata(&p).unwrap().permissions().mode() & 0o777, 0o600);
+        assert_ne!(new_token().unwrap(), new_token().unwrap());
     }
 }

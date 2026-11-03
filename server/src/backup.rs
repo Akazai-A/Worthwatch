@@ -91,9 +91,20 @@ pub fn daily(data_dir: &Path, now: DateTime<Local>) -> anyhow::Result<Option<Bac
     create(data_dir, now).map(Some)
 }
 
+/// Keep the newest `keep` backups, and also the newest one of each of the last `keep`
+/// days that have any. A burst of backups in one afternoon (or a script making them) can
+/// then never push out last week's.
 pub fn prune(data_dir: &Path, keep: usize) {
-    for old in list(data_dir).into_iter().skip(keep) {
-        let _ = fs::remove_file(data_dir.join(DIR).join(old.name));
+    let mut days: Vec<NaiveDate> = Vec::new();
+    for (i, b) in list(data_dir).into_iter().enumerate() {
+        let first_of_day = !days.contains(&b.date);
+        if first_of_day {
+            days.push(b.date);
+        }
+        if i < keep || (first_of_day && days.len() <= keep) {
+            continue;
+        }
+        let _ = fs::remove_file(data_dir.join(DIR).join(b.name));
     }
 }
 
@@ -282,6 +293,22 @@ mod tests {
         prune(src.path(), 2);
         let names: Vec<String> = list(src.path()).into_iter().map(|b| b.name).collect();
         assert_eq!(names, vec!["worthwatch-2026-11-03-130000.tar.gz", "worthwatch-2026-11-03-120000.tar.gz"]);
+    }
+
+    #[test]
+    fn a_burst_of_backups_today_never_prunes_earlier_days() {
+        let src = seeded();
+        for day in 1..=3 {
+            create(src.path(), Local.with_ymd_and_hms(2026, 11, day, 9, 0, 0).unwrap()).unwrap();
+        }
+        for m in 0..40 {
+            create(src.path(), Local.with_ymd_and_hms(2026, 11, 4, 10, m, 0).unwrap()).unwrap();
+        }
+        let dates: Vec<NaiveDate> = list(src.path()).into_iter().map(|b| b.date).collect();
+        for day in 1..=3 {
+            assert!(dates.contains(&NaiveDate::from_ymd_opt(2026, 11, day).unwrap()), "lost Nov {day}");
+        }
+        assert_eq!(dates.len(), KEEP + 3);
     }
 
     #[test]

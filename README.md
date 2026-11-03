@@ -26,35 +26,64 @@ Worthwatch tracks what you own and what you owe. You type balances in once a mon
 
 ### 📈 Every account, always current
 
-All your accounts in one net worth, measured against what you actually put in, so you see how much the market added. When something changes, type it like a text. You check a card of every change, approve it, and every screen updates at once.
+All your accounts in one net worth, measured against what you actually put in. Type changes like a text, approve the card, and every screen updates. Recurring rules carry your plan forward.
 
-<img src="docs/screenshots/gif-accounts-live.gif" alt="Home shows net worth against money put in. Ctrl+J opens Ask or update, 'visa 640, bought 10 xeqt' becomes a card with two changes, Approve saves them, and the net worth updates live" width="100%">
-
-Recurring deposits and payments run on autopilot and carry your plan forward. Drag a slider to see when you reach your target, when the mortgage is paid off, and how much TFSA, RRSP and FHSA room is left.
-
-<img src="docs/screenshots/gif-accounts-plan.gif" alt="Plan: hovering the projection, dragging extra saving per month moves the target date from May 2041 to January 2039, then debt payoff, contribution room and the recurring rules" width="100%">
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/screenshots/gif-accounts-live.gif" alt="Home shows net worth against money put in. Ctrl+J opens Ask or update, 'visa 640, bought 10 xeqt' becomes a card with two changes, Approve saves them, and the net worth updates live" width="100%"><br>
+      <b>Update it like a text</b><br>
+      <sub>Approve the card and net worth updates live.</sub>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/screenshots/gif-accounts-plan.gif" alt="Plan: hovering the projection, dragging extra saving per month moves the target date from May 2041 to January 2039, then debt payoff, contribution room and the recurring rules" width="100%"><br>
+      <b>Plan ahead</b><br>
+      <sub>Drag a slider to see your target date, payoff and TFSA, RRSP and FHSA room.</sub>
+    </td>
+  </tr>
+</table>
 
 [Home](docs/user-guide.md#home) · [Chat](docs/user-guide.md#chat) · [Plan](docs/user-guide.md#plan)
 
 ### 🔍 See inside your investments
 
-Worthwatch follows each ETF down to the companies it holds, so you see what you really own: by company, sector, country and currency, and where two funds overlap. Changes splits any period into market moves, money you added, debt paid down and FX, one account and one holding at a time.
+Worthwatch follows each ETF down to the companies it holds, so you see what you really own and where funds overlap. Changes splits any period into market moves, money you added, debt paid down and FX.
 
-<img src="docs/screenshots/gif-investments-look-through.gif" alt="Portfolio: positions, then the look-through treemap with Microsoft, Amazon and Apple tooltips, the exposure bars, and fund overlap between VFV.TO, VTI and XEQT.TO" width="100%">
-
-<img src="docs/screenshots/gif-investments-changes.gif" alt="Changes: net worth up $3,398 since the last check-in, split into market, cash, debt and FX, a step per account with tooltips, switching to 1Y, then each holding's change" width="100%">
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/screenshots/gif-investments-look-through.gif" alt="Portfolio: positions, then the look-through treemap with Microsoft, Amazon and Apple tooltips, the exposure bars, and fund overlap between VFV.TO, VTI and XEQT.TO" width="100%"><br>
+      <b>Look through your funds</b><br>
+      <sub>By company, sector, country and currency, plus fund overlap.</sub>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/screenshots/gif-investments-changes.gif" alt="Changes: net worth up $3,398 since the last check-in, split into market, cash, debt and FX, a step per account with tooltips, switching to 1Y, then each holding's change" width="100%"><br>
+      <b>What changed, and why</b><br>
+      <sub>Each account and holding's share of the move.</sub>
+    </td>
+  </tr>
+</table>
 
 [Portfolio](docs/user-guide.md#portfolio) · [Changes](docs/user-guide.md#changes) · [Fund holdings](docs/data-sources.md)
 
 ### 🎯 Budget from your iPhone, and play it
 
-Each Apple Pay tap reaches your Mac as you pay, and your iPhone tells you what's left today. Your bank statement confirms each tap later, so nothing counts twice. No bank login is involved.
+Each Apple Pay tap reaches your Mac as you pay, and your bank statement confirms it later, so nothing counts twice. No bank login is involved. The budget game turns the month into a board: unspent allowance fills a jar toward your goal.
 
-<img src="docs/screenshots/gif-budget-tap.gif" alt="An iPhone (illustration) pays Sushi Gen $36.00 with Apple Pay; a notification says $29 left today, Jar $136 of $500; the tap appears at once at the top of Budget's transactions" width="100%">
-
-The budget game turns the month into a board. Each day gets an allowance. What you don't spend drops into a jar, and you aim to fill it to your monthly goal. Weekly challenge cards, such as *Coffee under $25*, come from your own spending.
-
-<img src="docs/screenshots/gif-budget-game.gif" alt="Budget, then Play: a track of days with coins on green days, today's token with $65 left, the jar at $136, playing the Dining under $45 card, and October closed with $310 against a $300 goal" width="100%">
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/screenshots/gif-budget-tap.gif" alt="An iPhone (illustration) pays Sushi Gen $36.00 with Apple Pay; a notification says $29 left today, Jar $136 of $500; the tap appears at once at the top of Budget's transactions" width="100%"><br>
+      <b>Budget, with Apple Pay</b><br>
+      <sub>Your iPhone tells you what's left today.</sub>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/screenshots/gif-budget-game.gif" alt="Budget, then Play: a track of days with coins on green days, today's token with $65 left, the jar at $136, playing the Dining under $45 card, and October closed with $310 against a $300 goal" width="100%"><br>
+      <b>Play the month</b><br>
+      <sub>Daily allowances, a jar goal and weekly challenge cards.</sub>
+    </td>
+  </tr>
+</table>
 
 [Budget](docs/budgeting.md) · [Apple Pay feed](docs/apple-pay-feed.md) · [Budget game](docs/budget-game.md)
 
@@ -111,13 +140,13 @@ For the full setup, your first check-in, and where your data lives, see [Get sta
 
 ## Private by default
 
-- 🔒 **Localhost only.** Worthwatch listens on `127.0.0.1`. Nothing else on your network can reach it until you [choose to allow it](docs/remote-access.md).
+- 🔒 **Localhost only.** Worthwatch listens on `127.0.0.1`. Nothing else on your network can reach it until you [choose to allow it](docs/remote-access.md). It refuses requests from other websites, and over Tailscale answers only the Apple Pay feed until you name your login. See [Keep Worthwatch secure](docs/security.md).
 - 📄 **Your data is a text file.** Accounts and balances live in `ledger.yaml`. Edit it by hand and the app reloads.
 - 🌐 **It fetches public prices only.** Yahoo Finance, Stooq and the Bank of Canada. It never sees your balances. Set `WORTHWATCH_OFFLINE=1` to turn fetching off.
 - ✋ **Models propose, you approve.** Chat and MCP clients can suggest changes. Only your click writes them.
 
 > [!WARNING]
-> Worthwatch has no login yet. Anyone who can reach the port sees everything. For access away from home, use [Tailscale](docs/remote-access.md), not port forwarding.
+> Worthwatch has no login yet. Anyone who can reach the port sees everything. For access away from home, use [Tailscale](docs/remote-access.md), not port forwarding. To run it isolated in a container on a spare Mac, follow [Keep Worthwatch secure](docs/security.md).
 
 ## Documentation
 
@@ -131,6 +160,7 @@ For the full setup, your first check-in, and where your data lives, see [Get sta
 | [Configure Worthwatch](docs/configuration.md) | Settings in `ledger.yaml` and environment variables. |
 | [Prices, FX and fund holdings](docs/data-sources.md) | Where numbers come from and how to override them. |
 | [Connect an AI assistant](docs/mcp.md) | Use Claude Desktop, Claude Code or another MCP client with your data. |
+| [Keep Worthwatch secure](docs/security.md) | Run it in a container, send taps over Tailscale, and check it's locked down. |
 | [Access Worthwatch remotely](docs/remote-access.md) | Reach it from your phone with Tailscale, or open it on your network. |
 | [Back up and restore](docs/backup-restore.md) | Daily backups, manual backups, and restoring onto a new machine. |
 | [Run Worthwatch on a Mac](docs/macos.md) | Start it at login on a Mac mini with one install script. |

@@ -136,7 +136,8 @@ pub fn similarity(a: &str, b: &str) -> f64 {
 pub fn tidy(description: &str) -> String {
     let mut s = description.trim();
     for prefix in ["SQ *", "SQ*", "TST*", "TST-", "SP *", "SP*", "PAYPAL *", "PP*"] {
-        if s.len() > prefix.len() && s[..prefix.len()].eq_ignore_ascii_case(prefix) {
+        // `get` and not `[..]`: a merchant like "CAFÉ" has no char boundary at byte 4.
+        if s.len() > prefix.len() && s.get(..prefix.len()).is_some_and(|h| h.eq_ignore_ascii_case(prefix)) {
             s = s[prefix.len()..].trim_start();
         }
     }
@@ -526,5 +527,11 @@ pub(crate) mod tests {
         assert_eq!(similarity("BlueBottle", "SQ *BLUE BOTTLE"), 1.0);
         assert_eq!(similarity("Loblaws", "PRESTO FARE"), 0.0);
         assert_eq!(tidy("SQ *BLUE BOTTLE TORONTO ON"), "Blue Bottle Toronto On");
+        // Accented merchants used to panic and take the Budget page down with them.
+        for d in ["CAFÉ OLIMPICO MONTREAL", "CRÊPERIE", "Sé", "S€x", "日本料理 TORONTO", "SQ *CAFÉ VITA"]
+        {
+            let _ = tidy(d);
+        }
+        assert_eq!(tidy("SQ *CAFÉ VITA"), "Café Vita");
     }
 }

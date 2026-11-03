@@ -535,7 +535,7 @@ export interface FeedStatus {
   last_scan: string | null; last_added: string | null; errors: string[];
 }
 export interface SettingsView {
-  mode: FeedMode; token: string; ingest_path: string; icloud_dir: string | null; icloud: FeedStatus;
+  mode: FeedMode; /** Last 4 characters only; the whole token comes from revealToken(). */ token_hint: string; ingest_path: string; icloud_dir: string | null; icloud: FeedStatus;
   tailscale_url: string | null; tailscale_detected: boolean; can_sign: boolean; shortcut_file: string | null; day_shortcut_file: string | null;
   last_tap: string | null; taps: number;
 }
@@ -545,6 +545,8 @@ export async function getSettings(): Promise<SettingsView> {
   return r.json();
 }
 export const rotateToken = () => post<SettingsView>("/api/settings/token");
+/** A POST, so only this page (same origin) can read the whole token. */
+export const revealToken = () => post<{ token: string }>("/api/settings/token/reveal");
 export const makeShortcut = () => post<SettingsView>("/api/settings/shortcut");
 
 // ---- Plan (GET /api/plan) ----

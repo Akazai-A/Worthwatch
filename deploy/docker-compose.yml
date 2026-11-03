@@ -1,16 +1,41 @@
+# Worthwatch, locked down. Start: docker compose -f deploy/docker-compose.yml up -d
+# The port is published on this computer only (127.0.0.1). See docs/security.md.
 services:
   worthwatch:
     build: { context: .., dockerfile: deploy/Dockerfile }
     image: worthwatch:local
     restart: unless-stopped
-    # Localhost only by default. To reach it from other devices on your network,
-    # start with WORTHWATCH_HOST=0.0.0.0 (see docs/remote-access.md).
+    depends_on:
+      data-owner: { condition: service_completed_successfully }
+    # Localhost only by default. WORTHWATCH_HOST=0.0.0.0 opens it to your network, with no login.
     ports: ["${WORTHWATCH_HOST:-127.0.0.1}:${WORTHWATCH_PORT:-7777}:7777"]
-    volumes: ["worthwatch-data:/data"]
-    # The chat panel's local model, when the "ai" profile is up. settings.assistant.ollama_url wins.
-    environment: { WORTHWATCH_OLLAMA_URL: "http://ollama:11434" }
+    volumes:
+      - worthwatch-data:/data
+      # iCloud Apple Pay feed only: mount the Worthwatch taps folder, read-only, and nothing
+      # else from iCloud Drive. The Tailscale feed needs no mount (recommended).
+      # - "${HOME}/Library/Mobile Documents/iCloud~is~workflow~my~workflows/Documents/Worthwatch:/taps:ro"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: ["/tmp:size=16m,mode=1777"]
+    environment:
+      # The chat panel's local model, when the "ai" profile is up. settings.assistant.ollama_url wins.
+      WORTHWATCH_OLLAMA_URL: "http://ollama:11434"
+      # WORTHWATCH_TAPS_DIR: /taps
+      # WORTHWATCH_TAILSCALE_OWNER: you@example.com
 
-  # Optional local LLM for the chat panel (Stage 5). docker compose --profile ai up -d
+  # Images before this one ran as root, so an existing volume can be owned by root. This hands
+  # it to the non-root user (65532) and exits: no network, only the capabilities chown needs.
+  data-owner:
+    image: busybox:1.37
+    user: "0:0"
+    command: ["chown", "-R", "65532:65532", "/data"]
+    network_mode: none
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER]
+    volumes: [worthwatch-data:/data]
+
+  # Optional local LLM for the chat panel. docker compose --profile ai up -d
   ollama:
     image: ollama/ollama:latest
     profiles: ["ai"]

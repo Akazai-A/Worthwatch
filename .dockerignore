@@ -1,0 +1,9 @@
+# Keep your data and build output out of the image build: only source goes in.
+.git
+.env
+target
+data/*
+!data/ledger.example.yaml
+ui/node_modules
+ui/dist
+ui/test-results

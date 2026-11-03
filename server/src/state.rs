@@ -57,6 +57,12 @@ impl AppState {
     /// Open `<data_dir>/ledger.yaml`, creating a starter file on first run.
     pub fn open(data_dir: &Path) -> Result<Self, LedgerError> {
         std::fs::create_dir_all(data_dir)?;
+        #[cfg(unix)]
+        {
+            // Your finances: this user only. A mount the server doesn't own may refuse; fine.
+            use std::os::unix::fs::PermissionsExt;
+            let _ = std::fs::set_permissions(data_dir, std::fs::Permissions::from_mode(0o700));
+        }
         let ledger_path = data_dir.join("ledger.yaml");
         let quotes_path = data_dir.join("quotes.json");
         let holdings_dir = data_dir.join("holdings");

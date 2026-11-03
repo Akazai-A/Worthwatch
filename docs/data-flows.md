@@ -291,7 +291,7 @@ flowchart LR
 - **Statements win.** A matched pair takes the statement's amount and date, so a tipped meal counts at its posted total. A tap with no row after 7 days moves to Review. An account set to Apple Pay only uses taps as the record.
 - **The card bill is a transfer.** Cards link only to credit card accounts. Payments between your own accounts are categorized `transfer`, which, like `income`, never counts as spending.
 - **The feed is narrow.** `/api/ingest/transaction` and `/api/ingest/day` are the only routes that accept the token. Both reject a missing or wrong one with 401 and write nothing, and the tap route answers 409 when the feed is off. `tailscale serve --set-path /api/ingest` exposes only that path. The token lives in `ingest-token` (mode 0600) and is compared in constant time.
-- **The Shortcut is generated.** `budget::shortcut::plist` writes the Shortcut for the chosen mode; on macOS the server signs it with `shortcuts sign --mode anyone` and saves it to iCloud Drive. The tests check the actions and that only a reply containing `worthwatch_saved` deletes the queue.
+- **The Shortcut is generated.** `budget::shortcut::plist` writes the Shortcut for the chosen mode; on macOS the server signs it with `shortcuts sign --mode people-who-know-me` and saves it to iCloud Drive. The tests check the actions and that only a reply containing `worthwatch_saved` deletes the queue.
 
 ## Stage 7 data flow: the budget game
 

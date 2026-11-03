@@ -6,7 +6,7 @@
 //! so the queue is written first and a tap made offline goes out with the next one.
 //!
 //! The output is unsigned. iOS imports only signed Shortcuts; on a Mac,
-//! `shortcuts sign --mode anyone` signs it (the server does this from Settings).
+//! `shortcuts sign --mode people-who-know-me` signs it (the server does this from Settings).
 
 use std::fmt::Write;
 

@@ -34,6 +34,10 @@ futures-util = "0.3"
 tokio-stream = { version = "0.1", features = ["sync"] }
 tar = "0.4"
 flate2 = "1"
+getrandom = "0.3"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
 
 [dev-dependencies]
 rust_decimal_macros = "1"

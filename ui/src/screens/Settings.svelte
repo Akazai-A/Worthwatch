@@ -1,6 +1,6 @@
 <script lang="ts">
   import {
-    apply, ApiError, getSettings, makeShortcut, rotateToken,
+    apply, ApiError, getSettings, makeShortcut, revealToken, rotateToken,
     SOURCE_LABEL, type Bill, type CategoryRule, type FeedMode, type LedgerView, type Mutation, type SettingsView, type TxnSource,
   } from "../lib/api";
   import { formatDate, formatMoney, parseAmount } from "../lib/money";
@@ -14,7 +14,12 @@
   let err = $state<string | null>(null);
   let note = $state<string | null>(null);
   let busy = $state(false);
-  let reveal = $state(false);
+  /** The whole token, only while shown. */
+  let revealed = $state<string | null>(null);
+  async function toggleToken() {
+    if (revealed) { revealed = null; return; }
+    try { revealed = (await revealToken()).token; } catch (e) { err = e instanceof ApiError ? e.message : String(e); }
+  }
 
   async function loadSettings() {
     try { s = await getSettings(); } catch (e) { err = e instanceof ApiError ? e.message : String(e); }
@@ -48,6 +53,7 @@
   async function newToken() {
     if (!confirm("Make a new token? The Shortcut on your phone stops working until you make it again.")) return;
     s = await rotateToken();
+    revealed = null;
     note = "New token made. Make the Shortcut again and re-import it on your phone.";
   }
   function copy(text: string) { void navigator.clipboard?.writeText(text); note = "Copied."; }
@@ -121,8 +127,8 @@
             <span>Expose only the tap endpoint on your tailnet (the rest of the app stays on this Mac):<br /><code class="cmd">{serveCmd}</code></span>
             <button type="button" class="btn" onclick={() => copy(serveCmd)}>Copy</button>
             <span class="ck ok">✓</span>
-            <span>Token <code class="tok">{reveal ? s.token : "•".repeat(12) + s.token.slice(-4)}</code> <span class="faint">is built into your Shortcut; only <code>{s.ingest_path}</code> accepts it.</span></span>
-            <span class="btns"><button type="button" class="link" onclick={() => (reveal = !reveal)}>{reveal ? "Hide" : "Show"}</button><button type="button" class="link" onclick={newToken}>New token</button></span>
+            <span>Token <code class="tok">{revealed ?? "•".repeat(12) + s.token_hint}</code> <span class="faint">is built into your Shortcut; only <code>{s.ingest_path}</code> accepts it.</span></span>
+            <span class="btns"><button type="button" class="link" onclick={toggleToken}>{revealed ? "Hide" : "Show"}</button><button type="button" class="link" onclick={newToken}>New token</button></span>
           {/if}
 
           <span class="ck" class:ok={s.taps > 0}>{s.taps > 0 ? "✓" : ""}</span>
@@ -132,7 +138,7 @@
           <span class="ck" class:ok={!!s.shortcut_file}>{s.shortcut_file ? "✓" : ""}</span>
           <span>Get the Shortcut onto your iPhone.
             {#if s.can_sign}This Mac signs it and saves it to iCloud Drive; open it from Files on the phone.{#if s.shortcut_file} <span class="faint">Saved as <code>{s.shortcut_file}</code></span>{/if}
-            {:else}Signing needs a Mac. <a href="/api/settings/shortcut.plist" download>Download the unsigned file</a> and run <code>shortcuts sign --mode anyone -i file.plist -o "Worthwatch Tap.shortcut"</code> on one.{/if}</span>
+            {:else}Signing needs a Mac. <a href="/api/settings/shortcut.plist" download>Download the unsigned file</a> and run <code>shortcuts sign --mode people-who-know-me -i file.plist -o "Worthwatch Tap.shortcut"</code> on one.{/if}</span>
           {#if s.can_sign}<button type="button" class="btn primary" disabled={busy || (feed.mode === "tailscale" && !s.tailscale_url)} onclick={shortcut}>{s.shortcut_file ? "Make again" : "Make Shortcut"}</button>{:else}<span></span>{/if}
 
           <span class="ck"></span>

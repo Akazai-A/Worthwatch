@@ -34,12 +34,13 @@ if (( BUILD )); then
   pnpm --dir "$REPO/ui" install --frozen-lockfile
   pnpm --dir "$REPO/ui" build
   say "Building the server (a few minutes the first time)"
-  cargo build --release --manifest-path "$REPO/Cargo.toml" -p worthwatch
+  cargo build --release --locked --manifest-path "$REPO/Cargo.toml" -p worthwatch
 fi
 [[ -x "$REPO/target/release/worthwatch" ]] || die "no binary at target/release/worthwatch. Run without --no-build."
 
 say "Installing to $BIN"
 mkdir -p "$(dirname "$BIN")" "$DATA" "$LOGS" "$(dirname "$PLIST")"
+chmod 700 "$DATA"
 # Stop the old copy before replacing its binary.
 launchctl bootout "gui/$UID/$LABEL" 2>/dev/null || true
 install -m 0755 "$REPO/target/release/worthwatch" "$BIN"
