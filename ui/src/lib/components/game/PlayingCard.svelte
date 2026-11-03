@@ -2,7 +2,7 @@
   // A challenge as a playing card. The art is the progress: the cup fills as you spend
   // toward the cap; the squares tick off clean days. Offers carry Play and Pass.
   import type { GameCard } from "../../api";
-  import { cup, glyph, squares, SUITS } from "../../game";
+  import { cup, glyph, squares, SUITS } from "../../budget/game";
   import Glyph from "./Glyph.svelte";
 
   let { c, i = 0, money, onPlay, onPass }: {

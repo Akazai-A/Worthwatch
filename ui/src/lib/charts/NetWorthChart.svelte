@@ -3,8 +3,8 @@
   import uPlot from "uplot";
   import { onMount } from "svelte";
   import { GROUPS, GROUP_LABEL, type Group, type GrowthPoint, type Point } from "../api";
-  import { addedLine as addedLineOf, windowTotals } from "../growth";
-  import { formatCompact, formatDate, formatMoney, formatSigned } from "../money";
+  import { addedLine as addedLineOf, windowTotals } from "../networth/growth";
+  import { formatCompact, formatDate, formatMoney, formatSigned } from "../format/money";
 
   type Range = "3m" | "1y" | "all";
   type Mode = "line" | "groups" | "added";

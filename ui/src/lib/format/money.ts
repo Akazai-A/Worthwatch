@@ -1,0 +1,104 @@
+/** What every amount shows while amounts are hidden (⌘⇧H). */
+export const MASK = "*****";
+
+let hidden: () => boolean = () => false;
+/** Points the formatters at the hide-amounts preference. It is read inside each call, so a
+ *  template that formats an amount re-renders when the preference flips. */
+export function hideAmountsWhen(source: () => boolean): void { hidden = source; }
+export function amountsHidden(): boolean { return hidden(); }
+
+/** Replaces dollar amounts inside prose (chat answers) while amounts are hidden. */
+export function maskAmounts(text: string): string {
+  return hidden() ? text.replace(/[+−-]?\$\d+(?:,\d{3})*(?:\.\d+)?(?:[KkMm](?![A-Za-z]))?/g, MASK) : text;
+}
+
+export function formatMoney(value: string | number, currency = "CAD", digits = 0): string {
+  if (hidden()) return MASK;
+  const n = typeof value === "string" ? Number(value) : value;
+  const s = new Intl.NumberFormat("en-CA", {
+    style: "currency",
+    currency,
+    currencyDisplay: "narrowSymbol",
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(Math.abs(n));
+  return n < 0 ? `−${s}` : s;
+}
+
+/** "+$1,240" / "−$640" / "$0". */
+export function formatSigned(value: string | number, currency = "CAD"): string {
+  if (hidden()) return MASK;
+  const n = typeof value === "string" ? Number(value) : value;
+  if (n > 0) return `+${formatMoney(n, currency)}`;
+  return formatMoney(n, currency);
+}
+
+/** Axis ticks: $12K, $1.2M, $850. `thousands` is the suffix for thousands ("K" or "k"). */
+export function formatCompact(n: number, thousands = "K"): string {
+  if (hidden()) return MASK;
+  const a = Math.abs(n);
+  const sign = n < 0 ? "−" : "";
+  if (a >= 1_000_000) return `${sign}$${trim((a / 1_000_000).toFixed(a >= 10_000_000 ? 0 : 1))}M`;
+  if (a >= 1_000) return `${sign}$${trim((a / 1_000).toFixed(a >= 100_000 ? 0 : 1))}${thousands}`;
+  return `${sign}$${Math.round(a)}`;
+}
+
+function trim(s: string): string {
+  return s.replace(/\.0$/, "");
+}
+
+/** Unit counts (shares held): personal like amounts, so hidden with them. Up to 4 decimals. */
+export function formatUnits(value: string | number, digits = 4): string {
+  if (hidden()) return MASK;
+  return new Intl.NumberFormat("en-CA", { maximumFractionDigits: digits }).format(Number(value));
+}
+
+/** Plain number with grouping and 2 decimals, for inputs and tables. */
+export function formatPlain(value: string | number, digits = 2): string {
+  const n = typeof value === "string" ? Number(value) : value;
+  return new Intl.NumberFormat("en-CA", { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(n);
+}
+
+/** Typed input to a number: drops commas, `$` and spaces, reads `−` as minus and a trailing
+ *  k or m as thousands or millions. Null when it isn't a number. */
+function readScaled(input: string): number | null {
+  const s = input.trim().replace(/[,$\s]/g, "").replace(/−/g, "-").toLowerCase();
+  const m = /^(-?\d+(?:\.\d+)?)(k|m)?$/.exec(s);
+  if (!m) return null;
+  const mult = m[2] === "k" ? 1000 : m[2] === "m" ? 1_000_000 : 1;
+  return Number(m[1]) * mult;
+}
+
+/** Accepts "5102", "5,102.10", "18.5k", "-640", "−640", "$1,200". Returns a decimal string or null. */
+export function parseAmount(input: string): string | null {
+  const n = readScaled(input);
+  return n === null ? null : n.toFixed(2);
+}
+
+/** Like parseAmount but keeps up to 6 decimals (units, prices). */
+export function parseNumber(input: string, decimals = 6): string | null {
+  const n = readScaled(input);
+  return n === null ? null : String(Number(n.toFixed(decimals)));
+}
+
+/** A percentage as the API sends it ("12.345" or 12.345): "12.3%". Not hidden with amounts. */
+export function formatPct(value: string | number, digits = 1): string {
+  return `${Number(value).toFixed(digits)}%`;
+}
+
+export function formatDate(iso: string, style: "short" | "long" = "short"): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  return new Intl.DateTimeFormat("en-CA", {
+    month: "short",
+    day: "numeric",
+    year: style === "long" ? "numeric" : undefined,
+    timeZone: "UTC",
+  }).format(date);
+}
+
+export function todayIso(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}

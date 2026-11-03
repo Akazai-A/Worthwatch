@@ -173,20 +173,12 @@ export interface Pending { id: number; created: string; origin: string; text: st
 
 /** Ask for a proposal. Writes nothing. `send` = consent to the cloud preview. */
 export async function chat(text: string, send = false, date?: string): Promise<ChatReply> {
-  const r = await fetch("/api/chat", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ text, send, date: date ?? null }),
-  });
-  if (!r.ok) await fail(r);
-  return r.json();
+  return post("/api/chat", { text, send, date: date ?? null });
 }
 
 /** Approve (applies through the one write path) or discard a pending MCP proposal. */
 export async function decidePending(id: number, action: "approve" | "discard"): Promise<LedgerView> {
-  const r = await fetch(`/api/pending/${id}/${action}`, { method: "POST" });
-  if (!r.ok) await fail(r);
-  return r.json();
+  return post(`/api/pending/${id}/${action}`);
 }
 
 // ---- Look-through (Portfolio › Look-through / Exposure / Overlap), from GET /api/lookthrough ----
@@ -259,16 +251,12 @@ export interface LookThroughView {
 }
 
 export async function getLookthrough(): Promise<LookThroughView> {
-  const r = await fetch("/api/lookthrough");
-  if (!r.ok) await fail(r);
-  return r.json();
+  return get("/api/lookthrough");
 }
 
 /** Re-read data/holdings and fetch issuer files for every held fund now. Never fails on a bad fund; see `errors`. */
 export async function refreshHoldings(): Promise<LookThroughView> {
-  const r = await fetch("/api/refresh-holdings", { method: "POST" });
-  if (!r.ok) await fail(r);
-  return r.json();
+  return post("/api/refresh-holdings");
 }
 
 // ---- Changes (GET /api/changes?from&to&threshold) ----
@@ -394,26 +382,20 @@ export async function getChanges(p: ChangesParams = {}): Promise<ChangesView> {
   if (p.from) q.set("from", p.from);
   if (p.to) q.set("to", p.to);
   if (p.threshold != null) q.set("threshold", p.threshold);
-  const r = await fetch(`/api/changes${q.size ? `?${q}` : ""}`);
-  if (!r.ok) await fail(r);
-  return r.json();
+  return get(`/api/changes${q.size ? `?${q}` : ""}`);
 }
 
 /** Added vs grown (GET /api/growth): `added` is the running total since the first point
  *  of what you put in (saving, contributions, debt paid down); the rest of the move is growth. */
 export interface GrowthPoint { date: string; net_worth: string; added: string }
 export async function getGrowth(): Promise<GrowthPoint[]> {
-  const r = await fetch("/api/growth");
-  if (!r.ok) await fail(r);
-  return r.json();
+  return get("/api/growth");
 }
 
 /** One account, one calendar month (GET /api/accounts/{id}/months): contribution to net worth. */
 export interface MonthSplit { month: string; added: string; grown: string }
 export async function getAccountMonths(id: string): Promise<MonthSplit[]> {
-  const r = await fetch(`/api/accounts/${encodeURIComponent(id)}/months`);
-  if (!r.ok) await fail(r);
-  return r.json();
+  return get(`/api/accounts/${encodeURIComponent(id)}/months`);
 }
 
 export type Mutation =
@@ -480,9 +462,7 @@ export interface BudgetView {
 export interface CategoryOption { id: string; label: string }
 
 export async function getBudget(month?: string): Promise<BudgetView> {
-  const r = await fetch(`/api/budget${month ? `?month=${month}` : ""}`);
-  if (!r.ok) await fail(r);
-  return r.json();
+  return get(`/api/budget${month ? `?month=${month}` : ""}`);
 }
 
 export type Preset = "auto" | "td" | "rbc" | "cibc" | "scotiabank" | "bmo" | "tangerine" | "amex" | "simplii" | "eq" | "generic" | "ofx";
@@ -493,15 +473,6 @@ export interface ImportPreview {
   from: string | null; to: string | null;
 }
 export interface ImportRequest { account: string; text: string; preset: Preset; flip: boolean }
-async function post<T>(url: string, body?: unknown): Promise<T> {
-  const r = await fetch(url, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  if (!r.ok) await fail(r);
-  return r.json();
-}
 export const previewImport = (req: ImportRequest) => post<ImportPreview>("/api/budget/import/preview", req);
 export const importStatement = (req: ImportRequest) => post<{ added: number; duplicates: number }>("/api/budget/import", req);
 export const setCategory = (id: string, category: string | null) => post<{ ok: boolean }>("/api/budget/category", { id, category });
@@ -533,9 +504,7 @@ export interface GameView {
 }
 
 export async function getGame(month?: string): Promise<GameView> {
-  const r = await fetch(`/api/game${month ? `?month=${month}` : ""}`);
-  if (!r.ok) await fail(r);
-  return r.json();
+  return get(`/api/game${month ? `?month=${month}` : ""}`);
 }
 
 // ---- Settings (GET /api/settings) ----
@@ -549,9 +518,7 @@ export interface SettingsView {
   last_tap: string | null; taps: number;
 }
 export async function getSettings(): Promise<SettingsView> {
-  const r = await fetch("/api/settings");
-  if (!r.ok) await fail(r);
-  return r.json();
+  return get("/api/settings");
 }
 export const rotateToken = () => post<SettingsView>("/api/settings/token");
 /** A POST, so only this page (same origin) can read the whole token. */
@@ -598,22 +565,16 @@ export async function getPlan(p: PlanParams = {}): Promise<PlanView> {
   if (p.return_pct != null) q.set("return_pct", p.return_pct);
   if (p.extra != null) q.set("extra", p.extra);
   if (p.target != null) q.set("target", p.target);
-  const r = await fetch(`/api/plan${q.size ? `?${q}` : ""}`);
-  if (!r.ok) await fail(r);
-  return r.json();
+  return get(`/api/plan${q.size ? `?${q}` : ""}`);
 }
 
 // ---- Backups ----
 export interface BackupInfo { name: string; bytes: number; created: string; date: string }
 export async function listBackups(): Promise<BackupInfo[]> {
-  const r = await fetch("/api/backups");
-  if (!r.ok) await fail(r);
-  return r.json();
+  return get("/api/backups");
 }
 export async function createBackup(): Promise<BackupInfo[]> {
-  const r = await fetch("/api/backups", { method: "POST" });
-  if (!r.ok) await fail(r);
-  return r.json();
+  return post("/api/backups");
 }
 
 export interface PlanRow {
@@ -647,20 +608,36 @@ async function fail(r: Response): Promise<never> {
   throw new ApiError(e.message ?? r.statusText, r.status, e.line ?? null);
 }
 
-export async function getView(): Promise<LedgerView> {
-  const r = await fetch("/api/view");
+/** The parsed JSON body, or an ApiError carrying the server's message. */
+async function body<T>(r: Response): Promise<T> {
   if (!r.ok) await fail(r);
   return r.json();
 }
 
-export async function apply(mutations: Mutation[]): Promise<LedgerView> {
-  const r = await fetch("/api/apply", {
+async function get<T>(url: string): Promise<T> {
+  return body(await fetch(url));
+}
+
+/** A POST, with `data` as the JSON body when given. */
+async function post<T>(url: string, data?: unknown): Promise<T> {
+  return body(await fetch(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify(mutations),
-  });
-  if (!r.ok) await fail(r);
-  return r.json();
+    body: data === undefined ? undefined : JSON.stringify(data),
+  }));
+}
+
+/** What a failed call says, for an error line on screen. */
+export function errorMessage(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
+}
+
+export async function getView(): Promise<LedgerView> {
+  return get("/api/view");
+}
+
+export async function apply(mutations: Mutation[]): Promise<LedgerView> {
+  return post("/api/apply", mutations);
 }
 
 /** currency -> rate in effect (fetched if any, else typed), for browser-side estimates only. */
@@ -672,20 +649,12 @@ export function ratesInUse(v: LedgerView): Record<string, string> {
 
 /** Fetch prices and FX now. Never fails on a bad symbol; see `market.errors` in the view. */
 export async function refresh(): Promise<LedgerView> {
-  const r = await fetch("/api/refresh", { method: "POST" });
-  if (!r.ok) await fail(r);
-  return r.json();
+  return post("/api/refresh");
 }
 
 /** Parse a pasted holdings export against one account. Writes nothing. */
 export async function parseHoldings(account: string, date: string, text: string): Promise<PastePlan> {
-  const r = await fetch("/api/parse-holdings", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ account, date, text }),
-  });
-  if (!r.ok) await fail(r);
-  return r.json();
+  return post("/api/parse-holdings", { account, date, text });
 }
 
 /** Calls `onChange` with the new version whenever the ledger changes. Returns a stop function. */

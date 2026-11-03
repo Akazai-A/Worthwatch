@@ -1,6 +1,6 @@
 // The Plan view (GET /api/plan). Slider values live here, not in the ledger, until
 // the user saves them as their defaults. Refetched when the inputs or the ledger move.
-import { getPlan, type PlanView } from "../api";
+import { getPlan, errorMessage, type PlanView } from "../api";
 
 let current = $state<PlanView | null>(null);
 let error = $state<string | null>(null);
@@ -39,7 +39,7 @@ export const plan = {
       // Sliders fire fast; only the latest answer counts.
       if (mine === seq) { current = v; error = null; }
     } catch (e) {
-      if (mine === seq) { error = e instanceof Error ? e.message : String(e); key = ""; }
+      if (mine === seq) { error = errorMessage(e); key = ""; }
     }
   },
 };

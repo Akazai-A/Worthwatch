@@ -2,8 +2,8 @@
   // Waterfall from the starting net worth to the ending one, one floating bar per
   // step. Plain SVG; the x range fits the path so small steps stay visible.
   import type { Snippet } from "svelte";
-  import type { BridgeStep } from "../changes";
-  import { formatCompact, formatMoney, formatSigned } from "../money";
+  import type { BridgeStep } from "../portfolio/changes";
+  import { formatCompact, formatMoney, formatSigned } from "../format/money";
 
   let {
     start,

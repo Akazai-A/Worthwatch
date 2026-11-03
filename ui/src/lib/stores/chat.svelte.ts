@@ -1,7 +1,7 @@
 // The chat thread for this tab: what was asked and what came back. Not persisted:
 // approved changes are in the ledger, everything else is disposable. Pending MCP
 // proposals live on the server and arrive with the view.
-import { chat as ask, type ChatReply, type Plan } from "../api";
+import { chat as ask, errorMessage, type ChatReply, type Plan } from "../api";
 
 export type Status = "open" | "approved" | "cancelled" | "failed";
 export interface Turn {
@@ -32,7 +32,7 @@ export const chat = {
       const reply = await ask(t, consent);
       chat.update(id, { reply, plan: reply.plan, error: null });
     } catch (e) {
-      chat.update(id, { error: e instanceof Error ? e.message : String(e) });
+      chat.update(id, { error: errorMessage(e) });
     } finally {
       busy = false;
     }

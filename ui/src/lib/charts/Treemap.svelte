@@ -6,8 +6,8 @@
   // reaches them. Hover shows a tooltip, click selects (the parent shows the detail).
   import { hierarchy, treemap, treemapSquarify, type HierarchyRectangularNode } from "d3-hierarchy";
   import type { Company } from "../api";
-  import { formatMoney } from "../money";
-  import { FAMILY_ORDER, familyHue, familyOf, viaSummary } from "../lookthrough";
+  import { formatMoney, formatPct } from "../format/money";
+  import { FAMILY_ORDER, familyHue, familyOf, viaSummary } from "../portfolio/lookthrough";
 
   let {
     companies,
@@ -93,14 +93,14 @@
       onfocus={() => (tip = null)}>
       {#if big}
         <b>{cell.c.name}</b>
-        {#if cell.h > 40}<span class="num">{Number(cell.c.pct).toFixed(1)}%</span>{/if}
+        {#if cell.h > 40}<span class="num">{formatPct(cell.c.pct)}</span>{/if}
       {/if}
     </button>
   {/each}
   {#if tip}
     <div class="tip" style="left:{tipLeft}px;top:{tip.y + 14}px" class:flip={tip.x > width * 0.6}>
       <b>{tip.c.name}</b>{#if tip.c.ticker && tip.c.ticker !== tip.c.name}&nbsp;<span class="faint">{tip.c.ticker}</span>{/if}
-      <div><span class="money">{formatMoney(tip.c.value, currency)}</span> · <span class="num">{Number(tip.c.pct).toFixed(1)}%</span>{#if tip.c.sector}&nbsp;· {tip.c.sector}{/if}</div>
+      <div><span class="money">{formatMoney(tip.c.value, currency)}</span> · <span class="num">{formatPct(tip.c.pct)}</span>{#if tip.c.sector}&nbsp;· {tip.c.sector}{/if}</div>
       {#if tip.c.via.length}<div class="faint">{viaSummary(tip.c)}</div>{/if}
     </div>
   {/if}

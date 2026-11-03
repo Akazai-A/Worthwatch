@@ -61,7 +61,7 @@ No test may touch the network. Provider parsers are pure `parse_*` functions tes
 ## Follow the code style
 
 - **Data-oriented Rust.** Use plain structs and pure functions. Change the ledger only through `Mutation` and `apply`.
-- **Thin Svelte components.** Keep state in stores under `ui/src/lib/stores`. Put logic in tested modules under `ui/src/lib`.
+- **Thin Svelte components.** Keep state in stores under `ui/src/lib/stores`. Put logic in tested modules under `ui/src/lib/<area>/` (`networth`, `portfolio`, `budget`), with the test beside the module. Format numbers, money, percentages and dates with `ui/src/lib/format/money.ts`, and call the server through the `get`/`post` helpers in `ui/src/lib/api.ts`.
 - **Colours come from tokens.** Use the CSS variables in `ui/src/tokens.css`. Don't write colour literals in components.
 - **Show, then tell.** Prefer charts, bars and sparklines to blocks of text. Put the exact words in hover titles.
 

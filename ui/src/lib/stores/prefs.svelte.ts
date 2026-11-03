@@ -1,5 +1,5 @@
 // Per-device preferences: hide amounts (⌘⇧H) and theme. Stored in localStorage.
-import { hideAmountsWhen } from "../money";
+import { hideAmountsWhen } from "../format/money";
 
 export type Theme = "system" | "dark" | "light";
 

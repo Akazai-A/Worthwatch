@@ -1,13 +1,13 @@
 <script lang="ts">
-  import PrivacyToggle from "../lib/components/PrivacyToggle.svelte";
+  import PrivacyToggle from "../lib/components/shell/PrivacyToggle.svelte";
   import { apply, ApiError, EVERY_LABEL, type Every, type LedgerView, type Mutation, type Recurring, type RoomKind } from "../lib/api";
-  import { formatCompact, formatDate, formatMoney, parseAmount, todayIso } from "../lib/money";
-  import { milestoneSplit, monthYear, payoffLine, roomBar, roomLine, yearsBetween } from "../lib/plan";
+  import { formatCompact, formatDate, formatMoney, parseAmount, todayIso } from "../lib/format/money";
+  import { milestoneSplit, monthYear, payoffLine, roomBar, roomLine, yearsBetween } from "../lib/networth/plan";
   import { plan } from "../lib/stores/plan.svelte";
   import { prefs } from "../lib/stores/prefs.svelte";
   import { view as viewStore } from "../lib/stores/view.svelte";
   import FanChart from "../lib/charts/FanChart.svelte";
-  import Money from "../lib/components/Money.svelte";
+  import Money from "../lib/components/amounts/Money.svelte";
 
   let { view }: { view: LedgerView } = $props();
   const cur = $derived(view.base_currency);

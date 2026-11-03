@@ -3,8 +3,8 @@
   // dashed above it, the budget pace (bills on their day, the rest evenly), and each day's spending as a strip
   // of bars on its own scale underneath. Hover a day for its numbers.
   import type { BudgetView } from "../api";
-  import { chart } from "../budget";
-  import { formatCompact, formatMoney } from "../money";
+  import { chart } from "../budget/budget";
+  import { formatCompact, formatMoney } from "../format/money";
   import { prefs } from "../stores/prefs.svelte";
 
   let { v }: { v: BudgetView } = $props();

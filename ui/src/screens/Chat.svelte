@@ -3,14 +3,14 @@
   // checks; approval goes through /api/apply like every other write. Proposals made
   // over MCP (Claude Desktop) wait here as cards of their own.
   import { onMount, tick } from "svelte";
-  import { addSpends, apply, decidePending, ratesInUse, ApiError, type LedgerView, type Plan } from "../lib/api";
+  import { addSpends, apply, decidePending, ratesInUse, ApiError, errorMessage, type LedgerView, type Plan } from "../lib/api";
   import { EXAMPLES, fmtUnits, onlySpends, providerLine } from "../lib/chat";
-  import { savedLine } from "../lib/spend";
-  import { budget } from "../lib/stores/budget.svelte";
+  import { savedLine } from "../lib/budget/spend";
+  import { budget } from "../lib/stores/budget/budget.svelte";
   import { chat, type Turn } from "../lib/stores/chat.svelte";
   import { view as viewStore } from "../lib/stores/view.svelte";
-  import { formatDate, formatMoney, maskAmounts } from "../lib/money";
-  import PlanCard from "../lib/components/PlanCard.svelte";
+  import { formatDate, formatMoney, maskAmounts } from "../lib/format/money";
+  import PlanCard from "../lib/components/chat/PlanCard.svelte";
   import Sparkline from "../lib/charts/Sparkline.svelte";
 
   let { view, docked = false }: { view: LedgerView; docked?: boolean } = $props();
@@ -39,7 +39,7 @@
     input?.focus();
   }
   const labels = $derived(Object.fromEntries((budget.current?.options ?? []).map((o) => [o.id, o.label])));
-  const errText = (e: unknown) => (e instanceof ApiError && e.line ? `line ${e.line}: ${e.message}` : e instanceof Error ? e.message : String(e));
+  const errText = (e: unknown) => (e instanceof ApiError && e.line ? `line ${e.line}: ${e.message}` : errorMessage(e));
   async function approve(turn: Turn, plan: Plan) {
     // Ledger changes first through /api/apply, then purchases to the budget's store.
     let saved = false;
@@ -59,7 +59,7 @@
     try {
       viewStore.set(await decidePending(id, action));
     } catch (e) {
-      pendingError[id] = e instanceof Error ? e.message : String(e);
+      pendingError[id] = errorMessage(e);
     }
   }
   function ago(iso: string): string {

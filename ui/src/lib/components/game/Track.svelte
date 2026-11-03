@@ -2,7 +2,7 @@
   // The month as a track: one tile per day, coins on the days that put money in the jar,
   // your token on today with its allowance draining as you tap.
   import type { GameView } from "../../api";
-  import { pile, tileTip, track } from "../../game";
+  import { pile, tileTip, track } from "../../budget/game";
   import CoinDefs from "./CoinDefs.svelte";
 
   let { g, money, mon, onadd }: { g: GameView; money: (n: number) => string; mon: string; onadd?: () => void } = $props();

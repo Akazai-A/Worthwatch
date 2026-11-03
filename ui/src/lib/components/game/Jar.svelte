@@ -1,6 +1,6 @@
 <script lang="ts">
   // The jar: coins up to how much the closed days left over, a dashed line at the goal.
-  import { jarCoins } from "../../game";
+  import { jarCoins } from "../../budget/game";
   import CoinDefs from "./CoinDefs.svelte";
 
   let { fraction, goalLabel = null, size = 1, id = "coin-jar", glow = false }: {
