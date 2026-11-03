@@ -7,6 +7,9 @@
   import { rank, runs, type Item } from "../../palette";
   import { prefs } from "../../stores/prefs.svelte";
   import { view as viewStore } from "../../stores/view.svelte";
+  import { changes } from "../../stores/portfolio/changes.svelte";
+  import { lookthrough } from "../../stores/portfolio/lookthrough.svelte";
+  import { PRESETS } from "../../portfolio/changes";
 
   let { view, open = $bindable(false) }: { view: LedgerView | null; open?: boolean } = $props();
   let q = $state("");
@@ -40,11 +43,25 @@
     const nav: Item[] = screens.map(([label, hash, hint]) => ({ id: `g:${hash}`, section: "Go to", label, hint, run: go(hash) }));
     const act: Item[] = [
       { id: "x:blur", section: "Actions", label: prefs.blur ? "Show amounts" : "Hide amounts", hint: "privacy hide", run: () => prefs.toggleBlur() },
-      { id: "x:theme", section: "Actions", label: "Cycle theme", hint: "dark light", run: () => prefs.cycleTheme() },
+      { id: "x:theme", section: "Actions", label: `Theme: ${prefs.theme === "system" ? "Auto" : prefs.theme === "dark" ? "Dark" : "Light"} (switch)`, hint: "cycle dark light auto", run: () => prefs.cycleTheme() },
       { id: "x:backup", section: "Actions", label: "Back up now", hint: "backup", run: async () => { const b = await createBackup(); note = `Saved ${b[0]?.name ?? "a backup"}`; location.hash = "#/backups"; } },
       { id: "x:refresh", section: "Actions", label: "Refresh prices", hint: "quotes fx", run: async () => viewStore.set(await refresh()) },
     ];
-    return [...acc, ...nav, ...act];
+    // Holdings by ticker, companies inside your funds (once look-through has loaded), and Changes periods.
+    const held: Item[] = (view?.portfolio.securities ?? []).map((r) => ({
+      id: `s:${r.symbol}`, section: "Holdings", label: r.symbol,
+      hint: `${r.accounts.map((a) => a.name).join(" + ")}${r.value != null ? ` · ${formatMoney(r.value, view!.base_currency)}` : ""}`,
+      run: go("#/portfolio"),
+    }));
+    const inside: Item[] = (lookthrough.current?.lookthrough.companies ?? []).slice(0, 300).map((c) => ({
+      id: `c:${c.key}`, section: "Inside your funds", label: c.name, hint: `${c.ticker ?? ""} ${c.sector}`,
+      run: go("#/portfolio/look-through"),
+    }));
+    const periods: Item[] = PRESETS.filter((p) => p.id !== "custom").map((p) => ({
+      id: `p:${p.id}`, section: "Changes", label: `Changes · ${p.label}`, hint: `${p.title} what moved period`,
+      run: () => { changes.setPreset(p.id); location.hash = "#/changes"; },
+    }));
+    return [...acc, ...held, ...nav, ...periods, ...act, ...inside];
   });
   const hits = $derived(rank(items, q));
   const value = (id: string) => view?.accounts.find((a) => `a:${a.id}` === id);
@@ -83,7 +100,7 @@
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <div class="r" class:on={i === sel} id="pal-{i}" role="option" aria-selected={i === sel} tabindex="-1" onmouseenter={() => (sel = i)} onclick={() => choose(i)}>
           <span class="i" style={a ? `background:var(--g-${a.group})` : ""}></span>
-          <span>{#each runs(h.item.label, h.marks) as r}{#if r.on}<em>{r.text}</em>{:else}{r.text}{/if}{/each}{#if h.item.section === "Go to" && h.item.hint}<span class="faint">{"\u00a0· "}{h.item.hint}</span>{/if}</span>
+          <span>{#each runs(h.item.label, h.marks) as r}{#if r.on}<em>{r.text}</em>{:else}{r.text}{/if}{/each}{#if h.item.section !== "Accounts" && h.item.section !== "Actions" && h.item.hint}<span class="faint">{"\u00a0· "}{h.item.hint}</span>{/if}</span>
           <span class="m">{#if a}<span class="money">{a.missing_fx || a.missing_price ? "–" : formatMoney(a.liability ? a.value : a.value, view?.base_currency)}</span>{:else if h.item.id === "x:blur"}⌘⇧H{/if}</span>
         </div>
       {:else}
