@@ -369,7 +369,7 @@ mod tests {
         assert!(!err);
         let snap = b.state.snapshot();
         let totals = derive::totals(&snap.ledger, &snap.market(), b.today);
-        assert_eq!(nw["net_worth"], json!(totals.net_worth.to_string()));
+        assert_eq!(nw["net_worth"], json!(totals.net_worth.round_dp(2).to_string()));
         assert_eq!(nw["by_group"].as_object().unwrap().len(), 4);
         let (accts, _) = call(&b, "get_accounts", json!({}));
         assert_eq!(accts["accounts"].as_array().unwrap().len(), 9);

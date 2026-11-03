@@ -22,7 +22,7 @@ pub fn context(snap: &Snapshot, today: NaiveDate) -> Context {
                 Some(_) => {
                     let v = derive::value_account(l, &m, a, today);
                     let (native, _, missing) = derive::positions_native(l, &m, a, today);
-                    (if missing && native.is_zero() { None } else { Some(native) }, v.as_of)
+                    (if missing && native.is_zero() { None } else { Some(native.round_dp(2)) }, v.as_of)
                 }
                 None => match derive::balance_at(l, &a.id, today) {
                     Some((d, b)) => (Some(b), Some(d)),
@@ -70,16 +70,18 @@ pub fn context(snap: &Snapshot, today: NaiveDate) -> Context {
         accounts,
         rates,
         summary: assistant::Summary {
-            net_worth: totals.net_worth,
-            assets: totals.assets,
-            liabilities: totals.liabilities,
+            net_worth: totals.net_worth.round_dp(2),
+            assets: totals.assets.round_dp(2),
+            liabilities: totals.liabilities.round_dp(2),
             by_group: [Group::Cash, Group::Investments, Group::Property, Group::Debt]
                 .into_iter()
-                .map(|g| (g.label().to_string(), totals.by_group.get(&g).copied().unwrap_or_default()))
+                .map(|g| {
+                    (g.label().to_string(), totals.by_group.get(&g).copied().unwrap_or_default().round_dp(2))
+                })
                 .collect(),
-            ytd_change: ytd.as_ref().map(|d| d.amount),
+            ytd_change: ytd.as_ref().map(|d| d.amount.round_dp(2)),
             ytd_pct: ytd.as_ref().and_then(|d| d.pct),
-            previous_change: previous.as_ref().map(|d| d.amount),
+            previous_change: previous.as_ref().map(|d| d.amount.round_dp(2)),
             previous_from: previous.as_ref().map(|d| d.from),
         },
     }
@@ -103,7 +105,12 @@ pub fn assistant_view(l: &ledger::Ledger, offline: bool) -> AssistantView {
         AssistantProvider::Ollama => AssistantView {
             provider: "ollama".into(),
             model: Some(s.model.clone().unwrap_or_else(|| assistant::ollama::DEFAULT_MODEL.into())),
-            url: Some(s.ollama_url.clone().unwrap_or_else(|| assistant::ollama::DEFAULT_URL.into())),
+            url: Some(
+                s.ollama_url
+                    .clone()
+                    .or_else(|| std::env::var("WORTHWATCH_OLLAMA_URL").ok().filter(|u| !u.trim().is_empty()))
+                    .unwrap_or_else(|| assistant::ollama::DEFAULT_URL.into()),
+            ),
             key_present: false,
             offline,
         },

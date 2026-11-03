@@ -1,6 +1,8 @@
 <script lang="ts">
   import { route } from "../stores/route.svelte";
   import { prefs } from "../stores/prefs.svelte";
+  import { view } from "../stores/view.svelte";
+  const waiting = $derived(view.current?.pending.length ?? 0);
   const name = $derived(route.current.name);
   const themeLabel = $derived(prefs.theme === "system" ? "Auto" : prefs.theme === "dark" ? "Dark" : "Light");
 </script>
@@ -11,6 +13,7 @@
   <a class="nav" class:on={name === "checkin"} href="#/check-in"><span class="dot"></span>Check-in</a>
   <a class="nav" class:on={name === "portfolio"} href="#/portfolio"><span class="dot"></span>Portfolio</a>
   <a class="nav" class:on={name === "changes"} href="#/changes"><span class="dot"></span>Changes</a>
+  <a class="nav" class:on={name === "chat"} href="#/chat"><span class="dot"></span>Chat{#if waiting}<span class="badge" title="{waiting} proposal{waiting === 1 ? '' : 's'} waiting">{waiting}</span>{/if}</a>
   <div class="spacer"></div>
   <button class="foot" type="button" onclick={() => prefs.toggleBlur()} title="Blur amounts (⌘⇧H)">
     {prefs.blur ? "Unblur" : "Blur"} amounts <kbd>⌘⇧H</kbd>
@@ -26,6 +29,7 @@
   .nav.on { background: var(--accent-soft); color: var(--text); }
   .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-3); }
   .nav.on .dot { background: var(--accent); }
+  .badge { margin-left: auto; font-size: 10px; background: var(--accent); color: var(--bg); border-radius: 9px; padding: 0 6px; font-weight: 600; line-height: 16px; }
   .spacer { flex: 1; }
   .foot { font-size: 11px; color: var(--text-3); padding: 6px 10px; background: none; border: 0; text-align: left; font: inherit; font-size: 11px; cursor: pointer; border-radius: 6px; }
   .foot:hover { color: var(--text-2); background: var(--surface); }

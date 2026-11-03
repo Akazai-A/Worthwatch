@@ -7,6 +7,8 @@ services:
     # start with WORTHWATCH_HOST=0.0.0.0 (see README "Security").
     ports: ["${WORTHWATCH_HOST:-127.0.0.1}:${WORTHWATCH_PORT:-7777}:7777"]
     volumes: ["worthwatch-data:/data"]
+    # The chat panel's local model, when the "ai" profile is up. settings.assistant.ollama_url wins.
+    environment: { WORTHWATCH_OLLAMA_URL: "http://ollama:11434" }
 
   # Optional local LLM for the chat panel (Stage 5). docker compose --profile ai up -d
   ollama:

@@ -10,6 +10,7 @@
   import AccountDetail from "./screens/AccountDetail.svelte";
   import Portfolio from "./screens/Portfolio.svelte";
   import Changes from "./screens/Changes.svelte";
+  import Chat from "./screens/Chat.svelte";
 
   onMount(() => {
     void view.load();
@@ -30,7 +31,7 @@
 
 <div class="app">
   <Rail />
-  <main>
+  <main class:tight={route.current.name === "chat"}>
     <div class="col" class:wide={route.current.name === "changes"}>
       {#if view.current?.problem}
         <ProblemBanner problem={view.current.problem} path={view.current.ledger_path} />
@@ -45,6 +46,8 @@
         <Portfolio view={view.current} tab={route.current.tab} />
       {:else if route.current.name === "changes"}
         <Changes view={view.current} />
+      {:else if route.current.name === "chat"}
+        <Chat view={view.current} />
       {:else if route.current.name === "account"}
         <AccountDetail view={view.current} id={route.current.id} />
       {:else}
@@ -57,6 +60,7 @@
 <style>
   .app { display: flex; min-height: 100vh; }
   main { flex: 1; min-width: 0; padding: 28px 28px 48px; }
+  main.tight { padding-bottom: 16px; }
   .col { max-width: 820px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
   .col.wide { max-width: 1360px; }
   .error { color: var(--negative); }
