@@ -1,13 +1,8 @@
+mod api;
 mod backup;
-mod budget;
-mod chat;
-mod game;
 mod mcp;
-mod routes;
 mod security;
 mod seed;
-mod seed_budget;
-mod seed_holdings;
 mod state;
 mod ui;
 
@@ -92,10 +87,9 @@ async fn main() -> anyhow::Result<()> {
     state.watch();
     state.schedule_refresh();
     state.schedule_backups();
-    budget::watch_icloud(&state);
+    api::budget::feed::watch_icloud(&state);
     let policy = std::sync::Arc::new(security::Policy::from_env());
-    let app = routes::router(state.clone())
-        .merge(budget::router(state))
+    let app = api::router(state)
         .merge(ui::router())
         .layer(axum::middleware::from_fn_with_state(policy, security::guard));
 

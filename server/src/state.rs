@@ -24,7 +24,7 @@ pub struct Snapshot {
     pub version: u64,
     /// Proposals from MCP (or any non-chat caller) waiting for the user. In memory only:
     /// a restart drops them, which is the safe direction.
-    pub pending: Vec<crate::chat::Pending>,
+    pub pending: Vec<crate::api::chat::Pending>,
     /// id -> outcome for proposals the user already decided, so an MCP client can poll.
     pub decided: std::collections::BTreeMap<u64, String>,
     pub next_id: u64,
@@ -46,7 +46,7 @@ pub struct AppState {
     /// it grows by thousands of rows a year and only the budget page reads it.
     pub txns: Arc<RwLock<budget::TxnStore>>,
     /// What the iCloud reader saw last time it looked.
-    pub feed: Arc<RwLock<crate::budget::FeedStatus>>,
+    pub feed: Arc<RwLock<crate::api::budget::feed::FeedStatus>>,
     /// `WORTHWATCH_OFFLINE=1`: never touch the network (tests, air-gapped use).
     pub offline: bool,
     inner: Arc<RwLock<Snapshot>>,
@@ -94,7 +94,7 @@ impl AppState {
             next_id: 1,
         }));
         let txns = Arc::new(RwLock::new(budget::TxnStore::load(&data_dir.join("transactions"))));
-        let feed = Arc::new(RwLock::new(crate::budget::FeedStatus::default()));
+        let feed = Arc::new(RwLock::new(crate::api::budget::feed::FeedStatus::default()));
         Ok(Self { ledger_path, quotes_path, holdings_dir, txns, feed, offline, inner, changed })
     }
 
@@ -134,9 +134,9 @@ impl AppState {
     }
 
     /// Park a proposal for the user. Nothing is written; the UI shows it as a card.
-    pub fn propose(&self, origin: &str, text: &str, plan: assistant::Plan) -> crate::chat::Pending {
+    pub fn propose(&self, origin: &str, text: &str, plan: assistant::Plan) -> crate::api::chat::Pending {
         let mut guard = self.inner.write().expect("ledger lock");
-        let p = crate::chat::Pending {
+        let p = crate::api::chat::Pending {
             id: guard.next_id,
             created: Utc::now(),
             origin: origin.to_string(),
@@ -175,7 +175,7 @@ impl AppState {
                 self.apply_many(plan.mutations)?;
             }
             if !plan.spends.is_empty() {
-                crate::budget::add_spends(self, &plan.spends, Utc::now())
+                crate::api::budget::add_spends(self, &plan.spends, Utc::now())
                     .map_err(LedgerError::FileHasProblem)?;
             }
             "approved"

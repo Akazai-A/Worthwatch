@@ -8,11 +8,9 @@ use chrono::{DateTime, Datelike, Days, FixedOffset, Months, NaiveDate, TimeZone,
 use ledger::{Bill, Budget, Every, Feed, FeedMode, TxnSource};
 use rust_decimal::Decimal;
 
-pub const CARD: &str = "TD Aeroplan Visa";
+use super::d;
 
-fn d(cents: i64) -> Decimal {
-    Decimal::new(cents, 2)
-}
+pub const CARD: &str = "TD Aeroplan Visa";
 
 pub fn seed_budget_settings() -> Budget {
     let mut b = Budget::default();

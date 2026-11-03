@@ -8,7 +8,14 @@ use chrono::{DateTime, Datelike, NaiveDate, Utc};
 use ledger::Group;
 use serde::{Deserialize, Serialize};
 
-use crate::state::Snapshot;
+use axum::extract::{Path, State};
+use axum::http::StatusCode;
+use axum::Json;
+use chrono::Local;
+
+use super::view::{view_of, LedgerView};
+use super::{bad, ledger_error, ApiResult};
+use crate::state::{AppState, Snapshot};
 
 /// [`assistant::resolve`], with a category on every purchase from the budget's rules,
 /// so the card shows where it will land.
@@ -265,6 +272,95 @@ pub struct Pending {
     pub origin: String,
     pub text: String,
     pub plan: Plan,
+}
+
+// ------------------------------------------------------------------ routes
+
+/// Turn a message into a proposal. Writes nothing: the UI sends `plan.mutations` to
+/// `/api/apply` when the user approves. With a cloud model and `send: false`, nothing
+/// leaves the machine either; the reply carries the exact prompt as a preview.
+pub async fn post_chat(
+    State(s): State<AppState>,
+    Json(req): Json<crate::api::chat::ChatRequest>,
+) -> ApiResult<crate::api::chat::ChatReply> {
+    let snap = s.snapshot();
+    let offline = s.offline;
+    let today = Local::now().date_naive();
+    match tokio::task::spawn_blocking(move || crate::api::chat::chat(&snap, offline, &req, today)).await {
+        Ok(r) => Ok(Json(r)),
+        Err(e) => Err(bad(StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
+    }
+}
+
+/// What MCP clients read: the assistant's context (accounts with values, headline
+/// figures). Same numbers as the dashboard, assembled server-side.
+pub async fn get_context(State(s): State<AppState>) -> Json<assistant::Context> {
+    Json(crate::api::chat::context(&s.snapshot(), Local::now().date_naive()))
+}
+
+/// The caller can't name itself: the card always says where a proposal came from
+/// (`/api/propose` is the MCP bridge's route), so nothing can dress one up as the chat box.
+#[derive(Deserialize)]
+pub struct ProposeRequest {
+    /// What the user said, for the card.
+    #[serde(default)]
+    pub text: String,
+    #[serde(default)]
+    pub proposal: Option<assistant::Proposal>,
+}
+
+#[derive(Serialize)]
+pub struct ProposeReply {
+    /// Set when the plan has something to approve and was queued.
+    pub pending: Option<crate::api::chat::Pending>,
+    pub plan: assistant::Plan,
+}
+
+/// Queue a proposal for the user (the MCP `propose_update` path). A structured
+/// proposal is resolved as given; text alone goes through the shorthand parser. The
+/// plan is returned either way so the caller sees rejections at once.
+pub async fn propose(State(s): State<AppState>, Json(req): Json<ProposeRequest>) -> Json<ProposeReply> {
+    let snap = s.snapshot();
+    let today = Local::now().date_naive();
+    let ctx = crate::api::chat::context(&snap, today);
+    let p = req.proposal.unwrap_or_else(|| assistant::shorthand::parse(&req.text, &ctx));
+    let plan = crate::api::chat::resolve(&snap.ledger, &ctx, &p);
+    let pending = (!plan.mutations.is_empty() || !plan.spends.is_empty())
+        .then(|| s.propose("mcp", &req.text, plan.clone()));
+    Json(ProposeReply { pending, plan })
+}
+
+#[derive(Serialize)]
+pub struct PendingStatus {
+    pub id: u64,
+    /// pending | approved | discarded | expired | unknown
+    pub status: String,
+}
+
+pub async fn pending_status(State(s): State<AppState>, Path(id): Path<u64>) -> Json<PendingStatus> {
+    let snap = s.snapshot();
+    let status = if snap.pending.iter().any(|p| p.id == id) {
+        "pending".to_string()
+    } else {
+        snap.decided.get(&id).cloned().unwrap_or_else(|| "unknown".into())
+    };
+    Json(PendingStatus { id, status })
+}
+
+pub async fn decide(
+    State(s): State<AppState>,
+    Path((id, action)): Path<(u64, String)>,
+) -> ApiResult<LedgerView> {
+    let approve = match action.as_str() {
+        "approve" => true,
+        "discard" => false,
+        _ => return Err(bad(StatusCode::NOT_FOUND, format!("unknown action {action}"))),
+    };
+    match s.decide(id, approve) {
+        Ok(Some(_)) => Ok(Json(view_of(&s))),
+        Ok(None) => Err(bad(StatusCode::NOT_FOUND, format!("no pending proposal {id}"))),
+        Err(e) => Err(ledger_error(e)),
+    }
 }
 
 #[cfg(test)]

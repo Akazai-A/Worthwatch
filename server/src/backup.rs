@@ -243,8 +243,9 @@ mod tests {
         let today = NaiveDate::from_ymd_opt(2026, 11, 3).unwrap();
         let view = |dir: &Path| {
             let s = crate::state::AppState::open(dir).unwrap().snapshot();
-            let mut v = serde_json::to_value(crate::routes::build_view(&s, "x", today, true)).unwrap();
-            let lt = serde_json::to_value(crate::routes::build_lookthrough(&s, "x", today, true)).unwrap();
+            let mut v = serde_json::to_value(crate::api::view::build_view(&s, "x", today, true)).unwrap();
+            let lt =
+                serde_json::to_value(crate::api::portfolio::build_lookthrough(&s, "x", today, true)).unwrap();
             v["lookthrough"] = lt;
             v
         };

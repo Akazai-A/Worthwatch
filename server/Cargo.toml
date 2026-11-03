@@ -2,6 +2,7 @@
 name = "worthwatch"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 description = "Self-hosted net worth and portfolio tracker: one binary, your data in one folder"
 default-run = "worthwatch"
 
@@ -10,14 +11,14 @@ name = "worthwatch"
 path = "src/main.rs"
 
 [dependencies]
-ledger = { path = "../crates/ledger" }
-derive = { path = "../crates/derive" }
-providers = { path = "../crates/providers" }
-holdings = { path = "../crates/holdings" }
-importers = { path = "../crates/importers" }
-assistant = { path = "../crates/assistant" }
-budget = { path = "../crates/budget" }
-ureq = { version = "2", default-features = false, features = ["json"] }
+ledger.workspace = true
+derive.workspace = true
+providers.workspace = true
+holdings.workspace = true
+importers.workspace = true
+assistant.workspace = true
+budget.workspace = true
+ureq = { workspace = true, features = ["json"] }
 serde.workspace = true
 serde_json.workspace = true
 rust_decimal.workspace = true
@@ -40,6 +41,6 @@ getrandom = "0.4"
 libc = "0.2"
 
 [dev-dependencies]
-rust_decimal_macros = "1"
-tempfile = "3"
+rust_decimal_macros.workspace = true
+tempfile.workspace = true
 tower = { version = "0.5", features = ["util"] }

@@ -2,17 +2,18 @@
 name = "providers"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 description = "Market data at the boundary: price and FX providers behind traits, plus the fetched-quote cache"
 
 [dependencies]
-holdings = { path = "../holdings" }
+holdings.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 rust_decimal.workspace = true
 chrono.workspace = true
 thiserror.workspace = true
-ureq = { version = "2", default-features = false, features = ["tls"] }
+ureq = { workspace = true, features = ["tls"] }
 
 [dev-dependencies]
-rust_decimal_macros = "1"
-tempfile = "3"
+rust_decimal_macros.workspace = true
+tempfile.workspace = true

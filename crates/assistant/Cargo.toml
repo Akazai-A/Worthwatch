@@ -2,17 +2,18 @@
 name = "assistant"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 description = "Natural language to a ledger proposal: shorthand parser, model providers behind a trait, strict validation"
 
 [dependencies]
-ledger = { path = "../ledger" }
+ledger.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 rust_decimal.workspace = true
 chrono.workspace = true
 thiserror.workspace = true
-regex = "1"
-ureq = { version = "2", default-features = false, features = ["tls", "json"] }
+regex.workspace = true
+ureq = { workspace = true, features = ["tls", "json"] }
 
 [dev-dependencies]
-rust_decimal_macros = "1"
+rust_decimal_macros.workspace = true

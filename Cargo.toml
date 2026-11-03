@@ -23,6 +23,24 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 rust-embed = "8"
 mime_guess = "2"
 
+# Workspace crates
+ledger = { path = "crates/ledger" }
+budget = { path = "crates/budget" }
+derive = { path = "crates/derive" }
+holdings = { path = "crates/holdings" }
+providers = { path = "crates/providers" }
+importers = { path = "crates/importers" }
+assistant = { path = "crates/assistant" }
+
+# HTTP client for providers and models; each crate turns on the features it needs.
+ureq = { version = "2", default-features = false }
+regex = "1"
+
+# Tests only
+rust_decimal_macros = "1"
+tempfile = "3"
+proptest = "1"
+
 [profile.release]
 lto = true
 codegen-units = 1

@@ -20,7 +20,7 @@ use rust_decimal::Decimal;
 use serde::Serialize;
 
 use crate::category::{counts_as_spending, label};
-use crate::month::first_of;
+use crate::month::{days_in, first_of};
 use crate::reconcile::Txn;
 
 /// Coins a day can show: one per fifth of the allowance left over.
@@ -194,10 +194,6 @@ fn spent_on(
         .get(&d)
         .map(|v| v.iter().filter(|(_, t)| category.is_none_or(|c| t.category == c)).map(|(a, _)| *a).sum())
         .unwrap_or_default()
-}
-
-fn days_in(month: NaiveDate) -> u32 {
-    ((month + Months::new(1)) - month).num_days() as u32
 }
 
 pub fn monday(d: NaiveDate) -> NaiveDate {
