@@ -161,6 +161,7 @@ pub fn seed_ledger(today: NaiveDate) -> Ledger {
         Event { date: months[7], note: "Condo reassessed".into() },
         Event { date: months[13], note: "Annual bonus".into() },
     ];
+    l.budget = crate::seed_budget::seed_budget_settings();
     l
 }
 
@@ -221,6 +222,11 @@ pub fn write_seed(data_dir: &Path, today: NaiveDate, force: bool) -> Result<std:
     {
         store.save(f).map_err(|e| LedgerError::Io(std::io::Error::other(e.to_string())))?;
     }
+    let txns = data_dir.join("transactions");
+    if txns.exists() {
+        std::fs::remove_dir_all(&txns)?;
+    }
+    budget::TxnStore::load(&txns).append(crate::seed_budget::seed_transactions(today))?;
     Ok(path)
 }
 

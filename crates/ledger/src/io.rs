@@ -4,7 +4,7 @@ use std::path::Path;
 use crate::schema::Ledger;
 use crate::validate::{validate, LedgerError};
 
-pub const HEADER: &str = "# worthwatch ledger. Edit freely; the app reloads on save and refuses to\n# overwrite this file while it has an error. See ledger.example.yaml for the shape.\n# Liabilities are entered as positive amounts owed.\n";
+pub const HEADER: &str = "# Worthwatch ledger. Edit freely; the app reloads on save and refuses to\n# overwrite this file while it has an error. See ledger.example.yaml for the shape.\n# Liabilities are entered as positive amounts owed.\n";
 
 pub fn parse(yaml: &str) -> Result<Ledger, LedgerError> {
     let l: Ledger = serde_yaml_ng::from_str(yaml)?;
@@ -20,8 +20,20 @@ pub fn to_yaml(l: &Ledger) -> Result<String, LedgerError> {
 /// reads like numbers. Parsing accepts both forms, so this is purely cosmetic.
 fn unquote_numbers(yaml: &str) -> String {
     // Fields whose values are text and must keep their quotes even when numeric-looking.
-    const TEXT_KEYS: [&str; 9] =
-        ["id", "name", "institution", "kind", "currency", "base_currency", "symbol", "note", "account"];
+    const TEXT_KEYS: [&str; 12] = [
+        "id",
+        "name",
+        "institution",
+        "kind",
+        "currency",
+        "base_currency",
+        "symbol",
+        "note",
+        "account",
+        "contains",
+        "category",
+        "matches",
+    ];
     let mut out = String::with_capacity(yaml.len());
     for line in yaml.lines() {
         let key = line.split(':').next().map(|k| k.trim().trim_start_matches("- ")).unwrap_or("");
@@ -96,7 +108,7 @@ mod tests {
         save(&p, &l).unwrap();
         assert!(!p.with_extension("yaml.tmp").exists());
         assert_eq!(load(&p).unwrap(), l);
-        assert!(fs::read_to_string(&p).unwrap().starts_with("# worthwatch ledger"));
+        assert!(fs::read_to_string(&p).unwrap().starts_with("# Worthwatch ledger"));
     }
 
     #[test]

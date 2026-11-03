@@ -100,6 +100,24 @@ Plan projects your net worth forward.
 
 Recurring deposits and payments drive the projection. Add them on the Plan screen or in the ledger. See [Configure Worthwatch](configuration.md#set-up-plan-inputs).
 
+## Budget
+
+![Budget screen](screenshots/budget-dark.png)
+
+Budget shows one month of spending against your category limits.
+
+- The top shows what you spent, what's left, and how much is taps not on a statement yet.
+- The running total compares your spending with your pace. Bills count on their due day, and the rest of the budget is spread evenly.
+- Category bars show each limit, with a tick for today's pace. Select a limit to change it.
+- Bills show as paid once a statement row matches them.
+- Transactions are grouped by day. A hollow dot is an Apple Pay tap waiting for its statement row. Choose a new category from a row's menu to fix it.
+
+Select **Import statement…** to bring in a CSV or OFX file. See [Budget your spending](budgeting.md).
+
+## Settings
+
+Select **Settings** at the bottom of the sidebar to set up the Apple Pay feed, choose where each account's transactions come from, and edit bills and category rules. See [Set up the Apple Pay feed](apple-pay-feed.md).
+
 ## Wall view
 
 ![Wall view](screenshots/wall-dark.png)

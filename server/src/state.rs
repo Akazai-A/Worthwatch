@@ -42,6 +42,11 @@ pub struct AppState {
     pub ledger_path: PathBuf,
     pub quotes_path: PathBuf,
     pub holdings_dir: PathBuf,
+    /// Taps and statement rows (`transactions/`). Kept apart from the snapshot because
+    /// it grows by thousands of rows a year and only the budget page reads it.
+    pub txns: Arc<RwLock<budget::TxnStore>>,
+    /// What the iCloud reader saw last time it looked.
+    pub feed: Arc<RwLock<crate::budget::FeedStatus>>,
     /// `WORTHWATCH_OFFLINE=1`: never touch the network (tests, air-gapped use).
     pub offline: bool,
     inner: Arc<RwLock<Snapshot>>,
@@ -82,7 +87,9 @@ impl AppState {
             decided: Default::default(),
             next_id: 1,
         }));
-        Ok(Self { ledger_path, quotes_path, holdings_dir, offline, inner, changed })
+        let txns = Arc::new(RwLock::new(budget::TxnStore::load(&data_dir.join("transactions"))));
+        let feed = Arc::new(RwLock::new(crate::budget::FeedStatus::default()));
+        Ok(Self { ledger_path, quotes_path, holdings_dir, txns, feed, offline, inner, changed })
     }
 
     /// The folder everything lives in (`WORTHWATCH_DATA`).
@@ -92,6 +99,13 @@ impl AppState {
 
     pub fn snapshot(&self) -> Snapshot {
         self.inner.read().expect("ledger lock").clone()
+    }
+
+    /// Tell open pages something changed outside the ledger (a tap arrived).
+    pub fn bump(&self) {
+        let mut guard = self.inner.write().expect("ledger lock");
+        guard.version += 1;
+        let _ = self.changed.send(guard.version);
     }
 
     pub fn subscribe(&self) -> broadcast::Receiver<u64> {

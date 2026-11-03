@@ -41,6 +41,16 @@ pub enum LedgerError {
     NegativeRoom(String),
     #[error("projection rate {0} is outside -50..100 percent")]
     BadRate(String),
+    #[error("Wallet card `{0}` must link to a credit card account, and `{1}` is not one")]
+    NotACard(String, String),
+    #[error("`{0}` has no Wallet card linked, so its transactions can only come from statements")]
+    NoWalletCard(String),
+    #[error("budget for `{0}` cannot be negative")]
+    NegativeBudget(String),
+    #[error("a category rule needs some text to look for and a category")]
+    EmptyRule,
+    #[error("bill `{0}` needs a name and a positive amount")]
+    BadBill(String),
     #[error("ledger.yaml has a problem; fix the file first: {0}")]
     FileHasProblem(String),
     #[error("yaml: {0}")]
@@ -174,6 +184,45 @@ pub fn validate(l: &Ledger) -> Result<(), LedgerError> {
     for id in p.rates.keys() {
         if l.account(id).is_none() {
             return Err(LedgerError::UnknownAccount(id.clone()));
+        }
+    }
+    validate_budget(l)
+}
+
+fn validate_budget(l: &Ledger) -> Result<(), LedgerError> {
+    let b = &l.budget;
+    for (card, id) in &b.cards {
+        let a = l.account(id).ok_or_else(|| LedgerError::UnknownAccount(id.clone()))?;
+        if a.kind != AccountKind::CreditCard {
+            return Err(LedgerError::NotACard(card.clone(), id.clone()));
+        }
+    }
+    for (id, source) in &b.sources {
+        if l.account(id).is_none() {
+            return Err(LedgerError::UnknownAccount(id.clone()));
+        }
+        if source.uses_taps() && !b.cards.values().any(|a| a == id) {
+            return Err(LedgerError::NoWalletCard(id.clone()));
+        }
+    }
+    for (cat, amount) in &b.limits {
+        if amount.is_sign_negative() {
+            return Err(LedgerError::NegativeBudget(cat.clone()));
+        }
+    }
+    for r in &b.rules {
+        if r.contains.trim().is_empty() || r.category.trim().is_empty() {
+            return Err(LedgerError::EmptyRule);
+        }
+        if let Some(id) = &r.account {
+            if l.account(id).is_none() {
+                return Err(LedgerError::UnknownAccount(id.clone()));
+            }
+        }
+    }
+    for bill in &b.bills {
+        if bill.name.trim().is_empty() || bill.amount <= rust_decimal::Decimal::ZERO {
+            return Err(LedgerError::BadBill(bill.name.clone()));
         }
     }
     Ok(())

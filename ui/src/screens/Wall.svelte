@@ -35,7 +35,7 @@
 </script>
 
 <div class="wall" class:blur={prefs.blur}>
-  <div class="top"><a href="#/" title="Back to the app">worthwatch</a><span>net worth · {cur} · as of {formatDate(view.as_of)}</span><span class="clock">{clock}</span></div>
+  <div class="top"><a href="#/" title="Back to the app">Worthwatch</a><span>net worth · {cur} · as of {formatDate(view.as_of)}</span><span class="clock">{clock}</span></div>
   <div>
     <div class="big money">{formatMoney(view.totals.net_worth, cur)}</div>
     <div class="chips">

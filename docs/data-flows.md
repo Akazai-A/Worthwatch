@@ -172,12 +172,17 @@ Rules on top of the Stage 3 ones:
 | `GET /api/events` | SSE, one `change` event per ledger version |
 | `GET /api/plan?years&return_pct&extra&target` | `PlanView`: the projection (monthly points with a ±2 pt band, milestones, debt payoffs, target date), contribution room per TFSA/RRSP/FHSA, the recurring rules with monthly equivalents, and the ledger's own assumptions; query values override them for this answer only |
 | `GET /api/backups` · `POST /api/backups` · `GET /api/backups/{name}` | list (newest first), make one now, download one |
+| `POST /api/ingest/transaction` | Apple Pay taps (object, array or JSON lines) with `Authorization: Bearer <ingest-token>`; answers `{worthwatch_saved, added, duplicates, errors}`; 401 without the token, 409 when the feed is off |
+| `GET /api/budget?month` | `BudgetView`: the month's spending, pace by day, categories with six-month history, bills, transactions with status, review list, unlinked cards, account sources and feed status |
+| `POST /api/budget/import/preview` · `POST /api/budget/import` | `{ account, text, preset, flip }` → the parsed statement with duplicates marked (writes nothing), or the rows appended to `transactions/` |
+| `POST /api/budget/category` | `{ id, category }` → one hand-picked category in `categories.json` |
+| `GET /api/settings` · `POST /api/settings/token` · `POST /api/settings/shortcut` · `GET /api/settings/shortcut.plist` | feed status and setup checks; a new ingest token; sign and save the Shortcut to iCloud Drive (macOS); the unsigned Shortcut |
 | `worthwatch backup` · `worthwatch restore <file> [--force]` | the same backup from the command line; restore unpacks into `WORTHWATCH_DATA`, refuses to replace a ledger without `--force`, and backs the old one up first |
 | `worthwatch seed [--force]` | writes a 14-month sample ledger and a `quotes.json` with daily closes for the same span to `WORTHWATCH_DATA` (no typed prices: what a fetching user's file looks like), plus two dated holdings snapshots per seeded fund under `holdings/` (a month apart, a few sleeves reweighted) so the Changes feed has something to show |
 
 ## UI
 
-Hash routes `#/`, `#/check-in`, `#/portfolio[/look-through|/exposure|/overlap]`, `#/changes`, `#/chat`, `#/plan`, `#/wall` (full screen, no rail), `#/backups`, `#/accounts/<id>`. ⌘K / Ctrl+K opens the command palette anywhere (`lib/palette.ts` matches and ranks, tested). Global state is five stores under `ui/src/lib/stores`: `view` (the `LedgerView` plus the SSE subscription), `lookthrough` (the `LookThroughView`, fetched once per ledger version when a Portfolio sub-tab needs it), `changes` (the `ChangesView` for the chosen period and threshold, refetched when either or the ledger version moves), `route`, `prefs` (blur, theme). Screens under `ui/src/screens` render the view; the only browser-side arithmetic is the live preview on Check-in (`lib/checkin.ts`, unit-tested), and the saved numbers always come back from the server. Charts live in `lib/charts` (uPlot for time series, d3-hierarchy for the look-through treemap, plain SVG for the net worth bridge). The Changes screen encodes before it writes: a stacked strip for the split of a change (`SplitStrip`), a diverging bar per row (`DeltaBar`), a before/after weight bar per constituent (`WeightMove`); the words sit in hover titles. The screen is one window on a desktop: a 2×3 board (headline and bridge, then accounts beside holdings, then exposure drift beside fund changes) whose four panels scroll inside themselves, so the page never grows with the portfolio; under 1100px it stacks and each panel keeps a capped height. `lib/changes.ts` (tested) does the period presets and the wording. Colours are CSS tokens in `tokens.css`; components never use colour literals.
+Hash routes `#/`, `#/check-in`, `#/portfolio[/look-through|/exposure|/overlap]`, `#/changes`, `#/chat`, `#/plan`, `#/wall` (full screen, no rail), `#/backups`, `#/budget[/import]`, `#/settings`, `#/accounts/<id>`. ⌘K / Ctrl+K opens the command palette anywhere (`lib/palette.ts` matches and ranks, tested). Global state is five stores under `ui/src/lib/stores`: `view` (the `LedgerView` plus the SSE subscription), `lookthrough` (the `LookThroughView`, fetched once per ledger version when a Portfolio sub-tab needs it), `changes` (the `ChangesView` for the chosen period and threshold, refetched when either or the ledger version moves), `route`, `prefs` (blur, theme). Screens under `ui/src/screens` render the view; the only browser-side arithmetic is the live preview on Check-in (`lib/checkin.ts`, unit-tested), and the saved numbers always come back from the server. Charts live in `lib/charts` (uPlot for time series, d3-hierarchy for the look-through treemap, plain SVG for the net worth bridge). The Changes screen encodes before it writes: a stacked strip for the split of a change (`SplitStrip`), a diverging bar per row (`DeltaBar`), a before/after weight bar per constituent (`WeightMove`); the words sit in hover titles. The screen is one window on a desktop: a 2×3 board (headline and bridge, then accounts beside holdings, then exposure drift beside fund changes) whose four panels scroll inside themselves, so the page never grows with the portfolio; under 1100px it stacks and each panel keeps a capped height. `lib/changes.ts` (tested) does the period presets and the wording. Colours are CSS tokens in `tokens.css`; components never use colour literals.
 
 Playwright smoke flow: `ui/e2e/smoke.spec.ts` runs the real binary on a temp data dir.
 
@@ -255,4 +260,33 @@ flowchart LR
 
 - **Projections never touch the ledger.** `derive::project` is pure and reads today's values; slider values travel as query parameters and are only written when "Save as my defaults" sends a `set_projection` mutation. The model is deliberately plain (nominal monthly compounding, rules as monthly equivalents, money freed by a paid-off debt is not redirected) so the tests can check it against the annuity and amortization formulas.
 - **Rules are plans, contributions are facts.** Recurring rules drive the projection and the "planned to Dec 31" part of a room bar; only logged `contributions` count as used room. CRA's own figure (`room.<kind>.amount` on `as_of`) is the anchor: TFSA adds each later January's limit plus last year's withdrawals, FHSA adds $8,000 a year, RRSP adds nothing and asks for the notice-of-assessment figure.
-- **A backup is the whole folder that matters.** `ledger.yaml`, `quotes.json` and `holdings/` in one `.tar.gz`; `backups/` itself is never included. Restore unpacks into a staging folder, checks every entry is a plain relative path under those three names and that the ledger loads, and only then swaps the files in. The round-trip test restores a seeded backup onto a clean folder and compares the full `LedgerView` and `LookThroughView` JSON.
+- **A backup is the whole folder that matters.** `ledger.yaml`, `quotes.json`, `holdings/` and (from Stage 7) `transactions/` in one `.tar.gz`; `backups/` itself is never included. Restore unpacks into a staging folder, checks every entry is a plain relative path under those names and that the ledger loads, and only then swaps the files in. The round-trip test restores a seeded backup onto a clean folder and compares the full `LedgerView` and `LookThroughView` JSON.
+
+## Stage 7 data flow: budget, statements, Apple Pay feed
+
+```mermaid
+flowchart LR
+  subgraph phone [iPhone]
+    W[Wallet tap] --> AU[Transaction automation<br/>Dictionary: merchant, amount, card, name]
+    AU --> SC[Worthwatch Tap Shortcut<br/>stamps the time]
+  end
+  SC -- iCloud mode: append --> IC[(iCloud Drive<br/>Shortcuts/Worthwatch/<br/>taps-YYYY-MM.jsonl)]
+  SC -- Tailscale mode: append queue.jsonl, POST it,<br/>delete only on worthwatch_saved --> IN[/POST /api/ingest/transaction<br/>Bearer ingest-token/]
+  IC -- poll every 10 s,<br/>size + mtime --> RD[iCloud reader]
+  CSV([bank CSV / OFX]) --> IMP[/POST /api/budget/import/<br/>parse_statement: presets,<br/>sign, dates, OFX FITID/]
+  RD & IN -- Tap --> ST[(transactions/YYYY-MM.jsonl<br/>append-only, deduped by id)]
+  IMP -- CsvRow --> ST
+  ST --> RC[budget::reconcile<br/>same account, row 0–5 days after,<br/>equal or tipped ≤30% or FX]
+  L[ledger.yaml<br/>budget: limits · cards · sources<br/>rules · bills · feed] --> RC
+  CAT[(categories.json)] --> RC
+  RC --> MV[budget::month<br/>spent · provisional · pace by day<br/>categories · bills · review]
+  MV --> BV[/GET /api/budget/] --> UI[Budget screen]
+  UI -- set_budget_limit · link_card ·<br/>set_txn_source · set_category_rules ·<br/>set_bills · set_feed --> A[/POST /api/apply/] --> L
+  UI -- one row --> CAT
+```
+
+- **Two records, one transaction.** A tap and a statement row are stored as they arrived and never edited. `reconcile` pairs them on every read, greedily by exact amount, then merchant similarity, then nearest date. Importing the same statement again or receiving the same tap again is a no-op, because ids are stable: `csv-` plus a hash of account, date, amount, description and occurrence (or `ofx-` plus the bank's FITID), and `tap-` plus a hash of time, card, amount and merchant.
+- **Statements win.** A matched pair takes the statement's amount and date, so a tipped meal counts at its posted total. A tap with no row after 7 days moves to Review. An account set to Apple Pay only uses taps as the record.
+- **The card bill is a transfer.** Cards link only to credit card accounts. Payments between your own accounts are categorized `transfer`, which, like `income`, never counts as spending.
+- **The feed is narrow.** `/api/ingest/transaction` is the only route that accepts the token, rejects a missing or wrong one with 401 and writes nothing, and answers 409 when the feed is off. `tailscale serve --set-path /api/ingest` exposes only that path. The token lives in `ingest-token` (mode 0600) and is compared in constant time.
+- **The Shortcut is generated.** `budget::shortcut::plist` writes the Shortcut for the chosen mode; on macOS the server signs it with `shortcuts sign --mode anyone` and saves it to iCloud Drive. The tests check the actions and that only a reply containing `worthwatch_saved` deletes the queue.

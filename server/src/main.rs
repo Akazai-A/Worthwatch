@@ -1,8 +1,10 @@
 mod backup;
+mod budget;
 mod chat;
 mod mcp;
 mod routes;
 mod seed;
+mod seed_budget;
 mod seed_holdings;
 mod state;
 mod ui;
@@ -77,7 +79,8 @@ async fn main() -> anyhow::Result<()> {
     state.watch();
     state.schedule_refresh();
     state.schedule_backups();
-    let app = routes::router(state).merge(ui::router());
+    budget::watch_icloud(&state);
+    let app = routes::router(state.clone()).merge(budget::router(state)).merge(ui::router());
 
     tracing::info!("worthwatch listening on http://{bind} (data: {})", data_dir.display());
     let listener = tokio::net::TcpListener::bind(bind).await?;

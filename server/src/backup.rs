@@ -17,7 +17,7 @@ pub const KEEP: usize = 30;
 const PREFIX: &str = "worthwatch-";
 const SUFFIX: &str = ".tar.gz";
 /// What goes in, relative to the data folder. Anything else there is left out.
-const ITEMS: [&str; 3] = ["ledger.yaml", "quotes.json", "holdings"];
+const ITEMS: [&str; 4] = ["ledger.yaml", "quotes.json", "holdings", "transactions"];
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct BackupInfo {
@@ -189,7 +189,7 @@ fn unpack(archive: &Path, into: &Path) -> anyhow::Result<usize> {
         .read_to_end(&mut bytes)?;
     let mut tar = tar::Archive::new(GzDecoder::new(io::Cursor::new(bytes)));
     let mut n = 0;
-    for entry in tar.entries().context("not a worthwatch backup (.tar.gz)")? {
+    for entry in tar.entries().context("not a Worthwatch backup (.tar.gz)")? {
         let mut entry = entry?;
         let path = entry.path()?.into_owned();
         let kind = entry.header().entry_type();

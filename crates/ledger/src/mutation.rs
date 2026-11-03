@@ -60,6 +60,32 @@ pub enum Mutation {
     SetProjection {
         projection: Projection,
     },
+    /// Monthly limit for a category; `None` removes it.
+    SetBudgetLimit {
+        category: String,
+        amount: Option<Decimal>,
+    },
+    /// Link a Wallet card to a credit card account (`None` unlinks). Linking a card to
+    /// an account that only had statements switches it to Apple Pay + statement.
+    LinkCard {
+        card: String,
+        account: Option<AccountId>,
+    },
+    SetTxnSource {
+        account: AccountId,
+        source: TxnSource,
+    },
+    /// Replace the categorization rules.
+    SetCategoryRules {
+        rules: Vec<CategoryRule>,
+    },
+    /// Replace the bills.
+    SetBills {
+        bills: Vec<Bill>,
+    },
+    SetFeed {
+        feed: Feed,
+    },
 }
 
 impl Ledger {
@@ -79,6 +105,9 @@ impl Ledger {
                 next.recurring.retain(|r| r.account != id);
                 next.contributions.retain(|c| c.account != id);
                 next.settings.projection.rates.remove(&id);
+                next.budget.cards.retain(|_, a| *a != id);
+                next.budget.sources.remove(&id);
+                next.budget.rules.retain(|r| r.account.as_deref() != Some(id.as_str()));
                 for day in next.snapshots.values_mut() {
                     day.remove(&id);
                 }
@@ -152,6 +181,60 @@ impl Ledger {
             }
             Mutation::SetProjection { projection } => {
                 next.settings.projection = projection;
+            }
+            Mutation::SetBudgetLimit { category, amount } => {
+                let category = category.trim().to_lowercase();
+                match amount {
+                    Some(a) => {
+                        next.budget.limits.insert(category, a);
+                    }
+                    None => {
+                        next.budget.limits.remove(&category);
+                    }
+                }
+            }
+            Mutation::LinkCard { card, account } => {
+                let previous = next.budget.cards.remove(&card);
+                if let Some(id) = account {
+                    if next.account(&id).is_none() {
+                        return Err(LedgerError::UnknownAccount(id));
+                    }
+                    if !next.budget.source(&id).uses_taps() {
+                        next.budget.sources.insert(id.clone(), TxnSource::ApplePayStatement);
+                    }
+                    next.budget.cards.insert(card, id);
+                }
+                // An account left with no card can only have statements.
+                if let Some(old) = previous {
+                    if !next.budget.cards.values().any(|a| *a == old) {
+                        next.budget.sources.remove(&old);
+                    }
+                }
+            }
+            Mutation::SetTxnSource { account, source } => {
+                if next.account(&account).is_none() {
+                    return Err(LedgerError::UnknownAccount(account));
+                }
+                match source {
+                    TxnSource::Statement => next.budget.sources.remove(&account),
+                    s => next.budget.sources.insert(account, s),
+                };
+            }
+            Mutation::SetCategoryRules { rules } => {
+                next.budget.rules = rules
+                    .into_iter()
+                    .map(|r| CategoryRule {
+                        contains: r.contains.trim().to_string(),
+                        category: r.category.trim().to_lowercase(),
+                        account: r.account,
+                    })
+                    .collect();
+            }
+            Mutation::SetBills { bills } => {
+                next.budget.bills = bills;
+            }
+            Mutation::SetFeed { feed } => {
+                next.budget.feed = feed;
             }
         }
         validate::validate(&next)?;
@@ -259,6 +342,49 @@ mod tests {
             })
             .unwrap();
         assert_eq!(l.contributions.len(), 1);
+    }
+
+    #[test]
+    fn linking_a_card_switches_the_source_and_unlinking_switches_it_back() {
+        let amex = Account { id: "amex".into(), kind: AccountKind::CreditCard, ..chq() };
+        let l = Ledger::starter("CAD")
+            .apply_many([
+                Mutation::UpsertAccount { account: chq() },
+                Mutation::UpsertAccount { account: amex },
+            ])
+            .unwrap();
+        // A Wallet card is a credit card: chequing is refused.
+        let err = l.apply(Mutation::LinkCard { card: "Amex Cobalt".into(), account: Some("td-chq".into()) });
+        assert!(matches!(err, Err(LedgerError::NotACard(..))));
+        let l =
+            l.apply(Mutation::LinkCard { card: "Amex Cobalt".into(), account: Some("amex".into()) }).unwrap();
+        assert_eq!(l.budget.source("amex"), TxnSource::ApplePayStatement);
+        let l =
+            l.apply(Mutation::SetTxnSource { account: "amex".into(), source: TxnSource::ApplePay }).unwrap();
+        // Statement-only accounts can't be set to a source that never sends anything.
+        let err = l.apply(Mutation::SetTxnSource { account: "td-chq".into(), source: TxnSource::ApplePay });
+        assert!(matches!(err, Err(LedgerError::NoWalletCard(..))));
+        let l = l.apply(Mutation::LinkCard { card: "Amex Cobalt".into(), account: None }).unwrap();
+        assert_eq!(l.budget.source("amex"), TxnSource::Statement);
+        assert!(l.budget.is_default());
+    }
+
+    #[test]
+    fn removing_an_account_drops_its_card_and_source() {
+        let amex = Account { id: "amex".into(), kind: AccountKind::CreditCard, ..chq() };
+        let l = Ledger::starter("CAD")
+            .apply_many([
+                Mutation::UpsertAccount { account: amex },
+                Mutation::LinkCard { card: "Amex".into(), account: Some("amex".into()) },
+                Mutation::SetBudgetLimit {
+                    category: " Dining ".into(),
+                    amount: Some(rust_decimal_macros::dec!(400)),
+                },
+            ])
+            .unwrap();
+        assert!(l.budget.limits.contains_key("dining"));
+        let l = l.apply(Mutation::RemoveAccount { id: "amex".into() }).unwrap();
+        assert!(l.budget.cards.is_empty() && l.budget.sources.is_empty());
     }
 
     #[test]
