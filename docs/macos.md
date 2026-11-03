@@ -1,6 +1,9 @@
 # Run Worthwatch on a Mac
 
-This page shows you how to run Worthwatch on a Mac that stays on, such as a Mac mini, so it starts at login and keeps running in the background. Use this instead of Docker on a Mac: the [Apple Pay feed](apple-pay-feed.md) reads iCloud Drive and signs Shortcuts, and only a native process can do that.
+This page shows you how to run Worthwatch natively on a Mac, so it starts at login and keeps running in the background.
+
+> [!WARNING]
+> The native install runs Worthwatch as you, with access to everything your user can read. For a Mac that also holds your iCloud, photos or passwords, use the container setup in [Keep Worthwatch secure](security.md) instead.
 
 ```text
  login ─▶ launchd ─▶ ~/.local/bin/worthwatch ─▶ http://127.0.0.1:7777
@@ -37,7 +40,7 @@ The script does the following:
 3. Adds a LaunchAgent at `~/Library/LaunchAgents/com.worthwatch.server.plist`.
 4. Starts Worthwatch and opens <http://127.0.0.1:7777> once it answers.
 
-Worthwatch runs as you, not as root, so it can read your iCloud Drive. It starts each time you log in. To have it running after a power cut, turn on automatic login in **System Settings › Users & Groups**, and **Start up automatically after a power failure** in **System Settings › Energy**.
+Worthwatch runs as you, not as root. Files it writes are readable by you only. It starts each time you log in. To have it running after a power cut, turn on automatic login in **System Settings › Users & Groups**, and **Start up automatically after a power failure** in **System Settings › Energy**.
 
 To listen on another address, set `WORTHWATCH_BIND` when you install:
 
@@ -47,18 +50,11 @@ WORTHWATCH_BIND=127.0.0.1:7780 ./deploy/macos/install.sh
 
 To reach Worthwatch from your phone, use Tailscale. See [Access Worthwatch remotely](remote-access.md).
 
-## Allow access to iCloud Drive
+## Use the Tailscale feed, not Full Disk Access
 
-The first time Worthwatch reads iCloud Drive, macOS may block it. If **Settings** in Worthwatch says *macOS blocked reading this folder*:
+macOS blocks a background program from reading iCloud Drive. The only switch that unblocks it, **Full Disk Access**, also opens your Mail, Messages, Safari data and the rest of iCloud Drive to Worthwatch. Don't turn it on.
 
-1. Open **System Settings › Privacy & Security › Full Disk Access**.
-2. Select **+**, press <kbd>⌘⇧G</kbd>, and enter `~/.local/bin/worthwatch`.
-3. Turn on the switch beside **worthwatch**.
-4. Restart Worthwatch:
-
-   ```sh
-   launchctl kickstart -k gui/$UID/com.worthwatch.server
-   ```
+Send Apple Pay taps over Tailscale instead. See [Set up the Apple Pay feed](apple-pay-feed.md#use-tailscale). If you gave Worthwatch Full Disk Access before, remove it in **System Settings › Privacy & Security › Full Disk Access**.
 
 ## Upgrade Worthwatch
 
@@ -74,8 +70,6 @@ If you rebuilt the binary yourself, skip the build:
 ```sh
 ./deploy/macos/install.sh --no-build
 ```
-
-After an upgrade, macOS may ask again for Full Disk Access, because the binary changed. Repeat [Allow access to iCloud Drive](#allow-access-to-icloud-drive).
 
 ## Move your data from Docker
 

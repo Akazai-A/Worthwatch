@@ -111,13 +111,13 @@ For the full setup, your first check-in, and where your data lives, see [Get sta
 
 ## Private by default
 
-- 🔒 **Localhost only.** Worthwatch listens on `127.0.0.1`. Nothing else on your network can reach it until you [choose to allow it](docs/remote-access.md).
+- 🔒 **Localhost only.** Worthwatch listens on `127.0.0.1`. Nothing else on your network can reach it until you [choose to allow it](docs/remote-access.md). It refuses requests from other websites, and over Tailscale answers only the Apple Pay feed until you name your login. See [Keep Worthwatch secure](docs/security.md).
 - 📄 **Your data is a text file.** Accounts and balances live in `ledger.yaml`. Edit it by hand and the app reloads.
 - 🌐 **It fetches public prices only.** Yahoo Finance, Stooq and the Bank of Canada. It never sees your balances. Set `WORTHWATCH_OFFLINE=1` to turn fetching off.
 - ✋ **Models propose, you approve.** Chat and MCP clients can suggest changes. Only your click writes them.
 
 > [!WARNING]
-> Worthwatch has no login yet. Anyone who can reach the port sees everything. For access away from home, use [Tailscale](docs/remote-access.md), not port forwarding.
+> Worthwatch has no login yet. Anyone who can reach the port sees everything. For access away from home, use [Tailscale](docs/remote-access.md), not port forwarding. To run it isolated in a container on a spare Mac, follow [Keep Worthwatch secure](docs/security.md).
 
 ## Documentation
 
@@ -131,6 +131,7 @@ For the full setup, your first check-in, and where your data lives, see [Get sta
 | [Configure Worthwatch](docs/configuration.md) | Settings in `ledger.yaml` and environment variables. |
 | [Prices, FX and fund holdings](docs/data-sources.md) | Where numbers come from and how to override them. |
 | [Connect an AI assistant](docs/mcp.md) | Use Claude Desktop, Claude Code or another MCP client with your data. |
+| [Keep Worthwatch secure](docs/security.md) | Run it in a container, send taps over Tailscale, and check it's locked down. |
 | [Access Worthwatch remotely](docs/remote-access.md) | Reach it from your phone with Tailscale, or open it on your network. |
 | [Back up and restore](docs/backup-restore.md) | Daily backups, manual backups, and restoring onto a new machine. |
 | [Run Worthwatch on a Mac](docs/macos.md) | Start it at login on a Mac mini with one install script. |

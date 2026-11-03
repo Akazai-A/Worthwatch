@@ -17,6 +17,9 @@ MCP client ─────stdio──▶ worthwatch mcp ──HTTP──▶ runn
 
 `worthwatch mcp` is a small client of the running app. It reads the same numbers as the dashboard, so the app must be running.
 
+> [!NOTE]
+> What the assistant reads, such as balances and holdings, goes to the company that runs its model. Worthwatch itself sends nothing; the MCP client does. Use a local model if your figures must stay on the machine.
+
 ## Before you begin
 
 - Worthwatch is running and you can open it in a browser.

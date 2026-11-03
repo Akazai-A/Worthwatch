@@ -28,7 +28,12 @@
   Shortcut plist. Fixtures under `fixtures/`.
 - `crates/assistant` — chat: shorthand parser, `Llm` trait (Ollama, Anthropic, Manual, Off), and
   `resolve`, which checks a model's `Proposal` against the ledger into a `Plan`. Proposes only.
-- `server` — Axum binary `worthwatch`, embeds the built UI from `ui/dist`.
+- `server` — Axum binary `worthwatch`, embeds the built UI from `ui/dist`. `server/src/security.rs` is the
+  request guard (Host allowlist, same-origin check, Tailscale ingest-only) and the response headers; every
+  route goes through it. Tokens come from `getrandom`; files are written with umask 077.
+- `deploy/container/run.sh` — locked-down Docker or Apple `container` run (read-only, no caps, non-root,
+  `127.0.0.1` only). `deploy/macos/install-container.sh` starts it at login. Keep these defaults safe
+  without configuration; see `docs/security.md`.
 - `ui` — Svelte 5 + Vite. `pnpm --dir ui build` before `cargo build --release`.
 - `deploy/macos/` — launchd LaunchAgent and `install.sh` for running the native binary on a Mac.
 - `deploy/ci.yml` belongs at `.github/workflows/ci.yml` (moved by hand; remote file
@@ -43,4 +48,6 @@ pnpm --dir ui build && pnpm --dir ui test
 ## Env vars
 `WORTHWATCH_DATA` (data dir, default `data`), `WORTHWATCH_BIND` (default `127.0.0.1:7777`),
 `WORTHWATCH_OFFLINE=1` (never fetch, never ask a model; set in the Playwright config),
-`ANTHROPIC_API_KEY` (cloud chat opt-in only), `WORTHWATCH_URL` (where `worthwatch mcp` finds the app).
+`ANTHROPIC_API_KEY` (cloud chat opt-in only), `WORTHWATCH_URL` (where `worthwatch mcp` finds the app),
+`WORTHWATCH_ALLOWED_HOSTS` (extra Host names), `WORTHWATCH_TAILSCALE_OWNER` (logins that get the full app
+over Tailscale; unset = ingest only), `WORTHWATCH_TAPS_DIR` (iCloud taps folder override).

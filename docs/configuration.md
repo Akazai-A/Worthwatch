@@ -13,6 +13,9 @@ Edit `ledger.yaml` in any text editor. The app reloads when you save.
 |---|---|---|
 | `WORTHWATCH_DATA` | `data` (`/data` in Docker) | Folder for `ledger.yaml`, `quotes.json`, `holdings/` and `backups/`. |
 | `WORTHWATCH_BIND` | `127.0.0.1:7777` | Address and port the server listens on. See [Access Worthwatch remotely](remote-access.md). |
+| `WORTHWATCH_ALLOWED_HOSTS` | unset | Extra host names to accept, comma separated. `localhost`, IP addresses and `*.ts.net` are always accepted; any other name gets `421`. |
+| `WORTHWATCH_TAILSCALE_OWNER` | unset | Tailscale logins that may open the whole app through `tailscale serve`, comma separated. Unset: only the Apple Pay feed answers over Tailscale. See [Keep Worthwatch secure](security.md). |
+| `WORTHWATCH_TAPS_DIR` | iCloud Drive's `Shortcuts/Worthwatch` | Folder the iCloud Apple Pay feed reads. In a container, mount only that folder, read-only. |
 | `WORTHWATCH_OFFLINE` | unset | Set to `1` to never fetch prices, FX or holdings, and never ask a model. |
 | `WORTHWATCH_URL` | from `WORTHWATCH_BIND` | Where `worthwatch mcp` finds the running app. |
 | `WORTHWATCH_OLLAMA_URL` | `http://127.0.0.1:11434` | Ollama address. `settings.assistant.ollama_url` takes priority. |
@@ -22,7 +25,7 @@ Docker Compose adds two variables for the host side of the port mapping:
 
 | Variable | Default | What it does |
 |---|---|---|
-| `WORTHWATCH_HOST` | `127.0.0.1` | Host address the container's port is published on. |
+| `WORTHWATCH_HOST` | `127.0.0.1` | Host address the container's port is published on. Any other value lets every device on your network read and change your data. |
 | `WORTHWATCH_PORT` | `7777` | Host port. |
 
 ## Set your base currency
