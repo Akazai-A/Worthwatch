@@ -39,6 +39,130 @@ pub struct Ledger {
     /// Money you put into (positive) or took out of (negative) a registered account.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub contributions: Vec<Contribution>,
+    /// Budgeting: monthly limits, bills, where each account's transactions come from,
+    /// which Wallet card is which account, categorization rules. The transactions
+    /// themselves live in `transactions/`, not here.
+    #[serde(default, skip_serializing_if = "Budget::is_default")]
+    pub budget: Budget,
+}
+
+/// Budget settings. Amounts are monthly, in the base currency.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct Budget {
+    /// category -> monthly limit.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub limits: BTreeMap<String, Decimal>,
+    /// Wallet card name, exactly as the Shortcut sends it -> the credit card account it is.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub cards: BTreeMap<String, AccountId>,
+    /// account -> where its transactions come from. Missing means a bank statement.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub sources: BTreeMap<AccountId, TxnSource>,
+    /// Checked in order before the built-in rules; first match wins.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub rules: Vec<CategoryRule>,
+    /// Fixed amounts that leave every month or so (rent, phone). Shown as paid or due.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub bills: Vec<Bill>,
+    /// How Apple Pay taps reach this server.
+    #[serde(default, skip_serializing_if = "Feed::is_default")]
+    pub feed: Feed,
+}
+
+impl Budget {
+    pub fn is_default(&self) -> bool {
+        *self == Self::default()
+    }
+    /// Where an account's transactions come from (a statement unless set).
+    pub fn source(&self, account: &str) -> TxnSource {
+        self.sources.get(account).copied().unwrap_or_default()
+    }
+    /// The account a Wallet card is linked to.
+    pub fn card_account(&self, card: &str) -> Option<&AccountId> {
+        self.cards.get(card)
+    }
+}
+
+/// `statement`: bank CSV/OFX only. `apple_pay_statement`: taps first, confirmed by the
+/// statement. `apple_pay`: taps are the record (a card you never export).
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum TxnSource {
+    #[default]
+    Statement,
+    ApplePayStatement,
+    ApplePay,
+}
+
+impl TxnSource {
+    pub fn uses_taps(self) -> bool {
+        !matches!(self, TxnSource::Statement)
+    }
+}
+
+/// "Anything whose description contains `contains` is `category`." Case-insensitive.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CategoryRule {
+    pub contains: String,
+    pub category: String,
+    /// Only for this account, when set.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account: Option<AccountId>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Bill {
+    pub name: String,
+    /// Positive, base currency.
+    pub amount: Decimal,
+    #[serde(default = "Bill::default_every")]
+    pub every: Every,
+    #[serde(default = "Bill::default_category")]
+    pub category: String,
+    /// Text on the statement row that pays it ("ROGERS"); defaults to the name.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub matches: Option<String>,
+    /// Day of the month it is usually due, for "due Nov 22".
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub day: Option<u32>,
+}
+
+impl Bill {
+    fn default_every() -> Every {
+        Every::Month
+    }
+    fn default_category() -> String {
+        "bills".into()
+    }
+}
+
+/// `off`: no Apple Pay feed. `icloud`: the Shortcut appends taps to a file in iCloud
+/// Drive that this server reads. `tailscale`: the Shortcut posts them over your tailnet.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct Feed {
+    #[serde(default)]
+    pub mode: FeedMode,
+    /// The iCloud folder to read; defaults to Shortcuts' own folder on this Mac.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icloud_dir: Option<String>,
+    /// Address the phone posts to in Tailscale mode, e.g. https://mac-mini.tail1234.ts.net
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tailscale_url: Option<String>,
+}
+
+impl Feed {
+    pub fn is_default(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum FeedMode {
+    #[default]
+    Off,
+    Icloud,
+    Tailscale,
 }
 
 /// One scheduled amount into an account. For an asset it is a deposit; for a debt it
@@ -394,6 +518,7 @@ impl Ledger {
             recurring: Vec::new(),
             room: BTreeMap::new(),
             contributions: Vec::new(),
+            budget: Budget::default(),
         }
     }
 

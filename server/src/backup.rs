@@ -17,7 +17,7 @@ pub const KEEP: usize = 30;
 const PREFIX: &str = "worthwatch-";
 const SUFFIX: &str = ".tar.gz";
 /// What goes in, relative to the data folder. Anything else there is left out.
-const ITEMS: [&str; 3] = ["ledger.yaml", "quotes.json", "holdings"];
+const ITEMS: [&str; 4] = ["ledger.yaml", "quotes.json", "holdings", "transactions"];
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct BackupInfo {

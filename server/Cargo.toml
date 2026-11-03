@@ -16,6 +16,7 @@ providers = { path = "../crates/providers" }
 holdings = { path = "../crates/holdings" }
 importers = { path = "../crates/importers" }
 assistant = { path = "../crates/assistant" }
+budget = { path = "../crates/budget" }
 ureq = { version = "2", default-features = false, features = ["json"] }
 serde.workspace = true
 serde_json.workspace = true
@@ -37,3 +38,4 @@ flate2 = "1"
 [dev-dependencies]
 rust_decimal_macros = "1"
 tempfile = "3"
+tower = { version = "0.5", features = ["util"] }
