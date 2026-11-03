@@ -18,79 +18,52 @@
   <a href="docs/contributing.md">Contributing</a>
 </p>
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/hero-light.png">
-    <img src="docs/screenshots/hero-dark.png" alt="Worthwatch home: net worth, a one-year chart, assets against debt, and totals per group" width="860">
-  </picture>
-</p>
-
 ## What it does
 
-Worthwatch tracks what you own and what you owe. You type balances in once a month, or tell the Chat panel what changed. Worthwatch fetches market prices and exchange rates, values every account in your home currency, and shows where your money actually sits, all the way through the funds you hold.
-
-Everything stays in one folder you can read, edit in a text editor, and back up.
+Worthwatch tracks what you own and what you owe. You type balances in once a month, or tell Chat what changed. It fetches prices and exchange rates, values everything in your home currency, and shows where your money sits, right through the funds you hold. Everything stays in one folder of plain files.
 
 ## Features
-
-### 📈 Net worth at a glance
-
-A daily net worth line, assets against debt, and every account with a sparkline. Once a month, type your balances on Check-in and watch the total move. [Learn more](docs/user-guide.md#home).
-
-<p align="center"><img src="docs/screenshots/gif-home.gif" alt="Hovering the net worth chart, switching to the by-group view, then typing a new chequing balance on Check-in and saving it" width="800"></p>
-
-### 🔍 Look through your funds
-
-See the companies inside your ETFs, three levels deep. Break your money down by sector, region and currency, and see how much two funds overlap. [Learn more](docs/user-guide.md#portfolio).
-
-<p align="center"><img src="docs/screenshots/gif-portfolio.gif" alt="The look-through treemap with a company tooltip, then the Exposure and Overlap tabs" width="800"></p>
-
-### ↕️ What changed, and why
-
-Pick a period. Worthwatch splits the change into market moves, money you added, debt paid down and currency swings, then lists what your funds bought and sold. [Learn more](docs/user-guide.md#changes).
-
-<p align="center"><img src="docs/screenshots/gif-changes.gif" alt="Switching the Changes screen between 1M, 3M, 1Y and since the last check-in" width="800"></p>
-
-### 🧭 Plan ahead
-
-Project net worth from your recurring deposits and payments. Drag a slider to try another return or more saving, and see when each debt is paid off. [Learn more](docs/user-guide.md#plan).
-
-<p align="center"><img src="docs/screenshots/gif-plan.gif" alt="Dragging the return and extra-saving sliders on the Plan screen and watching the projection fan out" width="800"></p>
-
-### 📲 Budget, with Apple Pay the moment you tap
-
-Import statements from any Canadian bank, set limits per category, and track bills. With the iPhone Shortcut, each Apple Pay purchase appears on Budget as you pay, and the statement confirms it later without counting it twice. [Learn more](docs/apple-pay-feed.md).
-
-<p align="center"><img src="docs/screenshots/gif-apple-pay.gif" alt="An Apple Pay purchase on an iPhone (illustration) appearing at once on the Budget screen as a new Dining transaction" width="800"></p>
-
-### 💬 Update it like a text message
-
-Type <code>td chq 6000, visa 640, bought 10 xeqt</code>. You get a card with every change and its effect on net worth. Nothing is saved until you approve. Works with a local model, Claude, or no model at all. [Learn more](docs/user-guide.md#chat).
-
-<p align="center"><img src="docs/screenshots/gif-chat.gif" alt="Typing three changes into Chat, reviewing the change card, approving it, and seeing net worth update on Home" width="800"></p>
-
-### And more
 
 <table>
   <tr>
     <td width="50%" valign="top">
-      <b>🧾 Budget from your statements</b><br>
-      CSV or OFX from any Canadian bank, your own category rules, bills that tick off, and a pace line.<br><br>
-      <picture>
-        <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/budget-light.png">
-        <img src="docs/screenshots/budget-dark.png" alt="Budget screen">
-      </picture>
+      <img src="docs/screenshots/gif-home.gif" alt="Hovering the net worth chart, switching to the by-group view, then saving a new chequing balance on Check-in"><br>
+      <b>📈 <a href="docs/user-guide.md#home">Net worth at a glance</a></b><br>
+      A daily net worth line, assets against debt, and a monthly check-in.
     </td>
     <td width="50%" valign="top">
-      <b>🖥️ Wall view, ⌘K and daily backups</b><br>
-      A full-screen view for a spare tablet, a command palette for every screen, and a backup every day.<br><br>
-      <picture>
-        <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/wall-light.png">
-        <img src="docs/screenshots/wall-dark.png" alt="Wall view">
-      </picture>
+      <img src="docs/screenshots/gif-portfolio.gif" alt="The look-through treemap with a tooltip, then the Exposure and Overlap tabs"><br>
+      <b>🔍 <a href="docs/user-guide.md#portfolio">Look through your funds</a></b><br>
+      The companies inside your ETFs, by sector, region and currency, and fund overlap.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/screenshots/gif-changes.gif" alt="Switching the Changes screen between 1M, 3M, 1Y and since the last check-in"><br>
+      <b>↕️ <a href="docs/user-guide.md#changes">What changed, and why</a></b><br>
+      Any period split into market moves, money added, debt paid and FX.
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/screenshots/gif-plan.gif" alt="Dragging the return and extra-saving sliders on the Plan screen"><br>
+      <b>🧭 <a href="docs/user-guide.md#plan">Plan ahead</a></b><br>
+      Projections, debt payoff dates, and TFSA, RRSP and FHSA room.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/screenshots/gif-apple-pay.gif" alt="An Apple Pay purchase on an iPhone (illustration) appearing at once on the Budget screen"><br>
+      <b>📲 <a href="docs/apple-pay-feed.md">Budget, with Apple Pay</a></b><br>
+      Each Apple Pay tap lands on Budget as you pay. Your statement confirms it later.
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/screenshots/gif-chat.gif" alt="Typing changes into Chat, approving the change card, and seeing net worth update"><br>
+      <b>💬 <a href="docs/user-guide.md#chat">Update it like a text</a></b><br>
+      Type <code>visa 640, bought 10 xeqt</code>, check the card, approve.
     </td>
   </tr>
 </table>
+
+Also: bank statement import with category rules and bills, a [wall view](docs/user-guide.md#wall-view) for a spare tablet, a <kbd>⌘</kbd> <kbd>K</kbd> command palette, and [daily backups](docs/backup-restore.md).
 
 ## Works with your AI assistant
 
