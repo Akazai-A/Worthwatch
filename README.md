@@ -2,7 +2,7 @@
 
 Self-hosted net worth and portfolio tracker. One Rust binary, your data in one folder, no bank connections.
 
-Status: **Stage 5**: hand-edited or typed-in balances, monthly check-in, net worth dashboard, positions valued from fetched prices and Bank of Canada FX, ETF look-through and exposure, a Changes screen, and a Chat panel plus an MCP server that propose updates you approve. See `docs/` and the design doc for the plan.
+Status: **Stage 6**: hand-edited or typed-in balances, monthly check-in, net worth dashboard, positions valued from fetched prices and Bank of Canada FX, ETF look-through and exposure, a Changes screen, a Chat panel plus an MCP server that propose updates you approve, and a Plan screen (projections, debt payoff, TFSA/RRSP/FHSA room), a wall view, a ⌘K palette and daily backups. See `docs/` and the design doc for the plan.
 
 ## Run (dev)
 
@@ -65,6 +65,27 @@ settings:
 
 With Docker, the command is `docker` with args `["compose", "-f", "/path/to/worthwatch/deploy/docker-compose.yml", "exec", "-T", "worthwatch", "/worthwatch", "mcp"]`, and `docker compose --profile ai up -d` starts a local Ollama the app already points at (pull a model once with `docker compose exec ollama ollama pull llama3.1`). Tools: `get_net_worth`, `get_accounts`, `get_portfolio`, `get_exposure`, `propose_update`, `check_proposal`. A proposal from Claude Desktop appears in Chat as a pending card (the rail shows a count) and waits for your Approve or Discard.
 
+## Plan, contribution room and backups
+
+The Plan screen projects net worth from today's balances, your recurring rules and an assumed return, with a band 2 points either side, and shows when each debt is paid off and when you reach a target. Sliders try other returns, extra monthly saving and targets without changing the ledger; "Save as my defaults" writes them. Rules, rates and room live in the ledger (and can be edited on the screen):
+
+```yaml
+recurring:
+  - { account: ws-tfsa, amount: 500, every: month, note: auto-deposit }      # week | two_weeks | month | year
+  - { account: td-mortgage, amount: 1350, every: two_weeks }                 # a payment lowers the debt
+settings:
+  projection: { return_pct: 6, cash_pct: 0, property_pct: 2, target: 1500000, rates: { td-mortgage: 4.9 } }
+room:                                    # what CRA My Account / your notice of assessment shows
+  tfsa: { as_of: 2026-01-01, amount: 13500 }
+  rrsp: { as_of: 2026-05-01, amount: 18400 }
+contributions:                           # what you put in (negative = withdrawal); counts against room
+  - { date: 2026-02-15, account: ws-tfsa, amount: 500 }
+```
+
+`#/wall` is a full-screen view for a spare tablet or monitor. ⌘K (Ctrl+K) jumps to any account or screen and runs actions.
+
+**Backups.** Once a day the app writes `backups/worthwatch-<date-time>.tar.gz` (ledger, fetched quotes, fund holdings) into the data folder and keeps the newest 30; Backups (rail footer) makes one now and downloads any. `worthwatch backup` does the same from a shell. To restore, stop the app and run `WORTHWATCH_DATA=/path/to/empty/folder worthwatch restore <file>` (`--force` replaces an existing ledger after backing it up). Copy backups off the machine too.
+
 ## Security
 
 Worthwatch holds your finances and, for now, has **no login**. Anyone who can reach the port sees everything.
@@ -79,20 +100,20 @@ Worthwatch holds your finances and, for now, has **no login**. Anyone who can re
 
 ```
 crates/ledger     your data: schema, validation, Mutation + apply, atomic YAML write
-crates/derive     pure functions: valuation, net worth series, portfolio, market merge
+crates/derive     pure functions: valuation, net worth series, portfolio, market merge, projections, contribution room
 crates/providers  Yahoo / Stooq / Bank of Canada behind traits, fixture-tested parsers, quotes.json
 crates/importers  pasted broker holdings -> mutations
 crates/assistant  chat: shorthand parser, Ollama / Anthropic behind a trait, proposals checked against the ledger
 server/         the binary: axum API + embedded UI
 ui/             Svelte 5 + Vite + TypeScript
 deploy/         Dockerfile, compose
-data/             ledger.yaml and quotes.json (yours, gitignored), ledger.example.yaml
+data/             ledger.yaml, quotes.json, holdings/, backups/ (yours, gitignored), ledger.example.yaml
 ```
 
 ## Tests
 
 ```sh
 cargo test --workspace            # validator rules, derive invariants, provider parsers on fixtures, paste parser, server state
-pnpm --dir ui test                # vitest: parsing, formatting, check-in diffing, market status line
+pnpm --dir ui test                # vitest: parsing, formatting, check-in diffing, market status line, plan layout, palette matching
 pnpm --dir ui build && cargo build && pnpm --dir ui e2e   # Playwright smoke flow against the real binary
 ```

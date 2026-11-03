@@ -405,7 +405,69 @@ export type Mutation =
   | { op: "set_fx"; currency: string; rate: string }
   | { op: "record_position_change"; change: { date: string; account: string; symbol: string; units: string; price?: string | null; note?: string | null } }
   | { op: "set_book_cost"; account: string; symbol: string; book_cost: string | null }
-  | { op: "add_event"; event: { date: string; note: string } };
+  | { op: "add_event"; event: { date: string; note: string } }
+  | { op: "set_recurring"; account: string; rules: Recurring[] }
+  | { op: "set_room"; kind: RoomKind; room: { as_of: string; amount: string } | null }
+  | { op: "record_contribution"; contribution: { date: string; account: string; amount: string; note?: string | null } }
+  | { op: "set_projection"; projection: ProjectionSettings };
+
+// ---- Plan (GET /api/plan) ----
+export type Every = "week" | "two_weeks" | "month" | "year";
+export const EVERY_LABEL: Record<Every, string> = { week: "week", two_weeks: "2 weeks", month: "month", year: "year" };
+export type RoomKind = "tfsa" | "rrsp" | "fhsa";
+export interface Recurring { account: string; amount: string; every: Every; note?: string | null }
+export interface RecurringView extends Recurring { name: string; liability: boolean; monthly: string | null }
+export interface ProjectionSettings {
+  return_pct: string;
+  cash_pct: string;
+  property_pct: string;
+  rates?: Record<string, string>;
+  target?: string | null;
+}
+export interface ProjPoint { date: string; net_worth: string; low: string; high: string; contributed: string }
+export interface Milestone extends ProjPoint { years: number }
+export interface DebtPayoff {
+  account: string; name: string; balance: string; rate_pct: string; monthly_payment: string;
+  payoff: string | null; months: number | null; interest: string; yearly: string[];
+}
+export interface ProjAccount { account: string; name: string; group: Group; rate_pct: string; monthly: string; start: string; end: string }
+export interface Projection {
+  start: string; start_net_worth: string; return_pct: string; band_pct: string; extra_monthly: string;
+  monthly_saving: string; points: ProjPoint[]; milestones: Milestone[]; debts: DebtPayoff[];
+  accounts: ProjAccount[]; target: string | null; target_date: string | null; skipped: string[];
+}
+export interface RoomAccount { account: string; name: string; used: string; monthly_plan: string }
+export interface RoomView {
+  kind: RoomKind; label: string; as_of: string; reported: string; added: string; used: string; left: string;
+  planned: string; monthly_plan: string; runs_out: string | null; over: boolean; estimated: boolean;
+  note: string | null; accounts: RoomAccount[];
+}
+export interface PlanView { projection: Projection; room: RoomView[]; recurring: RecurringView[]; settings: ProjectionSettings }
+export interface PlanParams { years?: number; return_pct?: string; extra?: string; target?: string }
+
+export async function getPlan(p: PlanParams = {}): Promise<PlanView> {
+  const q = new URLSearchParams();
+  if (p.years != null) q.set("years", String(p.years));
+  if (p.return_pct != null) q.set("return_pct", p.return_pct);
+  if (p.extra != null) q.set("extra", p.extra);
+  if (p.target != null) q.set("target", p.target);
+  const r = await fetch(`/api/plan${q.size ? `?${q}` : ""}`);
+  if (!r.ok) await fail(r);
+  return r.json();
+}
+
+// ---- Backups ----
+export interface BackupInfo { name: string; bytes: number; created: string; date: string }
+export async function listBackups(): Promise<BackupInfo[]> {
+  const r = await fetch("/api/backups");
+  if (!r.ok) await fail(r);
+  return r.json();
+}
+export async function createBackup(): Promise<BackupInfo[]> {
+  const r = await fetch("/api/backups", { method: "POST" });
+  if (!r.ok) await fail(r);
+  return r.json();
+}
 
 export interface PlanRow {
   line: number;
