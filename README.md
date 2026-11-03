@@ -1,119 +1,146 @@
-# worthwatch
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: light)" srcset="docs/assets/logo-light.svg">
+    <img src="docs/assets/logo-dark.svg" alt="worthwatch" width="300">
+  </picture>
+</p>
 
-Self-hosted net worth and portfolio tracker. One Rust binary, your data in one folder, no bank connections.
+<p align="center">
+  <b>Your net worth and portfolio, on your own machine.</b><br>
+  One Rust binary. One folder of plain YAML. No bank logins, no cloud account.
+</p>
 
-Status: **Stage 6**: hand-edited or typed-in balances, monthly check-in, net worth dashboard, positions valued from fetched prices and Bank of Canada FX, ETF look-through and exposure, a Changes screen, a Chat panel plus an MCP server that propose updates you approve, and a Plan screen (projections, debt payoff, TFSA/RRSP/FHSA room), a wall view, a ⌘K palette and daily backups. See `docs/` and the design doc for the plan.
+<p align="center">
+  <a href="docs/getting-started.md">Get started</a> ·
+  <a href="docs/user-guide.md">User guide</a> ·
+  <a href="docs/README.md">All docs</a> ·
+  <a href="docs/contributing.md">Contributing</a>
+</p>
 
-## Run (dev)
+<p align="center">
+  <img src="docs/screenshots/demo.gif" alt="Typing balances into Chat, approving the change card, and seeing net worth, look-through and the plan update" width="860">
+</p>
+
+## What it does
+
+Worthwatch tracks what you own and what you owe. You type balances in once a month, or tell the Chat panel what changed. Worthwatch fetches market prices and exchange rates, values every account in your home currency, and shows where your money actually sits, all the way through the funds you hold.
+
+Everything stays in one folder you can read, edit in a text editor, and back up.
+
+## Features
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <b>📈 Net worth at a glance</b><br>
+      A daily net worth line, assets against debt, and every account with a sparkline and the days since you last checked it.<br><br>
+      <picture>
+        <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/home-light.png">
+        <img src="docs/screenshots/home-dark.png" alt="Home dashboard">
+      </picture>
+    </td>
+    <td width="50%" valign="top">
+      <b>🔍 Look through your funds</b><br>
+      See the companies inside your ETFs, three levels deep. Break it down by sector, region and currency, and see how much two funds overlap.<br><br>
+      <picture>
+        <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/lookthrough-light.png">
+        <img src="docs/screenshots/lookthrough-dark.png" alt="Look-through treemap">
+      </picture>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <b>↕️ What changed, and why</b><br>
+      Pick two dates. Worthwatch splits the change into market moves, money you added and currency swings, then lists what your funds bought and sold.<br><br>
+      <picture>
+        <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/changes-light.png">
+        <img src="docs/screenshots/changes-dark.png" alt="Changes screen">
+      </picture>
+    </td>
+    <td width="50%" valign="top">
+      <b>💬 Update it like a text message</b><br>
+      Type <code>td chq 6000, visa 640, bought 10 xeqt</code> and approve the card. Nothing is saved until you do. Works with a local model, Claude, or no model.<br><br>
+      <picture>
+        <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/chat-light.png">
+        <img src="docs/screenshots/chat-dark.png" alt="Chat change card">
+      </picture>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <b>🧭 Plan ahead</b><br>
+      Project net worth from your recurring deposits and payments, see when each debt is paid off, and track TFSA, RRSP and FHSA room.<br><br>
+      <picture>
+        <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/plan-light.png">
+        <img src="docs/screenshots/plan-dark.png" alt="Plan screen">
+      </picture>
+    </td>
+    <td width="50%" valign="top">
+      <b>🖥️ Wall view, ⌘K and daily backups</b><br>
+      A full-screen view for a spare tablet, a command palette for every screen and action, and a backup of your data every day.<br><br>
+      <picture>
+        <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/wall-light.png">
+        <img src="docs/screenshots/wall-dark.png" alt="Wall view">
+      </picture>
+    </td>
+  </tr>
+</table>
+
+🧾 **Budget** is coming in Stage 7: monthly budgets from bank statements and an Apple Pay feed.
+
+## Quick start
+
+### Docker
 
 ```sh
-# terminal 1: the server (creates data/ledger.yaml on first run)
-cargo run
-# terminal 2: the UI with hot reload, proxying /api to the server
-pnpm --dir ui install && pnpm --dir ui dev
-```
-
-Open http://localhost:5173. `cargo run -- seed` writes a realistic sample ledger to look at first. To run the single binary with the UI embedded:
-
-```sh
-pnpm --dir ui build && cargo run --release
-```
-
-Open http://127.0.0.1:7777. See "Security" before exposing it to other devices.
-
-## Run (Docker)
-
-```sh
+git clone https://github.com/Akazai-A/worthwatch.git && cd worthwatch
 docker compose -f deploy/docker-compose.yml up -d --build
 ```
 
-The container binds to localhost on the host by default. `WORTHWATCH_HOST=0.0.0.0 docker compose ... up -d` exposes it on your network, `WORTHWATCH_PORT=8080` changes the host port.
-
-## Prices and FX
-
-Public market data is the only thing the app fetches. On startup and once a day it asks Yahoo Finance for a close per held symbol (a year of history the first time a symbol appears) and the Bank of Canada for the daily rate of each currency you hold. Results go to `quotes.json` beside the ledger; delete it to start over. A price or rate you type on Check-in or in `settings.fx` always wins for its date and is the fallback when nothing was fetched. Turn sources off or switch them in the ledger:
-
-```yaml
-settings:
-  base_currency: CAD
-  providers: { prices: yahoo, fx: bank_of_canada }   # prices: yahoo | stooq | off · fx: bank_of_canada | off
-```
-
-`WORTHWATCH_OFFLINE=1` never touches the network; the app then runs on typed and previously fetched data and says so. Symbols use Yahoo spelling (`XEQT.TO`, `VTI`); the Stooq provider maps them. Bank of Canada rates are CAD-based, so with another base currency set `fx: off` and type rates.
-
-## Chat and MCP
-
-Chat (left rail) takes what you would text: `td chq 5102, visa down to 640, sold 20 XEQT in the TFSA`, `visa down 200`, `eq savings 18.5k`, or a question like `what is my net worth?`. Every message becomes a card listing each change (now, proposed, delta, effect on net worth) with Approve, Edit and Cancel. Nothing is written until you approve, and anything that does not match your accounts is shown as rejected with the reason.
-
-Who reads the message is set in the ledger:
-
-```yaml
-settings:
-  assistant: { provider: ollama }   # ollama (default, local) | cloud | shorthand (no model)
-  # ollama_url: http://127.0.0.1:11434, model: llama3.1
-```
-
-- **ollama**: a local model; nothing leaves the machine. If Ollama is not running, the built-in parser answers and the card says so.
-- **cloud**: Anthropic's API, opt-in. Set `ANTHROPIC_API_KEY` in the server's environment. Each message first shows the exact text that would be sent (account ids, names, kinds, currencies and symbols; never balances) and is sent only when you press Send.
-- **shorthand**: no model at all.
-
-**MCP (Claude Desktop).** `worthwatch mcp` is an MCP server on stdio that talks to the running app. Add it to Claude Desktop's config:
-
-```json
-{ "mcpServers": { "worthwatch": { "command": "/path/to/worthwatch", "args": ["mcp"], "env": { "WORTHWATCH_URL": "http://127.0.0.1:7777" } } } }
-```
-
-With Docker, the command is `docker` with args `["compose", "-f", "/path/to/worthwatch/deploy/docker-compose.yml", "exec", "-T", "worthwatch", "/worthwatch", "mcp"]`, and `docker compose --profile ai up -d` starts a local Ollama the app already points at (pull a model once with `docker compose exec ollama ollama pull llama3.1`). Tools: `get_net_worth`, `get_accounts`, `get_portfolio`, `get_exposure`, `propose_update`, `check_proposal`. A proposal from Claude Desktop appears in Chat as a pending card (the rail shows a count) and waits for your Approve or Discard.
-
-## Plan, contribution room and backups
-
-The Plan screen projects net worth from today's balances, your recurring rules and an assumed return, with a band 2 points either side, and shows when each debt is paid off and when you reach a target. Sliders try other returns, extra monthly saving and targets without changing the ledger; "Save as my defaults" writes them. Rules, rates and room live in the ledger (and can be edited on the screen):
-
-```yaml
-recurring:
-  - { account: ws-tfsa, amount: 500, every: month, note: auto-deposit }      # week | two_weeks | month | year
-  - { account: td-mortgage, amount: 1350, every: two_weeks }                 # a payment lowers the debt
-settings:
-  projection: { return_pct: 6, cash_pct: 0, property_pct: 2, target: 1500000, rates: { td-mortgage: 4.9 } }
-room:                                    # what CRA My Account / your notice of assessment shows
-  tfsa: { as_of: 2026-01-01, amount: 13500 }
-  rrsp: { as_of: 2026-05-01, amount: 18400 }
-contributions:                           # what you put in (negative = withdrawal); counts against room
-  - { date: 2026-02-15, account: ws-tfsa, amount: 500 }
-```
-
-`#/wall` is a full-screen view for a spare tablet or monitor. ⌘K (Ctrl+K) jumps to any account or screen and runs actions.
-
-**Backups.** Once a day the app writes `backups/worthwatch-<date-time>.tar.gz` (ledger, fetched quotes, fund holdings) into the data folder and keeps the newest 30; Backups (rail footer) makes one now and downloads any. `worthwatch backup` does the same from a shell. To restore, stop the app and run `WORTHWATCH_DATA=/path/to/empty/folder worthwatch restore <file>` (`--force` replaces an existing ledger after backing it up). Copy backups off the machine too.
-
-## Security
-
-Worthwatch holds your finances and, for now, has **no login**. Anyone who can reach the port sees everything.
-
-- **Default: localhost only.** The binary binds `127.0.0.1:7777` and the Docker compose file maps the port to `127.0.0.1` on the host, so nothing on your Wi-Fi can reach it.
-- **Opting into your network.** Binary: `WORTHWATCH_BIND=0.0.0.0:7777`. Docker: `WORTHWATCH_HOST=0.0.0.0`. Only do this on a network you trust; every device on it can then open the dashboard.
-- **Remote access.** Use Tailscale, WireGuard or another VPN and keep the bind on localhost or the VPN interface. Do not port-forward it from your router.
-- **Your data** lives in one folder (`WORTHWATCH_DATA`, `/data` in Docker) as plain YAML. Back it up like any other document; nothing leaves your machine.
-- Password auth and a display-only token are planned for a later stage.
-
-## Layout
-
-```
-crates/ledger     your data: schema, validation, Mutation + apply, atomic YAML write
-crates/derive     pure functions: valuation, net worth series, portfolio, market merge, projections, contribution room
-crates/providers  Yahoo / Stooq / Bank of Canada behind traits, fixture-tested parsers, quotes.json
-crates/importers  pasted broker holdings -> mutations
-crates/assistant  chat: shorthand parser, Ollama / Anthropic behind a trait, proposals checked against the ledger
-server/         the binary: axum API + embedded UI
-ui/             Svelte 5 + Vite + TypeScript
-deploy/         Dockerfile, compose
-data/             ledger.yaml, quotes.json, holdings/, backups/ (yours, gitignored), ledger.example.yaml
-```
-
-## Tests
+Open <http://127.0.0.1:7777>. To look around with sample data first, run:
 
 ```sh
-cargo test --workspace            # validator rules, derive invariants, provider parsers on fixtures, paste parser, server state
-pnpm --dir ui test                # vitest: parsing, formatting, check-in diffing, market status line, plan layout, palette matching
-pnpm --dir ui build && cargo build && pnpm --dir ui e2e   # Playwright smoke flow against the real binary
+docker compose -f deploy/docker-compose.yml exec worthwatch /worthwatch seed --force
 ```
+
+### Binary
+
+You need Rust (stable) and Node.js 22 with pnpm.
+
+```sh
+git clone https://github.com/Akazai-A/worthwatch.git && cd worthwatch
+pnpm --dir ui install && pnpm --dir ui build
+cargo run --release
+```
+
+Open <http://127.0.0.1:7777>. Your data goes to `./data`. Run `cargo run --release -- seed` to load sample data.
+
+For the full setup, your first check-in, and where your data lives, see [Get started](docs/getting-started.md).
+
+## Private by default
+
+- 🔒 **Localhost only.** Worthwatch listens on `127.0.0.1`. Nothing else on your network can reach it until you [choose to allow it](docs/remote-access.md).
+- 📄 **Your data is a text file.** Accounts and balances live in `ledger.yaml`. Edit it by hand and the app reloads.
+- 🌐 **It fetches public prices only.** Yahoo Finance, Stooq and the Bank of Canada. It never sees your balances. Set `WORTHWATCH_OFFLINE=1` to turn fetching off.
+- ✋ **Models propose, you approve.** Chat and Claude Desktop can suggest changes. Only your click writes them.
+
+> [!WARNING]
+> Worthwatch has no login yet. Anyone who can reach the port sees everything. For access away from home, use [Tailscale](docs/remote-access.md), not port forwarding.
+
+## Documentation
+
+| Guide | What you learn |
+|---|---|
+| [Get started](docs/getting-started.md) | Install with Docker or from source, load sample data, do your first check-in. |
+| [User guide](docs/user-guide.md) | Use each screen: Home, Check-in, Portfolio, Changes, Chat, Plan, Wall view. |
+| [Configure Worthwatch](docs/configuration.md) | Settings in `ledger.yaml` and environment variables. |
+| [Prices, FX and fund holdings](docs/data-sources.md) | Where numbers come from and how to override them. |
+| [Connect Claude Desktop](docs/mcp.md) | Ask Claude about your portfolio and propose updates through MCP. |
+| [Access Worthwatch remotely](docs/remote-access.md) | Reach it from your phone with Tailscale, or open it on your network. |
+| [Back up and restore](docs/backup-restore.md) | Daily backups, manual backups, and restoring onto a new machine. |
+| [Architecture](docs/architecture.md) | How the server, the ledger and the UI fit together. |
+| [Contribute](docs/contributing.md) | Build, test and send a change. |
+
+## Built with
+
+Rust ([Axum](https://github.com/tokio-rs/axum), `rust_decimal`), [Svelte 5](https://svelte.dev) and Vite, [uPlot](https://github.com/leeoniya/uPlot) and d3-hierarchy for charts.

@@ -1,6 +1,8 @@
-# Architecture (Stage 6)
+# Data flows by stage
 
-Read the design doc for the full picture. The rules that matter in code:
+This page is the detailed reference behind [Architecture](architecture.md). It records the rules each stage added and a diagram of each stage's data flow. Start with the architecture overview if you are new to the code.
+
+## Core rules
 
 1. **One write path.** Every change is a `ledger::Mutation` applied by `Ledger::apply`, which returns a new `Ledger`. `server::state::AppState::apply_many` is the only thing that writes `ledger.yaml`, and it writes atomically (temp file + rename).
 2. **Core is pure.** `crates/ledger` and `crates/derive` do no IO except `ledger::io`, and never read the clock. Dates come in as arguments.
@@ -181,7 +183,6 @@ Playwright smoke flow: `ui/e2e/smoke.spec.ts` runs the real binary on a temp dat
 
 `lib/market.ts` (tested) words the freshness line; the paste preview and the portfolio numbers come from the server.
 
-Crates: `ledger`, `derive`, `holdings`, `providers`, `importers`. Planned: `assistant`, `mcp`.
 
 ## Stage 5 data flow: chat and MCP propose, you approve
 
