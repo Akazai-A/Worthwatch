@@ -85,7 +85,7 @@ Each message becomes a card. The card lists every change with the current value,
 
 Nothing is saved until you approve. If part of a message doesn't match your accounts, that line is shown as rejected with the reason.
 
-Chat works without any model. To choose a local model or Claude, see [Configure Worthwatch](configuration.md#choose-the-chat-model). Proposals from Claude Desktop also appear here as cards. See [Connect Claude Desktop](mcp.md).
+Chat works without any model. To choose a local model or Claude, see [Configure Worthwatch](configuration.md#choose-the-chat-model). Proposals from Claude Desktop and other MCP clients also appear here as cards. See [Connect an AI assistant](mcp.md).
 
 ## Plan
 
