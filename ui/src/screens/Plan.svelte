@@ -3,6 +3,7 @@
   import { apply, ApiError, EVERY_LABEL, type Every, type LedgerView, type Mutation, type Recurring, type RoomKind } from "../lib/api";
   import { formatCompact, formatDate, formatMoney, parseAmount, todayIso } from "../lib/format/money";
   import { milestoneSplit, monthYear, payoffLine, roomBar, roomLine, yearsBetween } from "../lib/networth/plan";
+  import { undo } from "../lib/stores/undo.svelte";
   import { plan } from "../lib/stores/plan.svelte";
   import { prefs } from "../lib/stores/prefs.svelte";
   import { view as viewStore } from "../lib/stores/view.svelte";
@@ -70,8 +71,9 @@
   async function removeRule(i: number) {
     const r = p!.recurring[i];
     const same = p!.recurring.filter((x) => x.account === r.account);
-    const keep = same.filter((x) => x !== r).map(({ account, amount, every, note }) => ({ account, amount, every, note }));
-    await save([{ op: "set_recurring", account: r.account, rules: keep }]);
+    const plain = (xs: typeof same) => xs.map(({ account, amount, every, note }) => ({ account, amount, every, note }));
+    const keep = plain(same.filter((x) => x !== r));
+    if (await save([{ op: "set_recurring", account: r.account, rules: keep }]) !== false) undo.offer(`Removed the ${r.name} rule`, [{ op: "set_recurring", account: r.account, rules: plain(same) }]);
   }
 
   // ---- Room ----

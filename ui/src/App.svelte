@@ -18,6 +18,7 @@
   import Settings from "./screens/settings/Settings.svelte";
   import Palette from "./lib/components/shell/Palette.svelte";
   import ChatDrawer from "./lib/components/chat/ChatDrawer.svelte";
+  import UndoBar from "./lib/components/shell/UndoBar.svelte";
   import { drawer } from "./lib/stores/drawer.svelte";
 
   let palette = $state(false);
@@ -100,6 +101,7 @@
   </main>
 </div>
 {#if drawer.open && view.current}<ChatDrawer view={view.current} />{/if}
+<UndoBar />
 {/if}
 
 <style>

@@ -6,6 +6,7 @@
   import { formatDate, formatMoney, parseAmount } from "../../lib/format/money";
   import { budget } from "../../lib/stores/budget/budget.svelte";
   import { view as viewStore } from "../../lib/stores/view.svelte";
+  import { undo } from "../../lib/stores/undo.svelte";
 
   let { view }: { view: LedgerView } = $props();
   const DOCS = "https://github.com/Akazai-A/Worthwatch/blob/main/docs/use/apple-pay-feed.md";
@@ -62,7 +63,10 @@
 
   // ---- Sources and cards ----
   const setSource = (account: string, source: TxnSource) => save([{ op: "set_txn_source", account, source }]);
-  const unlink = (card: string) => save([{ op: "link_card", card, account: null }]);
+  // Removals save at once and offer Undo, which saves the old list back.
+  async function unlink(card: string, account: string) {
+    if (await save([{ op: "link_card", card, account: null }])) undo.offer(`Unlinked “${card}”`, [{ op: "link_card", card, account }]);
+  }
 
   // ---- Bills ----
   let bName = $state(""), bAmount = $state(""), bDay = $state(""), bMatch = $state("");
@@ -73,7 +77,10 @@
     const bill: Bill = { name: bName.trim(), amount, every: "month", category: "bills", matches: bMatch.trim() || null, day: day && day >= 1 && day <= 31 ? day : null };
     if (await save([{ op: "set_bills", bills: [...(settings.bills ?? []), bill] }])) { bName = bAmount = bDay = bMatch = ""; }
   }
-  const removeBill = (i: number) => save([{ op: "set_bills", bills: (settings.bills ?? []).filter((_, j) => j !== i) }]);
+  async function removeBill(i: number) {
+    const before = settings.bills ?? [];
+    if (await save([{ op: "set_bills", bills: before.filter((_, j) => j !== i) }])) undo.offer(`Removed ${before[i].name}`, [{ op: "set_bills", bills: before }]);
+  }
 
   // ---- Rules ----
   let rText = $state(""), rCat = $state("dining");
@@ -82,7 +89,10 @@
     const rules: CategoryRule[] = [...(settings.rules ?? []), { contains: rText.trim(), category: rCat }];
     if (await save([{ op: "set_category_rules", rules }])) rText = "";
   }
-  const removeRule = (i: number) => save([{ op: "set_category_rules", rules: (settings.rules ?? []).filter((_, j) => j !== i) }]);
+  async function removeRule(i: number) {
+    const before = settings.rules ?? [];
+    if (await save([{ op: "set_category_rules", rules: before.filter((_, j) => j !== i) }])) undo.offer(`Removed the “${before[i].contains}” rule`, [{ op: "set_category_rules", rules: before }]);
+  }
 </script>
 
 <div class="settings">
@@ -179,7 +189,7 @@
         <div class="acct">
           <span class="gd" style="background:var(--g-{a.group})"></span>
           <span>{a.name}
-            <span class="cards">{#if a.cards.length}{#each a.cards as c}<span class="card-chip">Wallet: “{c}” <button type="button" class="x" title="Unlink this card" aria-label="Unlink {c}" onclick={() => unlink(c)}>×</button></span>{/each}{:else}no Wallet card{a.kind === "credit_card" ? " yet: it links itself the first time you tap it" : ""}{/if}</span>
+            <span class="cards">{#if a.cards.length}{#each a.cards as c}<span class="card-chip">Wallet: “{c}” <button type="button" class="x" title="Unlink this card" aria-label="Unlink {c}" onclick={() => unlink(c, a.id)}>×</button></span>{/each}{:else}no Wallet card{a.kind === "credit_card" ? " yet: it links itself the first time you tap it" : ""}{/if}</span>
           </span>
           <span class="pills" role="radiogroup" aria-label="Source for {a.name}">
             {#each (a.cards.length ? ["statement", "apple_pay_statement", "apple_pay"] : ["statement"]) as src}

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { apply, ApiError, GROUPS, GROUP_LABEL, KIND_LABEL, ratesInUse, errorMessage, type Account, type AccountKind, type AccountView, type LedgerView, type Mutation } from "../../lib/api";
-  import { balanceDelta, buildCheckin, slugify, summarize, type Entry } from "../../lib/networth/checkin";
+  import { balanceDelta, bigSwings, buildCheckin, slugify, summarize, type Entry } from "../../lib/networth/checkin";
   import { formatDate, formatPlain, formatUnits, parseNumber, todayIso, MASK, amountsHidden } from "../../lib/format/money";
   import { view as viewStore } from "../../lib/stores/view.svelte";
   import { route } from "../../lib/stores/route.svelte";
@@ -28,6 +28,12 @@
   const byGroup = $derived(GROUPS.map((g) => ({ g, rows: view.accounts.filter((a) => a.group === g) })).filter((x) => x.rows.length));
   const result = $derived(buildCheckin(date, view.accounts, entries, rates, cur));
   const after = $derived(Number(view.totals.net_worth) + result.net_change);
+  // A balance that moved more than 20% is flagged before saving; Enter (or Save) again keeps it.
+  const swings = $derived(bigSwings(view.accounts, entries));
+  let swingsSeen = $state("");
+  let flagged = $state(false);
+  const swingKey = $derived([...swings.keys()].map((id) => `${id}=${entries[id]?.balance}`).join("|"));
+  const holdForSwings = $derived(swings.size > 0 && swingsSeen !== swingKey);
 
   function entry(id: string): Entry {
     return (entries[id] ??= {});
@@ -49,6 +55,7 @@
 
   async function save() {
     if (saving || result.mutations.length === 0 || result.invalid.length) return;
+    if (holdForSwings) { swingsSeen = swingKey; flagged = true; return; }
     saving = true;
     saveError = null;
     try {
@@ -134,6 +141,9 @@
               {#if d === "invalid"}not a number{:else if d == null}<span class="faint">carry</span>{:else}<Money value={d} currency={a.currency} signed digits={2} tone={a.liability ? "none" : "delta"} />{/if}
             </span>
           </div>
+          {#if flagged && swings.has(a.id)}
+            <p class="swing" role="status">{swings.get(a.id)! > 0 ? "+" : ""}{Math.round(swings.get(a.id)! * 100)}% from last time. A digit missing? Fix it, or press Enter again to keep it.</p>
+          {/if}
         {:else}
           <div class="ci">
             <span class="name">{a.name}<span class="faint inst">{a.institution ?? ""}{a.currency !== cur ? ` · ${a.currency}` : ""}</span></span>
@@ -246,6 +256,7 @@
   .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .foot { position: sticky; bottom: 0; background: var(--bg); padding: 14px 0 8px; display: flex; justify-content: space-between; align-items: center; gap: 14px; border-top: 1px solid var(--border); flex-wrap: wrap; }
   .sum { font-size: 13px; }
+  .swing { margin: 0 0 6px; padding-left: 8px; border-left: 2px solid var(--accent); color: var(--accent); font-size: 12px; }
   code { font-family: var(--mono); font-size: 12px; }
   @media (max-width: 700px) {
     .ci { grid-template-columns: 1fr 130px; }
