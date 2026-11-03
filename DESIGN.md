@@ -171,7 +171,9 @@ A warm, low-chroma neutral system with one metallic accent and four fixed catego
 ### Named Rules
 **The One Brass Rule.** Brass marks the single most important line or state on a screen. Bars and cells without a category use the neutral `--fill`, never brass.
 
-**The Fixed Meaning Rule.** A group colour means its group on every screen. Never reuse cash blue or debt violet for anything else.
+**The Fixed Meaning Rule.** A group colour means its group on every screen. Never reuse cash blue or debt violet for anything else. "What you added" is a bone dashed line, not blue.
+
+**The Hatch Rule for growth.** Growth and paydown (Plan milestones, Account month bars) are brass hatch with a brass edge, so solid brass stays for the net worth line.
 
 ## Typography
 
@@ -289,6 +291,7 @@ Motion explains a change; it never decorates a resting screen. Every curve is `-
 - **The Changes bridge builds** one step at a time, each bar growing from where the last one ended.
 - **Charts draw in** from the left when the range or view changes.
 - **The rail bookmark slides** to the current screen.
+- **The check-in stamp lands** once this month's check-in is in; the Undo bar rises; look-through ribbons draw in from the funds.
 - **Reduced motion** keeps every state change and drops the movement: animations jump to their end, and transitions keep only colour, opacity and filter.
 
 ### Chart hover
