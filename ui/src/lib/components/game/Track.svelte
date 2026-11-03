@@ -5,7 +5,7 @@
   import { pile, tileTip, track } from "../../game";
   import CoinDefs from "./CoinDefs.svelte";
 
-  let { g, money, mon }: { g: GameView; money: (n: number) => string; mon: string } = $props();
+  let { g, money, mon, onadd }: { g: GameView; money: (n: number) => string; mon: string; onadd?: () => void } = $props();
   let width = $state(760);
   // Three rows on a wide screen with the month's end on the last one; five a row on a phone.
   const cols = $derived(width < 560 ? 5 : Math.ceil((g.days + 1) / 3));
@@ -42,6 +42,14 @@
           <circle r={ring.r} class="ring-left" stroke-dasharray="{ring.left * ring.c} {ring.c}" transform="rotate(-90)" />
           <text y="4" class="today-n">{money(Math.max(0, Number(g.today!.left)))}</text>
           <text y={R + 24} class="cap">today · {g.today!.taps.length} tap{g.today!.taps.length === 1 ? "" : "s"}</text>
+          {#if onadd}
+            <!-- A spend that never touched Apple Pay: cash, or a card without the feed. -->
+            <g class="add" transform="translate(0 {R + 40})" role="button" tabindex="0" aria-label="Add a cash spend for today"
+              onclick={onadd} onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onadd(); } }}>
+              <rect x="-40" y="-10" width="80" height="20" rx="10" />
+              <text y="3.5">+ cash spend</text>
+            </g>
+          {/if}
         {:else if tile.payday && tile.state === "ahead"}
           <circle r={R + 1} fill="url(#{coin})" class="payday" />
           <text y="4.5" class="pay">$</text>
@@ -92,6 +100,11 @@
   .today-n { font-size: 12px; font-weight: 600; fill: var(--text); }
   .coin { stroke: var(--coin-lo); stroke-width: 0.6; animation: drop 0.5s cubic-bezier(0.3, 1.4, 0.6, 1) both; animation-delay: calc(var(--i) * 25ms + var(--k) * 60ms); }
   .house { fill: var(--text-3); }
+  .add { cursor: pointer; }
+  .add rect { fill: var(--surface); stroke: var(--accent); stroke-dasharray: 3 2; }
+  .add text { font-size: 10px; fill: var(--accent); }
+  .add:hover rect, .add:focus-visible rect { fill: color-mix(in oklab, var(--accent) 14%, var(--surface)); stroke-dasharray: none; }
+  .add:focus { outline: none; }
   .vault { fill: none; stroke: var(--accent); stroke-width: 2; stroke-dasharray: 3 3; }
   .end.done .vault { fill: url(#coin-track); stroke: var(--coin-lo); stroke-dasharray: none; }
   .v { fill: var(--accent); }

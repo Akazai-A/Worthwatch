@@ -2,7 +2,8 @@
 //!
 //! ```text
 //! transactions/
-//!   2026-11.jsonl     one JSON record per line: {"source":"tap",...} or {"source":"csv",...}
+//!   2026-11.jsonl     one JSON record per line: {"source":"tap",...}, {"source":"csv",...},
+//!                     {"source":"manual",...}, or {"source":"void",...} (a manual entry removed)
 //!   categories.json   transaction id -> category you picked by hand
 //! ```
 //! Records are never rewritten. A record whose id is already stored is skipped, so a
@@ -15,6 +16,8 @@ use std::path::{Path, PathBuf};
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 
+use crate::manual::{Manual, Void};
+use crate::reconcile::{reconcile_all, Txn};
 use crate::statement::CsvRow;
 use crate::tap::Tap;
 
@@ -23,6 +26,8 @@ use crate::tap::Tap;
 pub enum Record {
     Tap(Tap),
     Csv(CsvRow),
+    Manual(Manual),
+    Void(Void),
 }
 
 impl Record {
@@ -30,12 +35,16 @@ impl Record {
         match self {
             Record::Tap(t) => &t.id,
             Record::Csv(r) => &r.id,
+            Record::Manual(m) => &m.id,
+            Record::Void(v) => &v.id,
         }
     }
     fn date(&self) -> NaiveDate {
         match self {
             Record::Tap(t) => t.at.date_naive(),
             Record::Csv(r) => r.date,
+            Record::Manual(m) => m.date,
+            Record::Void(v) => v.date,
         }
     }
 }
@@ -45,6 +54,8 @@ pub struct TxnStore {
     pub dir: PathBuf,
     pub taps: Vec<Tap>,
     pub rows: Vec<CsvRow>,
+    /// Entries added by hand, without the removed ones.
+    pub manual: Vec<Manual>,
     pub overrides: BTreeMap<String, String>,
     /// Lines that could not be read, as "file:line: why".
     pub errors: Vec<String>,
@@ -93,7 +104,25 @@ impl TxnStore {
         match r {
             Record::Tap(t) => self.taps.push(t),
             Record::Csv(c) => self.rows.push(c),
+            Record::Manual(m) => {
+                if !self.ids.contains(&format!("void-{}", m.id)) {
+                    self.manual.push(m);
+                }
+            }
+            Record::Void(v) => self.manual.retain(|m| m.id != v.target),
         }
+    }
+
+    /// Every transaction, taps and rows and manual entries merged. See [`reconcile_all`].
+    pub fn reconcile(&self, l: &ledger::Ledger, today: NaiveDate) -> Vec<Txn> {
+        reconcile_all(l, &self.taps, &self.rows, &self.manual, &self.overrides, today)
+    }
+
+    /// Hide a manual entry. `false` when there is no such entry.
+    pub fn remove_manual(&mut self, id: &str, at: DateTime<Utc>) -> std::io::Result<bool> {
+        let Some(m) = self.manual.iter().find(|m| m.id == id).cloned() else { return Ok(false) };
+        self.append(vec![Record::Void(Void::of(&m, at))])?;
+        Ok(true)
     }
 
     pub fn contains(&self, id: &str) -> bool {

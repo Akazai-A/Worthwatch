@@ -783,8 +783,9 @@ async fn propose(State(s): State<AppState>, Json(req): Json<ProposeRequest>) -> 
     let today = Local::now().date_naive();
     let ctx = crate::chat::context(&snap, today);
     let p = req.proposal.unwrap_or_else(|| assistant::shorthand::parse(&req.text, &ctx));
-    let plan = assistant::resolve(&snap.ledger, &ctx, &p);
-    let pending = (!plan.mutations.is_empty()).then(|| s.propose("mcp", &req.text, plan.clone()));
+    let plan = crate::chat::resolve(&snap.ledger, &ctx, &p);
+    let pending = (!plan.mutations.is_empty() || !plan.spends.is_empty())
+        .then(|| s.propose("mcp", &req.text, plan.clone()));
     Json(ProposeReply { pending, plan })
 }
 

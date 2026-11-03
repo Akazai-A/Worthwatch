@@ -1,5 +1,6 @@
 //! The no-model path: "td chq 5102, visa down to 640, sold 20 XEQT in the TFSA".
 //! Clauses split on commas, semicolons, newlines and "and"; each clause is a trade,
+//! a purchase for the budget ("coffee 6 cash", "spent 18 on lunch with visa"),
 //! a relative move, an absolute amount, a price, or a question. Anything else goes
 //! to `unparsed` so the user sees it was not understood rather than silently dropped.
 
@@ -22,6 +23,10 @@ static RELATIVE: OnceLock<Regex> = OnceLock::new();
 static ABSOLUTE: OnceLock<Regex> = OnceLock::new();
 static QUESTION: OnceLock<Regex> = OnceLock::new();
 static NOTE: OnceLock<Regex> = OnceLock::new();
+static SPENT: OnceLock<Regex> = OnceLock::new();
+static CASH_FIRST: OnceLock<Regex> = OnceLock::new();
+static PAID_WITH: OnceLock<Regex> = OnceLock::new();
+static AMOUNT_FIRST: OnceLock<Regex> = OnceLock::new();
 
 const AMOUNT: &str = r"(-?)\$?(\d+(?:\.\d+)?)\s*([km])?";
 
@@ -93,6 +98,10 @@ pub fn parse(text: &str, ctx: &Context) -> Proposal {
             p.items.push(Item::Trade { account, symbol, units, price, source });
             continue;
         }
+        if let Some(item) = spend(&clause, &c, ctx) {
+            p.items.push(item);
+            continue;
+        }
         let abs = |p: &mut Proposal, who: &str, value: Decimal, source: Option<String>| {
             let who = strip_article(who);
             if let (Some(sym), holders) = names::accounts_holding(&ctx.accounts, who) {
@@ -146,6 +155,67 @@ pub fn parse(text: &str, ctx: &Context) -> Proposal {
         p.unparsed.push(clause);
     }
     p
+}
+
+/// Something you can pay with: "cash", or a card or bank account.
+fn pays(ctx: &Context, w: &str) -> bool {
+    let w = strip_article(w);
+    w == "cash"
+        || names::match_account(&ctx.accounts, w).is_ok_and(|a| a.positions.is_none() && a.kind.pays())
+}
+
+/// A purchase, in one of four shapes. `clause` keeps the user's capitals for the
+/// merchant; `c` is the same text lower-cased (same byte offsets).
+fn spend(clause: &str, c: &str, ctx: &Context) -> Option<Item> {
+    const N: &str = r"\$?(\d+(?:\.\d{1,2})?)";
+    let item = |what: std::ops::Range<usize>, amount: &str, paid: Option<&str>| {
+        let amount: Decimal = amount.parse().ok()?;
+        let what = clause[what].trim().to_string();
+        (!what.is_empty() && amount > Decimal::ZERO).then(|| Item::Spend {
+            what,
+            amount,
+            paid_with: paid.map(|p| strip_article(p).to_string()).filter(|p| p != "cash"),
+            category: None,
+            source: Some(clause.to_string()),
+        })
+    };
+    // "spent 18 on lunch", "paid 40 for groceries with the visa"
+    if let Some(m) = re(
+        &SPENT,
+        &format!(
+            r"^(?:spent|spend|paid|pay)\s+{N}\s+(?:on|at|for)\s+(.+?)(?:\s+(?:with|using|via|by|on)\s+(.+))?$"
+        ),
+    )
+    .captures(c)
+    {
+        let paid = m.get(3).map(|x| x.as_str());
+        if paid.is_none_or(|p| pays(ctx, p)) {
+            return item(m.get(2)?.range(), &m[1], paid);
+        }
+        return item(m.get(2)?.start()..m.get(3)?.end(), &m[1], None);
+    }
+    // "cash 12.50 farmers market"
+    if let Some(m) = re(&CASH_FIRST, &format!(r"^cash\s+{N}\s+(?:on\s+|at\s+|for\s+)?(.+)$")).captures(c) {
+        return item(m.get(2)?.range(), &m[1], None);
+    }
+    // "12.50 farmers market cash"
+    if let Some(m) =
+        re(&AMOUNT_FIRST, &format!(r"^{N}\s+(?:on\s+|at\s+|for\s+)?(.+?)\s+(?:in\s+|with\s+|by\s+)?cash$"))
+            .captures(c)
+    {
+        return item(m.get(2)?.range(), &m[1], None);
+    }
+    // "coffee 6 cash", "lunch $18 on visa": only when the last words name a way to pay,
+    // so "td chq 5102" stays a balance.
+    if let Some(m) =
+        re(&PAID_WITH, &format!(r"^(.+?)\s+{N}\s+(?:in\s+|with\s+|on\s+|by\s+|using\s+)?(.+)$")).captures(c)
+    {
+        let (who, paid) = (m[1].trim(), &m[3]);
+        if pays(ctx, paid) && names::match_account(&ctx.accounts, strip_article(who)).is_err() {
+            return item(m.get(1)?.range(), &m[2], Some(paid));
+        }
+    }
+    None
 }
 
 #[cfg(test)]
@@ -280,5 +350,47 @@ mod tests {
         assert_eq!(plan.rows[1].account.as_deref(), Some("td-visa"));
         assert_eq!(plan.rows[1].effect, Some(dec!(600)));
         assert_eq!(plan.net_change, Some(dec!(1428.80)));
+    }
+
+    #[test]
+    fn purchases_for_the_budget_in_four_shapes_and_balances_stay_balances() {
+        let p = parse(
+            "coffee 6 cash, lunch $18.40 on visa, spent 40 on Groceries, cash 12.50 Farmers market, 9 bagels cash, td chq 5102",
+            &ctx(),
+        );
+        assert!(p.unparsed.is_empty(), "{:?}", p.unparsed);
+        let spends: Vec<(String, Decimal, Option<String>)> = p
+            .items
+            .iter()
+            .filter_map(|i| match i {
+                Item::Spend { what, amount, paid_with, .. } => {
+                    Some((what.clone(), *amount, paid_with.clone()))
+                }
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            spends,
+            vec![
+                ("coffee".into(), dec!(6), None),
+                ("lunch".into(), dec!(18.40), Some("visa".into())),
+                ("Groceries".into(), dec!(40), None),
+                ("Farmers market".into(), dec!(12.50), None),
+                ("bagels".into(), dec!(9), None),
+            ]
+        );
+        assert!(matches!(p.items.last(), Some(Item::Balance { account, .. }) if account == "td chq"));
+        // Paid with something you can't pay from: not a purchase.
+        assert!(!items("coffee 6 tfsa").iter().any(|i| matches!(i, Item::Spend { .. })));
+        assert_eq!(
+            items("spent 12 on lunch with the td visa"),
+            vec![Item::Spend {
+                what: "lunch".into(),
+                amount: dec!(12),
+                paid_with: Some("td visa".into()),
+                category: None,
+                source: Some("spent 12 on lunch with the td visa".into()),
+            }]
+        );
     }
 }

@@ -345,6 +345,58 @@ test("Play: the game asks for a budget, then a goal; the jar and today's token s
   await expect(page).toHaveURL(/#\/budget\/play\/\d{4}-\d{2}$/);
 });
 
+test("Add by hand: the Budget form, Play's cash spend, and a chat card; each counts at once and can be removed", async ({ page, request }) => {
+  const before = (await (await request.get("/api/budget")).json()).txns.length as number;
+  const ledgerBefore = ledgerText();
+
+  // Budget › + Add: cash, a category picked by hand.
+  await page.goto("/#/budget");
+  await page.getByRole("button", { name: "+ Add" }).click();
+  await page.getByRole("form", { name: "Add a purchase" }).getByLabel("Amount").fill("12.50");
+  await page.getByRole("form", { name: "Add a purchase" }).getByLabel("What").fill("Farmers market");
+  await page.getByRole("form", { name: "Add a purchase" }).getByLabel("Category").selectOption({ label: "Groceries" });
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+  const row = page.locator(".tx", { hasText: "Farmers market" });
+  await expect(row).toHaveCount(1);
+  await expect(row.getByLabel("Added by hand")).toBeVisible();
+  await expect(row).toContainText("Cash");
+  await expect(row).toContainText("$12.50");
+  await expect(page.getByText("Added Farmers market · $12.50.")).toBeVisible();
+
+  // A bad entry is caught before it is sent.
+  await page.getByRole("button", { name: "+ Add" }).click();
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("what it cost");
+  await page.getByRole("button", { name: "Cancel" }).click();
+
+  // Play: the button under today's token opens the same form.
+  await page.goto("/#/budget/play");
+  await page.getByRole("button", { name: "Add a cash spend for today" }).click();
+  await page.getByRole("form", { name: "Add a purchase" }).getByLabel("Amount").fill("3");
+  await page.getByRole("form", { name: "Add a purchase" }).getByLabel("What").fill("Parking meter");
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await expect(page.getByText("Added Parking meter · $3.00.")).toBeVisible();
+
+  // Chat: a purchase is a card; approving it saves to the budget, never the ledger.
+  await page.goto("/#/chat");
+  await page.getByLabel("Message").fill("coffee 6 cash");
+  await page.keyboard.press("Enter");
+  await expect(page.getByText("budget only · net worth unchanged")).toBeVisible();
+  await page.getByRole("button", { name: "Approve" }).click();
+  await expect(page.getByText("Saved · Coffee · $6.00")).toBeVisible();
+  expect(ledgerText()).toBe(ledgerBefore);
+
+  const b = await (await request.get("/api/budget")).json();
+  expect(b.txns.length).toBe(before + 3);
+  expect(b.txns.filter((t: { status: string }) => t.status === "manual").map((t: { merchant: string }) => t.merchant).sort()).toEqual(["Coffee", "Farmers market", "Parking meter"]);
+
+  // Remove one: it leaves the list and the totals.
+  await page.goto("/#/budget");
+  await page.getByRole("button", { name: "Remove Parking meter" }).click();
+  await expect(page.locator(".tx", { hasText: "Parking meter" })).toHaveCount(0);
+  expect((await (await request.get("/api/budget")).json()).txns.length).toBe(before + 2);
+});
+
 test("⌘⇧H hides every amount as stars, and shows them again", async ({ page }) => {
   await page.goto("/#/");
   const amount = page.locator(".hero .money.xl");

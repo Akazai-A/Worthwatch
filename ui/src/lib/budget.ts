@@ -23,6 +23,7 @@ export const STATUS_LABEL: Record<TxnStatus, string> = {
   review: "No statement row a week after the tap",
   tap_only: "Apple Pay tap (this card has no statements)",
   unlinked: "Tap from a card not linked yet",
+  manual: "Added by hand",
 };
 
 /** One line under the hero: how the month is going against an even pace. */

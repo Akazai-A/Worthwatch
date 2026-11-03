@@ -15,6 +15,7 @@ use rust_decimal::Decimal;
 use serde::Serialize;
 
 use crate::category::{categorize, words, TIPPED};
+use crate::manual::Manual;
 use crate::statement::CsvRow;
 use crate::tap::Tap;
 
@@ -38,6 +39,9 @@ pub enum Status {
     TapOnly,
     /// A tap from a Wallet card not linked to an account yet.
     Unlinked,
+    /// Added by hand and not matched to a statement row: cash, or an account with no
+    /// statements. It counts as entered.
+    Manual,
 }
 
 impl Status {
@@ -64,6 +68,9 @@ pub struct Txn {
     pub category: String,
     pub status: Status,
     pub tap_id: Option<String>,
+    /// The manual entry this came from, when it was added by hand.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub manual_id: Option<String>,
     /// What was tapped, when it differs from what posted (tip, FX).
     pub tap_amount: Option<Decimal>,
     pub tap_currency: Option<String>,
@@ -172,6 +179,36 @@ pub fn reconcile(
     overrides: &BTreeMap<String, String>,
     today: NaiveDate,
 ) -> Vec<Txn> {
+    reconcile_all(l, taps, rows, &[], overrides, today)
+}
+
+/// Something that may already be on a statement: an Apple Pay tap, or an entry added
+/// by hand on an account you import statements for.
+struct Early<'a> {
+    id: &'a str,
+    date: NaiveDate,
+    merchant: &'a str,
+    /// Merchant plus the Wallet "name", for categories and name matching.
+    text: String,
+    amount: Decimal,
+    currency: Option<&'a str>,
+    account: Option<&'a str>,
+    card: Option<&'a str>,
+    /// Set for an entry added by hand.
+    manual: Option<&'a Manual>,
+}
+
+/// [`reconcile`], plus entries added by hand. A manual entry on an account whose
+/// statements you import merges with its row like a tap; otherwise (cash, or an
+/// account with no statements) it counts as entered.
+pub fn reconcile_all(
+    l: &Ledger,
+    taps: &[Tap],
+    rows: &[CsvRow],
+    manual: &[Manual],
+    overrides: &BTreeMap<String, String>,
+    today: NaiveDate,
+) -> Vec<Txn> {
     let b = &l.budget;
     let currency_of = |id: &str| {
         l.account(id).map(|a| a.currency.clone()).unwrap_or_else(|| l.settings.base_currency.clone())
@@ -181,88 +218,116 @@ pub fn reconcile(
         categorize(text, account, amount, account.is_some_and(liability), &b.rules)
     };
 
-    // Taps that take part, with the account their card is linked to.
-    let taps: Vec<(&Tap, Option<&str>)> = taps
+    // Taps that take part, with the account their card is linked to, then manual entries.
+    let mut early: Vec<Early> = taps
         .iter()
         .map(|t| (t, b.card_account(&t.card).map(String::as_str)))
         .filter(|(_, a)| a.is_none_or(|a| b.source(a).uses_taps()))
+        .map(|(t, account)| Early {
+            id: &t.id,
+            date: t.at.date_naive(),
+            merchant: &t.merchant,
+            text: format!("{} {}", t.merchant, t.name.as_deref().unwrap_or("")),
+            amount: t.amount,
+            currency: t.currency.as_deref(),
+            account,
+            card: Some(&t.card),
+            manual: None,
+        })
         .collect();
+    early.extend(manual.iter().map(|m| Early {
+        id: &m.id,
+        date: m.date,
+        merchant: &m.merchant,
+        text: m.merchant.clone(),
+        amount: m.amount,
+        currency: None,
+        account: m.account.as_deref(),
+        card: None,
+        manual: Some(m),
+    }));
+    // A manual entry's own category beats the rules, but not a later pick by hand.
+    let fallback = |e: &Early, account: Option<&str>, amount: Decimal| {
+        e.manual.and_then(|m| m.category.clone()).unwrap_or_else(|| category(&e.text, account, amount))
+    };
 
-    // Every (tap, row) pair that could be the same purchase.
+    // Every (early, row) pair that could be the same purchase.
     let mut pairs: Vec<(Score, usize, usize)> = Vec::new();
-    for (ti, (t, account)) in taps.iter().enumerate() {
-        let Some(account) = account else { continue };
-        if b.source(account) != TxnSource::ApplePayStatement {
+    for (ei, e) in early.iter().enumerate() {
+        let Some(account) = e.account else { continue };
+        let matches = match e.manual {
+            None => b.source(account) == TxnSource::ApplePayStatement,
+            Some(_) => b.source(account) != TxnSource::ApplePay,
+        };
+        if !matches {
             continue;
         }
         let acct_currency = currency_of(account);
-        let foreign = t.currency.as_ref().is_some_and(|c| *c != acct_currency);
-        let tap_date = t.at.date_naive();
-        let last = tap_date + Days::new(POST_WINDOW_DAYS);
-        let tap_text = format!("{} {}", t.merchant, t.name.as_deref().unwrap_or(""));
-        let tipped = TIPPED.contains(&category(&tap_text, Some(account), t.amount).as_str());
+        let foreign = e.currency.is_some_and(|c| *c != acct_currency);
+        let last = e.date + Days::new(POST_WINDOW_DAYS);
+        let tipped = TIPPED.contains(&fallback(e, Some(account), e.amount).as_str());
         for (ri, r) in rows.iter().enumerate() {
-            if r.account != *account || r.date < tap_date || r.date > last {
+            if r.account != *account || r.date < e.date || r.date > last {
                 continue;
             }
-            let sim = similarity(&tap_text, &r.description);
-            let exact = !foreign && (r.amount - t.amount).abs() <= Decimal::new(1, 2);
+            let sim = similarity(&e.text, &r.description);
+            let exact = !foreign && (r.amount - e.amount).abs() <= Decimal::new(1, 2);
             let tip = !foreign
                 && tipped
-                && r.amount > t.amount
-                && r.amount <= t.amount * Decimal::new(130, 2)
+                && r.amount > e.amount
+                && r.amount <= e.amount * Decimal::new(130, 2)
                 && sim > 0.0;
             let fx = foreign && r.amount.is_sign_positive() && sim >= 0.5;
             if exact || tip || fx {
-                pairs.push((Score { exact, similarity: sim, near: -(r.date - tap_date).num_days() }, ti, ri));
+                pairs.push((Score { exact, similarity: sim, near: -(r.date - e.date).num_days() }, ei, ri));
             }
         }
     }
     pairs.sort_by(|a, b| {
         b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2))
     });
-    let mut tap_to_row: HashMap<usize, usize> = HashMap::new();
+    let mut early_to_row: HashMap<usize, usize> = HashMap::new();
     let mut row_taken = vec![false; rows.len()];
-    for (_, ti, ri) in pairs {
-        if tap_to_row.contains_key(&ti) || row_taken[ri] {
+    for (_, ei, ri) in pairs {
+        if early_to_row.contains_key(&ei) || row_taken[ri] {
             continue;
         }
-        tap_to_row.insert(ti, ri);
+        early_to_row.insert(ei, ri);
         row_taken[ri] = true;
     }
-    let row_to_tap: HashMap<usize, usize> = tap_to_row.iter().map(|(t, r)| (*r, *t)).collect();
+    let row_to_early: HashMap<usize, usize> = early_to_row.iter().map(|(t, r)| (*r, *t)).collect();
 
     let pick = |ids: &[&str], fallback: String| {
         ids.iter().find_map(|id| overrides.get(*id).cloned()).unwrap_or(fallback)
     };
-    let mut out = Vec::with_capacity(rows.len() + taps.len());
+    let mut out = Vec::with_capacity(rows.len() + early.len());
     for (ri, r) in rows.iter().enumerate() {
         let currency = currency_of(&r.account);
-        let txn = match row_to_tap.get(&ri) {
-            Some(&ti) => {
-                let t = taps[ti].0;
-                let tap_text = format!("{} {}", t.merchant, t.name.as_deref().unwrap_or(""));
-                let mut cat = category(&tap_text, Some(&r.account), r.amount);
+        let txn = match row_to_early.get(&ri) {
+            Some(&ei) => {
+                let e = &early[ei];
+                let mut cat = fallback(e, Some(&r.account), r.amount);
                 if cat == "other" {
                     cat = category(&r.description, Some(&r.account), r.amount);
                 }
-                let tap_currency = t.currency.clone().unwrap_or_else(|| currency.clone());
-                let differs = t.amount != r.amount || tap_currency != currency;
+                let e_currency = e.currency.map(str::to_string).unwrap_or_else(|| currency.clone());
+                let differs = e.amount != r.amount || e_currency != currency;
                 Txn {
                     id: r.id.clone(),
                     account: Some(r.account.clone()),
-                    card: Some(t.card.clone()),
+                    card: e.card.map(str::to_string),
                     date: r.date,
                     amount: r.amount,
                     currency,
-                    merchant: t.merchant.clone(),
+                    merchant: e.merchant.to_string(),
                     description: Some(r.description.clone()),
-                    category: pick(&[&r.id, &t.id], cat),
+                    category: pick(&[&r.id, e.id], cat),
                     status: Status::Confirmed,
-                    tap_id: Some(t.id.clone()),
-                    tap_amount: differs.then_some(t.amount),
-                    tap_currency: differs.then_some(tap_currency),
-                    tap_date: Some(t.at.date_naive()),
+                    tap_id: e.manual.is_none().then(|| e.id.to_string()),
+                    manual_id: e.manual.map(|m| m.id.clone()),
+                    tap_amount: differs.then_some(e.amount),
+                    tap_currency: differs.then_some(e_currency),
+                    tap_date: Some(e.date),
                 }
             }
             None => Txn {
@@ -277,6 +342,7 @@ pub fn reconcile(
                 category: pick(&[&r.id], category(&r.description, Some(&r.account), r.amount)),
                 status: Status::Posted,
                 tap_id: None,
+                manual_id: None,
                 tap_amount: None,
                 tap_currency: None,
                 tap_date: None,
@@ -284,37 +350,37 @@ pub fn reconcile(
         };
         out.push(txn);
     }
-    for (ti, (t, account)) in taps.iter().enumerate() {
-        if tap_to_row.contains_key(&ti) {
+    for (ei, e) in early.iter().enumerate() {
+        if early_to_row.contains_key(&ei) {
             continue;
         }
-        let date = t.at.date_naive();
-        let status = match account {
-            None => Status::Unlinked,
-            Some(a) if b.source(a) == TxnSource::ApplePay => Status::TapOnly,
-            Some(_) if (today - date).num_days() > REVIEW_AFTER_DAYS => Status::Review,
-            Some(_) => Status::Provisional,
+        let status = match (e.manual, e.account) {
+            (Some(_), _) => Status::Manual,
+            (None, None) => Status::Unlinked,
+            (None, Some(a)) if b.source(a) == TxnSource::ApplePay => Status::TapOnly,
+            (None, Some(_)) if (today - e.date).num_days() > REVIEW_AFTER_DAYS => Status::Review,
+            (None, Some(_)) => Status::Provisional,
         };
-        let currency = t
+        let currency = e
             .currency
-            .clone()
-            .unwrap_or_else(|| account.map_or_else(|| l.settings.base_currency.clone(), currency_of));
-        let tap_text = format!("{} {}", t.merchant, t.name.as_deref().unwrap_or(""));
+            .map(str::to_string)
+            .unwrap_or_else(|| e.account.map_or_else(|| l.settings.base_currency.clone(), currency_of));
         out.push(Txn {
-            id: t.id.clone(),
-            account: account.map(str::to_string),
-            card: Some(t.card.clone()),
-            date,
-            amount: t.amount,
+            id: e.id.to_string(),
+            account: e.account.map(str::to_string),
+            card: e.card.map(str::to_string),
+            date: e.date,
+            amount: e.amount,
             currency,
-            merchant: t.merchant.clone(),
+            merchant: e.merchant.to_string(),
             description: None,
-            category: pick(&[&t.id], category(&tap_text, *account, t.amount)),
+            category: pick(&[e.id], fallback(e, e.account, e.amount)),
             status,
-            tap_id: Some(t.id.clone()),
+            tap_id: e.manual.is_none().then(|| e.id.to_string()),
+            manual_id: e.manual.map(|m| m.id.clone()),
             tap_amount: None,
             tap_currency: None,
-            tap_date: Some(date),
+            tap_date: e.manual.is_none().then_some(e.date),
         });
     }
     out.sort_by(|a, b| b.date.cmp(&a.date).then_with(|| a.id.cmp(&b.id)));

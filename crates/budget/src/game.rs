@@ -791,6 +791,7 @@ mod tests {
             category: category.into(),
             status: Status::Posted,
             tap_id: None,
+            manual_id: None,
             tap_amount: None,
             tap_currency: None,
             tap_date: None,

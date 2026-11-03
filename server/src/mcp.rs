@@ -88,7 +88,7 @@ fn tools() -> Value {
         },
         {
             "name": "propose_update",
-            "description": "Propose changes to the ledger. NOTHING IS WRITTEN: the proposal appears as a card in Worthwatch's Chat screen and the user approves or discards it there. Either pass `text` in the user's shorthand (\"td chq 5102, visa 640, sold 20 XEQT in the TFSA\") or a structured `items` list. Items: {kind:'balance',account,value} (liabilities: amount owed), {kind:'adjust',account,delta}, {kind:'trade',account?,symbol,units (+buy/-sell),price?}, {kind:'price',symbol,price}, {kind:'new_account',name,account_kind,currency?,value?}, {kind:'note',note}. `account` is an id from get_accounts. Returns the checked plan with any rejections and a pending id for check_proposal.",
+            "description": "Propose changes to the ledger. NOTHING IS WRITTEN: the proposal appears as a card in Worthwatch's Chat screen and the user approves or discards it there. Either pass `text` in the user's shorthand (\"td chq 5102, visa 640, sold 20 XEQT in the TFSA\") or a structured `items` list. Items: {kind:'balance',account,value} (liabilities: amount owed), {kind:'adjust',account,delta}, {kind:'trade',account?,symbol,units (+buy/-sell),price?}, {kind:'price',symbol,price}, {kind:'new_account',name,account_kind,currency?,value?}, {kind:'note',note}, {kind:'spend',what,amount,paid_with?,category?} (a purchase for the budget: paid_with is an account id or 'cash'; it never changes a balance). `account` is an id from get_accounts. Returns the checked plan with any rejections and a pending id for check_proposal.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -314,8 +314,9 @@ mod tests {
                 Value::Null => assistant::shorthand::parse(text, &ctx),
                 v => serde_json::from_value(v.clone()).map_err(|e| e.to_string())?,
             };
-            let plan = assistant::resolve(&snap.ledger, &ctx, &p);
-            let pending = (!plan.mutations.is_empty()).then(|| self.state.propose("mcp", text, plan.clone()));
+            let plan = crate::chat::resolve(&snap.ledger, &ctx, &p);
+            let pending = (!plan.mutations.is_empty() || !plan.spends.is_empty())
+                .then(|| self.state.propose("mcp", text, plan.clone()));
             Ok(json!({ "pending": pending, "plan": plan }))
         }
     }
@@ -427,5 +428,27 @@ mod tests {
         b.state.decide(id, false).unwrap().unwrap();
         assert_eq!(std::fs::read_to_string(&b.state.ledger_path).unwrap(), before);
         assert_eq!(b.state.snapshot().decided[&id], "discarded");
+    }
+
+    #[test]
+    fn a_purchase_queues_a_card_and_approval_adds_it_to_the_budget_not_the_ledger() {
+        let (_d, b) = backend();
+        let before = std::fs::read_to_string(&b.state.ledger_path).unwrap();
+        let (r, err) = call(&b, "propose_update", json!({ "text": "coffee 6 cash" }));
+        assert!(!err);
+        assert_eq!(r["queued"], true);
+        assert_eq!(
+            (r["rows"][0]["kind"].as_str(), r["rows"][0]["detail"].as_str()),
+            (Some("spend"), Some("Coffee"))
+        );
+        let id = r["pending_id"].as_u64().unwrap();
+        assert!(b.state.txns.read().unwrap().manual.is_empty(), "nothing written before approval");
+
+        b.state.decide(id, true).unwrap().unwrap();
+        assert_eq!(std::fs::read_to_string(&b.state.ledger_path).unwrap(), before, "net worth untouched");
+        let txns = b.state.txns.read().unwrap();
+        assert_eq!(txns.manual.len(), 1);
+        assert_eq!((txns.manual[0].merchant.as_str(), txns.manual[0].account.as_deref()), ("Coffee", None));
+        assert_eq!(txns.manual[0].amount, rust_decimal::Decimal::from(6));
     }
 }

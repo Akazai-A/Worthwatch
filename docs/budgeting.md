@@ -9,15 +9,17 @@ This page shows you how to set a monthly budget, bring in your bank and card tra
 
 ## How it works
 
-Worthwatch builds each month from two kinds of records:
+Worthwatch builds each month from three kinds of records:
 
 - **Statement rows** that you import from your bank's CSV or OFX export. These are the final word on what you spent.
 - **Apple Pay taps** that your iPhone sends as you pay. These show up right away and are marked *not on a statement yet* until the matching row arrives.
+- **Entries you add by hand**, such as cash, or a card you don't tap with. See [Add a purchase by hand](#add-a-purchase-by-hand).
 
 ```text
- iPhone tap ───▶ provisional ──┐
-                               ├─▶ reconcile ─▶ confirmed (one transaction, not two)
- bank CSV row ─▶ posted ───────┘
+ iPhone tap ──────────────▶ provisional ──┐
+ added by hand, on a card ▶ provisional ──┼─▶ reconcile ─▶ confirmed (one transaction, not two)
+ bank CSV row ────────────▶ posted ───────┘
+ added by hand, cash ─────▶ counts as entered (no statement to wait for)
 ```
 
 When you import a statement, Worthwatch pairs each tap with its row, so a purchase is never counted twice. You don't need to tap to use the budget: statements alone work fine.
@@ -59,6 +61,36 @@ Most Canadian banks export from the account's activity page. The menu names chan
 
 > [!TIP]
 > When your bank offers both, pick OFX or QFX. Each OFX row carries a bank ID, so re-imports match exactly even when a description changes.
+
+## Add a purchase by hand
+
+Use this for anything that doesn't come from Apple Pay or a statement, such as cash at a farmers market, or a card you don't import.
+
+1. On **Budget**, select **+ Add** beside **Transactions**.
+2. Enter the **Amount** and **What** it was.
+3. Optional: choose a **Category**. If you leave it on **Pick for me**, your category rules choose one.
+4. Choose what you **Paid with**: **Cash**, or one of your bank accounts or cards.
+5. Optional: change the **Date**. It starts on today. On a past month, it starts on that month's last day.
+6. Select **Add**.
+
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="screenshots/budget-add-form-light.png">
+  <img src="screenshots/budget-add-form-dark.png" alt="The + Add form under Transactions: amount 12.50, Farmers market, Groceries, paid with Cash, today's date, and the Add button" width="860">
+</picture>
+
+The entry shows at once with a pencil mark ✎ and counts toward the month, the category bars and the [budget game](budget-game.md). To take it back, select **×** at the end of its row, or **Undo** in the confirmation line.
+
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="screenshots/budget-added-light.png">
+  <img src="screenshots/budget-added-dark.png" alt="Farmers market at the top of today's transactions, marked by hand, Groceries, Cash, $12.50, with a remove button" width="860">
+</picture>
+
+What happens next depends on what you paid with:
+
+- **Cash** counts as you entered it. It never goes to **Review**, because there's no statement to wait for.
+- **A bank account or card** waits for its statement row like a tap does. When you import the statement, the row replaces your entry's amount and date, so the purchase is counted once. If you don't import statements for that account, your entry is the record.
+
+You can also add purchases from **Chat**, such as `coffee 6 cash` or `lunch 18.40 on td visa`, and from the [budget game](budget-game.md#add-a-cash-spend). Chat shows a card first, and nothing is saved until you approve it.
 
 ## Set a budget for each category
 
@@ -144,7 +176,14 @@ budget:
     mode: icloud                     # off | icloud | tailscale
 ```
 
-Transactions themselves live in `transactions/YYYY-MM.jsonl`, one line each. Worthwatch only ever appends to these files. Categories you pick by hand are saved in `transactions/categories.json`. Both are included in [backups](backup-restore.md).
+Transactions themselves live in `transactions/YYYY-MM.jsonl`, one line each. Worthwatch only ever appends to these files. An entry you add by hand is a `manual` line, and removing one appends a `void` line that hides it:
+
+```json
+{"source":"manual","id":"man-2026-11-18-6c1f0e2a9b44","date":"2026-11-18","merchant":"Farmers market","amount":"12.50","category":"groceries","added":"2026-11-18T21:30:00Z"}
+{"source":"void","id":"void-man-2026-11-18-6c1f0e2a9b44","target":"man-2026-11-18-6c1f0e2a9b44","date":"2026-11-18","at":"2026-11-18T21:31:00Z"}
+```
+
+An entry with no `account` is cash. Categories you pick by hand are saved in `transactions/categories.json`. Both are included in [backups](backup-restore.md).
 
 ## What's next
 

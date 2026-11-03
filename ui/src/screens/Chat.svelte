@@ -3,11 +3,13 @@
   // checks; approval goes through /api/apply like every other write. Proposals made
   // over MCP (Claude Desktop) wait here as cards of their own.
   import { onMount, tick } from "svelte";
-  import { apply, decidePending, ratesInUse, ApiError, type LedgerView, type Plan } from "../lib/api";
-  import { EXAMPLES, fmtUnits, providerLine } from "../lib/chat";
+  import { addSpends, apply, decidePending, ratesInUse, ApiError, type LedgerView, type Plan } from "../lib/api";
+  import { EXAMPLES, fmtUnits, onlySpends, providerLine } from "../lib/chat";
+  import { savedLine } from "../lib/spend";
+  import { budget } from "../lib/stores/budget.svelte";
   import { chat, type Turn } from "../lib/stores/chat.svelte";
   import { view as viewStore } from "../lib/stores/view.svelte";
-  import { formatDate, maskAmounts } from "../lib/money";
+  import { formatDate, formatMoney, maskAmounts } from "../lib/money";
   import PlanCard from "../lib/components/PlanCard.svelte";
   import Sparkline from "../lib/charts/Sparkline.svelte";
 
@@ -36,14 +38,21 @@
     void scrollDown();
     input?.focus();
   }
+  const labels = $derived(Object.fromEntries((budget.current?.options ?? []).map((o) => [o.id, o.label])));
+  const errText = (e: unknown) => (e instanceof ApiError && e.line ? `line ${e.line}: ${e.message}` : e instanceof Error ? e.message : String(e));
   async function approve(turn: Turn, plan: Plan) {
+    // Ledger changes first through /api/apply, then purchases to the budget's store.
+    let saved = false;
     try {
-      viewStore.set(await apply(plan.mutations));
-      const what = plan.rows.length === 1 ? `${plan.rows[0].account_name} → ${plan.rows[0].to == null ? "" : fmtUnits(Number(plan.rows[0].to))}` : `${plan.rows.length} changes`;
+      if (plan.mutations.length) { viewStore.set(await apply(plan.mutations)); saved = true; }
+      if (plan.spends?.length) await addSpends(plan.spends);
+      const r0 = plan.rows[0];
+      const what = onlySpends(plan)
+        ? savedLine(plan.spends, (v) => formatMoney(v, base, 2))
+        : plan.rows.length === 1 ? `${r0.account_name} → ${r0.to == null ? "" : fmtUnits(Number(r0.to))}` : `${plan.rows.length} changes`;
       chat.update(turn.id, { plan, status: "approved", outcome: `Saved · ${what}` });
     } catch (e) {
-      const msg = e instanceof ApiError && e.line ? `line ${e.line}: ${e.message}` : e instanceof Error ? e.message : String(e);
-      chat.update(turn.id, { status: "failed", outcome: `Not saved: ${msg}` });
+      chat.update(turn.id, { status: "failed", outcome: saved ? `Balances saved; purchases not saved: ${errText(e)}` : `Not saved: ${errText(e)}` });
     }
   }
   async function decide(id: number, action: "approve" | "discard") {
@@ -72,7 +81,7 @@
   <div class="thread" bind:this={thread}>
     {#if chat.turns.length === 0 && view.pending.length === 0}
       <div class="intro">
-        <p class="muted">Type balances and trades the way you would text them. You get a card showing every change before anything is written.</p>
+        <p class="muted">Type balances, trades and cash purchases the way you would text them. You get a card showing every change before anything is written.</p>
         <div class="ex">
           {#each EXAMPLES as e}<button type="button" class="chip" onclick={() => { text = e; input?.focus(); }}>{e}</button>{/each}
         </div>
@@ -110,6 +119,7 @@
             plan={t.plan}
             {base}
             {rates}
+            {labels}
             now={view.totals.net_worth}
             {locked}
             badge={t.reply.used === "shorthand" ? null : t.reply.used === "cloud" ? "Claude" : t.reply.used}
@@ -133,6 +143,7 @@
           plan={p.plan}
           {base}
           {rates}
+          {labels}
           now={view.totals.net_worth}
           {locked}
           title={p.origin === "mcp" ? "Claude Desktop" : p.origin}

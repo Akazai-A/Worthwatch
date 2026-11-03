@@ -148,6 +148,18 @@ pub enum Item {
         #[serde(default)]
         source: Option<String>,
     },
+    /// Money spent, for the budget, not a balance: "coffee 6 cash", "lunch 18 on visa".
+    /// `paid_with` is "cash" or an account; omitted means cash.
+    Spend {
+        what: String,
+        amount: Decimal,
+        #[serde(default)]
+        paid_with: Option<String>,
+        #[serde(default)]
+        category: Option<String>,
+        #[serde(default)]
+        source: Option<String>,
+    },
 }
 
 impl Item {
@@ -158,7 +170,8 @@ impl Item {
             | Item::Trade { source, .. }
             | Item::Price { source, .. }
             | Item::NewAccount { source, .. }
-            | Item::Note { source, .. } => source.as_deref(),
+            | Item::Note { source, .. }
+            | Item::Spend { source, .. } => source.as_deref(),
         }
     }
 }
@@ -171,6 +184,10 @@ pub struct Plan {
     pub date: NaiveDate,
     pub rows: Vec<Row>,
     pub mutations: Vec<Mutation>,
+    /// Spending to add to the budget on approval. These are not ledger mutations: they go
+    /// to the transaction store, so they never change a balance.
+    #[serde(default)]
+    pub spends: Vec<Spend>,
     pub rejected: Vec<Rejected>,
     /// Estimated change in net worth, base currency, when every row could be valued.
     pub net_change: Option<Decimal>,
@@ -186,6 +203,25 @@ pub enum RowKind {
     Price,
     NewAccount,
     Note,
+    Spend,
+}
+
+/// One purchase to add to the budget, as the card shows it and as
+/// `POST /api/budget/spend` takes it.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Spend {
+    pub date: NaiveDate,
+    pub merchant: String,
+    /// Positive out.
+    pub amount: Decimal,
+    /// `None` is cash.
+    #[serde(default)]
+    pub account: Option<String>,
+    /// `None` until the server fills it from the category rules.
+    #[serde(default)]
+    pub category: Option<String>,
+    #[serde(default)]
+    pub source: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -580,6 +616,69 @@ pub fn resolve(ledger: &Ledger, ctx: &Context, p: &Proposal) -> Plan {
                     effect: Some(Decimal::ZERO),
                 });
             }
+            Item::Spend { what, amount, paid_with, category, .. } => {
+                let what = what.trim();
+                if what.is_empty() || amount.is_zero() {
+                    reject(
+                        &mut plan,
+                        "a purchase needs what it was and an amount".into(),
+                        Some("try \"coffee 6 cash\"".into()),
+                    );
+                    continue;
+                }
+                let account = match paid_with
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|w| !w.is_empty() && !w.eq_ignore_ascii_case("cash"))
+                {
+                    None => None,
+                    Some(w) => match names::match_account(&ctx.accounts, w) {
+                        Ok(a) if a.positions.is_none() && a.kind.pays() => Some(a),
+                        Ok(a) => {
+                            reject(
+                                &mut plan,
+                                format!("{} isn't something you pay with", a.name),
+                                Some("name a card or a bank account, or say cash".into()),
+                            );
+                            continue;
+                        }
+                        Err((reason, hint)) => {
+                            reject(&mut plan, reason, hint);
+                            continue;
+                        }
+                    },
+                };
+                let mut chars = what.chars();
+                let merchant = chars
+                    .next()
+                    .map(|c| c.to_uppercase().collect::<String>() + chars.as_str())
+                    .unwrap_or_default();
+                let currency = account.map_or_else(|| ctx.base_currency.clone(), |a| a.currency.clone());
+                plan.spends.push(Spend {
+                    date,
+                    merchant: merchant.clone(),
+                    amount: *amount,
+                    account: account.map(|a| a.id.clone()),
+                    category: category.as_deref().map(|c| c.trim().to_lowercase()).filter(|c| !c.is_empty()),
+                    source: source.clone(),
+                });
+                plan.rows.push(Row {
+                    kind: RowKind::Spend,
+                    account: account.map(|a| a.id.clone()),
+                    account_name: account.map_or_else(|| "Cash".to_string(), |a| a.name.clone()),
+                    detail: Some(merchant),
+                    source: source.clone(),
+                    liability: false,
+                    currency,
+                    from: None,
+                    to: Some(*amount),
+                    delta: None,
+                    price: None,
+                    // Spending is budget, not a balance: net worth moves when you next
+                    // update the account it came from.
+                    effect: Some(Decimal::ZERO),
+                });
+            }
         }
     }
     // The gate: the whole list must apply to a copy of the ledger, or none of it does.
@@ -800,6 +899,36 @@ mod tests {
 
     fn balance(account: &str, value: Decimal) -> Item {
         Item::Balance { account: account.into(), value, source: Some(account.into()) }
+    }
+
+    #[test]
+    fn purchases_go_to_spends_not_mutations_and_never_move_net_worth() {
+        let p = shorthand::parse("coffee 6 cash, lunch 18.40 on visa, td chq 5102", &ctx());
+        let plan = resolve(&ledger(), &ctx(), &p);
+        assert!(plan.rejected.is_empty(), "{:?}", plan.rejected);
+        assert_eq!(plan.mutations.len(), 1, "only the balance touches the ledger");
+        let got: Vec<(&str, Decimal, Option<&str>)> =
+            plan.spends.iter().map(|s| (s.merchant.as_str(), s.amount, s.account.as_deref())).collect();
+        assert_eq!(got, vec![("Coffee", dec!(6), None), ("Lunch", dec!(18.40), Some("td-visa"))]);
+        assert_eq!(plan.spends[0].date, ctx().today);
+        let kinds: Vec<RowKind> = plan.rows.iter().map(|r| r.kind).collect();
+        assert_eq!(kinds, vec![RowKind::Spend, RowKind::Spend, RowKind::Balance]);
+        assert_eq!((plan.rows[0].account_name.as_str(), plan.rows[0].effect), ("Cash", Some(Decimal::ZERO)));
+        assert_eq!(plan.net_change, plan.rows[2].effect, "spending is not a balance change");
+
+        let bad = Proposal {
+            items: vec![Item::Spend {
+                what: "coffee".into(),
+                amount: dec!(6),
+                paid_with: Some("tfsa".into()),
+                category: None,
+                source: None,
+            }],
+            ..Default::default()
+        };
+        let plan = resolve(&ledger(), &ctx(), &bad);
+        assert!(plan.spends.is_empty());
+        assert!(plan.rejected[0].reason.contains("isn't something you pay with"), "{:?}", plan.rejected);
     }
 
     #[test]

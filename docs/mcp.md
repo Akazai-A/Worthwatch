@@ -90,7 +90,7 @@ The client must run on the same computer as Worthwatch, or on one that can reach
 | `get_accounts` | Every account with its current value, as-of date and positions. |
 | `get_portfolio` | Investments by security: units, price, value, weight, gain and day change. |
 | `get_exposure` | Look-through exposure by sector, region, country, asset class and currency, plus top companies. |
-| `propose_update` | Proposes changes. Writes nothing. The proposal appears as a card in Chat. |
+| `propose_update` | Proposes changes to balances and holdings, or purchases for the budget (`{kind: "spend", what, amount, paid_with}`). Writes nothing. The proposal appears as a card in Chat. |
 | `check_proposal` | Reports whether you approved or discarded a proposal. |
 
 ## Approve a proposal

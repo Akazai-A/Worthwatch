@@ -48,7 +48,7 @@ pub fn build(
     let market = snap.market();
     let base = l.settings.base_currency.clone();
     let store = s.txns.read().expect("txn lock");
-    let txns = budget::reconcile(l, &store.taps, &store.rows, &store.overrides, today);
+    let txns = store.reconcile(l, today);
     let month = month.and_then(crate::budget::parse_month).unwrap_or(today);
     let rate = |c: &str, d: NaiveDate| market.rate_at(&base, c, d).map(|r| r.rate);
     let game = budget::game::view(l, &txns, month, today, &rate);

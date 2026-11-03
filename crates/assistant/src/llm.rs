@@ -71,10 +71,12 @@ Each item is one of:
 {"kind":"price","symbol":TICKER,"price":NUMBER,"source":PHRASE}       a quoted price for a held symbol
 {"kind":"new_account","name":STRING,"account_kind":KIND,"currency":CODE or null,"value":NUMBER or null,"source":PHRASE}
 {"kind":"note","note":STRING,"source":PHRASE}                          something to remember on this date
+{"kind":"spend","what":STRING,"amount":NUMBER,"paid_with":ID or "cash" or null,"category":STRING or null,"source":PHRASE}   money spent, for the budget ("coffee 6 cash", "lunch 18 on visa"); not a balance
 
 ID is an account id from the list below. KIND is one of chequing savings tfsa rrsp fhsa resp non_registered crypto property vehicle other_asset credit_card line_of_credit mortgage loan other_liability.
 "source" is the exact words of the message the item came from.
 "18.5k" means 18500. "down to 640" is a balance of 640; "down 640" is an adjust of -640.
+A purchase ("spent", "paid", or a thing, an amount and how it was paid) is a "spend", never a balance or an adjust. paid_with null means cash.
 A question about the user's numbers is a "query": "net worth", "cash", "investments", "property", "debt", or an account id; you do not know any balances, the app answers from its data. Anything else to say goes in "answer". Put any part of the message you cannot turn into an item into "unparsed" rather than guessing. Omit "date" unless the message names one."#;
 
 /// What a model sees. Identifiers only: ids, names, kinds, currencies, symbols, today.
