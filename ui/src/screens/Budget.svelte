@@ -119,6 +119,8 @@
         </a>
       {/if}
       <button type="button" class="btn" onclick={() => (showImport = !showImport)}>Import statement…</button>
+      <a class="btn playbtn" href={b ? `#/budget/play/${b.month.slice(0, 7)}` : "#/budget/play"} title="The budget game: a jar to fill and weekly cards">
+        <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5" /></svg>Play</a>
     </div>
   </div>
 
@@ -313,6 +315,8 @@
   .note { margin: 0; color: var(--text-2); font-size: 13px; }
   .btn { border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 6px; padding: 5px 10px; font: inherit; font-size: 12px; cursor: pointer; }
   .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+  .playbtn { display: inline-flex; gap: 6px; align-items: center; text-decoration: none; border-color: var(--accent); color: var(--accent); }
+  .playbtn circle { fill: var(--accent); }
   .link { background: none; border: 0; color: var(--accent); font: inherit; cursor: pointer; padding: 0; }
   .hero { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: end; }
   .big { font-family: var(--display); font-size: 4rem; font-weight: 500; letter-spacing: -0.01em; line-height: 1; font-variant-numeric: lining-nums tabular-nums; }

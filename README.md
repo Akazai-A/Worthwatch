@@ -24,46 +24,41 @@ Worthwatch tracks what you own and what you owe. You type balances in once a mon
 
 ## Features
 
-<table>
-  <tr>
-    <td width="50%" valign="top">
-      <img src="docs/screenshots/gif-home.gif" alt="Hovering the added-vs-grown chart, switching to the by-group view and back, then saving a new chequing balance on Check-in"><br>
-      <b>📈 <a href="docs/user-guide.md#home">Net worth at a glance</a></b><br>
-      Net worth against what you put in, so you see how much the market added. Plus a monthly check-in.
-    </td>
-    <td width="50%" valign="top">
-      <img src="docs/screenshots/gif-portfolio.gif" alt="The look-through treemap with a tooltip, then the Exposure and Overlap tabs"><br>
-      <b>🔍 <a href="docs/user-guide.md#portfolio">Look through your funds</a></b><br>
-      The companies inside your ETFs, by sector, region and currency, and fund overlap.
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" valign="top">
-      <img src="docs/screenshots/gif-changes.gif" alt="Switching the Changes screen between 1M, 3M, 1Y and since the last check-in"><br>
-      <b>↕️ <a href="docs/user-guide.md#changes">What changed, and why</a></b><br>
-      Any period split into market moves, money added, debt paid and FX.
-    </td>
-    <td width="50%" valign="top">
-      <img src="docs/screenshots/gif-plan.gif" alt="Dragging the return and extra-saving sliders on the Plan screen"><br>
-      <b>🧭 <a href="docs/user-guide.md#plan">Plan ahead</a></b><br>
-      Projections, debt payoff dates, and TFSA, RRSP and FHSA room.
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" valign="top">
-      <img src="docs/screenshots/gif-apple-pay.gif" alt="An Apple Pay purchase on an iPhone (illustration) appearing at once on the Budget screen"><br>
-      <b>📲 <a href="docs/apple-pay-feed.md">Budget, with Apple Pay</a></b><br>
-      Each Apple Pay tap lands on Budget as you pay. Your statement confirms it later.
-    </td>
-    <td width="50%" valign="top">
-      <img src="docs/screenshots/gif-chat.gif" alt="Opening the Ask or update drawer with Cmd+J over Home, typing three changes, approving the card, and seeing net worth update"><br>
-      <b>💬 <a href="docs/user-guide.md#chat">Update it like a text</a></b><br>
-      Press <kbd>⌘</kbd> <kbd>J</kbd>, type <code>visa 640, bought 10 xeqt</code>, check the card, approve.
-    </td>
-  </tr>
-</table>
+### 📈 Every account, always current
 
-Also: bank statement import with category rules and bills, a [wall view](docs/user-guide.md#wall-view) for a spare tablet, a <kbd>⌘</kbd> <kbd>K</kbd> command palette, and [daily backups](docs/backup-restore.md).
+All your accounts in one net worth, measured against what you actually put in, so you see how much the market added. When something changes, type it like a text. You check a card of every change, approve it, and every screen updates at once.
+
+<img src="docs/screenshots/gif-accounts-live.gif" alt="Home shows net worth against money put in. Ctrl+J opens Ask or update, 'visa 640, bought 10 xeqt' becomes a card with two changes, Approve saves them, and the net worth updates live" width="100%">
+
+Recurring deposits and payments run on autopilot and carry your plan forward. Drag a slider to see when you reach your target, when the mortgage is paid off, and how much TFSA, RRSP and FHSA room is left.
+
+<img src="docs/screenshots/gif-accounts-plan.gif" alt="Plan: hovering the projection, dragging extra saving per month moves the target date from May 2041 to January 2039, then debt payoff, contribution room and the recurring rules" width="100%">
+
+[Home](docs/user-guide.md#home) · [Chat](docs/user-guide.md#chat) · [Plan](docs/user-guide.md#plan)
+
+### 🔍 See inside your investments
+
+Worthwatch follows each ETF down to the companies it holds, so you see what you really own: by company, sector, country and currency, and where two funds overlap. Changes splits any period into market moves, money you added, debt paid down and FX, one account and one holding at a time.
+
+<img src="docs/screenshots/gif-investments-look-through.gif" alt="Portfolio: positions, then the look-through treemap with Microsoft, Amazon and Apple tooltips, the exposure bars, and fund overlap between VFV.TO, VTI and XEQT.TO" width="100%">
+
+<img src="docs/screenshots/gif-investments-changes.gif" alt="Changes: net worth up $3,398 since the last check-in, split into market, cash, debt and FX, a step per account with tooltips, switching to 1Y, then each holding's change" width="100%">
+
+[Portfolio](docs/user-guide.md#portfolio) · [Changes](docs/user-guide.md#changes) · [Fund holdings](docs/data-sources.md)
+
+### 🎯 Budget from your iPhone, and play it
+
+Each Apple Pay tap reaches your Mac as you pay, and your iPhone tells you what's left today. Your bank statement confirms each tap later, so nothing counts twice. No bank login is involved.
+
+<img src="docs/screenshots/gif-budget-tap.gif" alt="An iPhone (illustration) pays Sushi Gen $36.00 with Apple Pay; a notification says $29 left today, Jar $136 of $500; the tap appears at once at the top of Budget's transactions" width="100%">
+
+The budget game turns the month into a board. Each day gets an allowance. What you don't spend drops into a jar, and you aim to fill it to your monthly goal. Weekly challenge cards, such as *Coffee under $25*, come from your own spending.
+
+<img src="docs/screenshots/gif-budget-game.gif" alt="Budget, then Play: a track of days with coins on green days, today's token with $65 left, the jar at $136, playing the Dining under $45 card, and October closed with $310 against a $300 goal" width="100%">
+
+[Budget](docs/budgeting.md) · [Apple Pay feed](docs/apple-pay-feed.md) · [Budget game](docs/budget-game.md)
+
+Also: a [wall view](docs/user-guide.md#wall-view) for a spare tablet, a <kbd>⌘</kbd> <kbd>K</kbd> command palette, and [daily backups](docs/backup-restore.md).
 
 ## Works with your AI assistant
 
@@ -131,6 +126,7 @@ For the full setup, your first check-in, and where your data lives, see [Get sta
 | [Get started](docs/getting-started.md) | Install with Docker or from source, load sample data, do your first check-in. |
 | [User guide](docs/user-guide.md) | Use each screen: Home, Check-in, Portfolio, Changes, Chat, Plan, Budget, Wall view. |
 | [Budget your spending](docs/budgeting.md) | Import bank statements, set limits, sort categories, track bills. |
+| [Play the budget game](docs/budget-game.md) | Beat a daily allowance, fill a jar to your monthly goal, and get a notification after each tap. |
 | [Set up the Apple Pay feed](docs/apple-pay-feed.md) | Send each Wallet purchase from your iPhone to your Mac as you pay. |
 | [Configure Worthwatch](docs/configuration.md) | Settings in `ledger.yaml` and environment variables. |
 | [Prices, FX and fund holdings](docs/data-sources.md) | Where numbers come from and how to override them. |

@@ -147,6 +147,17 @@
               <a href={DOCS} target="_blank" rel="noreferrer">Full guide with troubleshooting</a>
             </details></span>
           <span></span>
+
+          <span class="ck" class:ok={!!s.day_shortcut_file}>{s.day_shortcut_file ? "✓" : ""}</span>
+          <span>Optional: a morning recap for the <a href="#/budget/play">budget game</a> ("Tuesday closed: $35 into the jar").
+            <details><summary>Steps</summary>
+              <ol>
+                <li>{#if s.can_sign}<b>Make Shortcut</b> above also saves <b>Worthwatch Day</b> beside it{#if s.day_shortcut_file} (<code>{s.day_shortcut_file}</code>){/if}. Open it from Files on the phone.{:else}<a href="/api/settings/shortcut.plist?which=day" download>Download it unsigned</a> and sign it on a Mac as above, as <code>Worthwatch Day.shortcut</code>.{/if}</li>
+                <li>Shortcuts › Automation › <b>+</b> › <b>Time of Day</b>: 8:00 AM, daily, <b>Run Immediately</b>.</li>
+                <li>Add <b>Run Shortcut</b> › <b>Worthwatch Day</b>. Tap Done.</li>
+              </ol>
+            </details></span>
+          <span></span>
         </div>
         {#if s.icloud.errors.length && feed.mode === "icloud"}<p class="warn small">{s.icloud.errors.slice(0, 3).join(" · ")}</p>{/if}
       {/if}

@@ -432,7 +432,10 @@ export type Mutation =
   | { op: "set_txn_source"; account: string; source: TxnSource }
   | { op: "set_category_rules"; rules: CategoryRule[] }
   | { op: "set_bills"; bills: Bill[] }
-  | { op: "set_feed"; feed: Feed };
+  | { op: "set_feed"; feed: Feed }
+  | { op: "set_game_goal"; goal: string | null }
+  | { op: "play_card"; card: PlayedCard }
+  | { op: "pass_card"; id: string };
 
 // ---- Budget (GET /api/budget) ----
 export type TxnSource = "statement" | "apple_pay_statement" | "apple_pay";
@@ -499,6 +502,33 @@ export const previewImport = (req: ImportRequest) => post<ImportPreview>("/api/b
 export const importStatement = (req: ImportRequest) => post<{ added: number; duplicates: number }>("/api/budget/import", req);
 export const setCategory = (id: string, category: string | null) => post<{ ok: boolean }>("/api/budget/category", { id, category });
 
+// ---- Budget game (GET /api/game) ----
+export type CardRule =
+  | { kind: "cap"; category: string; amount: string }
+  | { kind: "no_spend"; category?: string | null; weekdays: number[] };
+export interface PlayedCard { id: string; week: string; from?: string | null; rule: CardRule }
+export type TileState = "green" | "red" | "today" | "ahead";
+export interface Tile { day: number; date: string; allowance: string; spent: string; net: string; state: TileState; coins: number; bills: string[]; payday: boolean }
+export type CardStatus = "offer" | "playing" | "won" | "lost";
+export interface GameCard {
+  id: string; week: string; from: string | null; rule: CardRule; title: string; status: CardStatus; art: "cup" | "days"; category: string | null;
+  spent: string; days_done: number; days_total: number; usual: string; saved: string;
+}
+export interface MonthClose { jar: string; goal: string | null; hit: boolean; green: number; days: number; cards_won: number; cards_played: number; streak: number; next_goal: string | null }
+export interface GameView {
+  version: number; base_currency: string; as_of: string; first_month: string | null;
+  month: string; days: number; day: number; goal: string | null; allowance: string; weights: string[];
+  tiles: Tile[]; jar: string;
+  today: { allowance: string; spent: string; left: string; taps: { merchant: string; amount: string; category: string }[] } | null;
+  yesterday: Tile | null; hand: GameCard[]; offers: GameCard[]; shelf: GameCard[]; closed: MonthClose | null; suggestions: string[];
+}
+
+export async function getGame(month?: string): Promise<GameView> {
+  const r = await fetch(`/api/game${month ? `?month=${month}` : ""}`);
+  if (!r.ok) await fail(r);
+  return r.json();
+}
+
 // ---- Settings (GET /api/settings) ----
 export interface FeedStatus {
   dir: string | null; found: boolean; files: number; not_downloaded: string[];
@@ -506,7 +536,7 @@ export interface FeedStatus {
 }
 export interface SettingsView {
   mode: FeedMode; token: string; ingest_path: string; icloud_dir: string | null; icloud: FeedStatus;
-  tailscale_url: string | null; tailscale_detected: boolean; can_sign: boolean; shortcut_file: string | null;
+  tailscale_url: string | null; tailscale_detected: boolean; can_sign: boolean; shortcut_file: string | null; day_shortcut_file: string | null;
   last_tap: string | null; taps: number;
 }
 export async function getSettings(): Promise<SettingsView> {

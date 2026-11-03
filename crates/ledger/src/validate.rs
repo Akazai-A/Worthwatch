@@ -51,6 +51,10 @@ pub enum LedgerError {
     EmptyRule,
     #[error("bill `{0}` needs a name and a positive amount")]
     BadBill(String),
+    #[error("the jar goal cannot be negative")]
+    NegativeGoal,
+    #[error("card `{0}`: {1}")]
+    BadCard(String, String),
     #[error("ledger.yaml has a problem; fix the file first: {0}")]
     FileHasProblem(String),
     #[error("yaml: {0}")]
@@ -223,6 +227,30 @@ fn validate_budget(l: &Ledger) -> Result<(), LedgerError> {
     for bill in &b.bills {
         if bill.name.trim().is_empty() || bill.amount <= rust_decimal::Decimal::ZERO {
             return Err(LedgerError::BadBill(bill.name.clone()));
+        }
+    }
+    if b.game.goal.is_some_and(|g| g.is_sign_negative()) {
+        return Err(LedgerError::NegativeGoal);
+    }
+    for c in &b.game.cards {
+        let bad = |why: &str| Err(LedgerError::BadCard(c.id.clone(), why.into()));
+        if chrono::Datelike::weekday(&c.week) != chrono::Weekday::Mon {
+            return bad("its week must start on a Monday");
+        }
+        if c.from.is_some_and(|f| f < c.week || (f - c.week).num_days() > 6) {
+            return bad("it must start within its week");
+        }
+        match &c.rule {
+            CardRule::Cap { category, amount } => {
+                if category.trim().is_empty() || amount.is_sign_negative() {
+                    return bad("a cap needs a category and an amount of 0 or more");
+                }
+            }
+            CardRule::NoSpend { weekdays, .. } => {
+                if weekdays.is_empty() || weekdays.iter().any(|d| *d > 6) {
+                    return bad("no-spend days are 0 (Monday) to 6 (Sunday)");
+                }
+            }
         }
     }
     Ok(())

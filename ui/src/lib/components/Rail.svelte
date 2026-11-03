@@ -26,7 +26,7 @@
   <a class="nav" class:on={name === "portfolio"} aria-current={name === "portfolio" ? "page" : undefined} href="#/portfolio">Portfolio</a>
   <a class="nav" class:on={name === "changes"} aria-current={name === "changes" ? "page" : undefined} href="#/changes">Changes</a>
   <a class="nav wide" class:on={name === "plan"} aria-current={name === "plan" ? "page" : undefined} href="#/plan">Plan</a>
-  <a class="nav wide" class:on={name === "budget"} aria-current={name === "budget" ? "page" : undefined} href="#/budget">Budget</a>
+  <a class="nav wide" class:on={name === "budget" || name === "play"} aria-current={name === "budget" || name === "play" ? "page" : undefined} href="#/budget">Budget</a>
   <button type="button" class="nav wide ask" class:on={drawer.open} aria-expanded={drawer.open} onclick={() => drawer.toggle()} title="Ask a question or type balances and trades (⌘J)">Ask or update{#if waiting}<span class="badge" title="{waiting} proposal{waiting === 1 ? '' : 's'} waiting">{waiting}</span>{:else}<kbd>⌘J</kbd>{/if}</button>
   <button class="nav more" type="button" onclick={() => onPalette?.()} aria-label="More: Plan, Budget, Ask or update, and everything else">More{#if waiting}<span class="badge">{waiting}</span>{/if}</button>
   <div class="spacer"></div>
