@@ -174,7 +174,7 @@
         <div class="col" style="width:{100 / P.milestones.length}%" title="today {money(sp.today)} · put in {money(sp.putIn)} · growth and paydown {money(sp.growth)}">
           <div class="cv"><span class="money">{compact(m.net_worth)}</span><span class="cg">{Math.round((sp.growth / sp.total) * 100)}% growth</span></div>
           <div class="stack" style="height:{Math.max(4, h)}px">
-            <i style="flex:{sp.growth};background:var(--accent)"></i>
+            <i class="grow" style="flex:{sp.growth}"></i>
             <i style="flex:{sp.putIn};background:var(--fill-soft)"></i>
             <i style="flex:{sp.today};background:var(--fill)"></i>
           </div>
@@ -183,7 +183,7 @@
         </div>
       {/each}
     </section>
-    <div class="legend under"><span><i style="background:var(--fill)"></i>Today's net worth</span><span><i style="background:var(--fill-soft)"></i>Money put in</span><span><i style="background:var(--accent)"></i>Growth and debt paydown</span></div>
+    <div class="legend under"><span><i style="background:var(--fill)"></i>Today's net worth</span><span><i style="background:var(--fill-soft)"></i>Money put in</span><span><i class="grow"></i>Growth and debt paydown</span></div>
 
     <div class="two">
       <section class="card">
@@ -292,6 +292,8 @@
   .hint { font-size: 11px; color: var(--text-3); }
   .foot { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; }
   .spacer { flex: 1; }
+  /* Growth is brass hatch: solid brass stays for the projection line. */
+  .grow, .legend i.grow { background: repeating-linear-gradient(-45deg, var(--accent) 0 2px, transparent 2px 5px); box-shadow: inset 0 0 0 1px var(--accent); }
   .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
   .seg button { background: none; border: 0; color: var(--text-2); font: inherit; font-size: 12px; padding: 3px 10px; cursor: pointer; }
   .seg button.on { background: var(--surface-2); color: var(--text); }

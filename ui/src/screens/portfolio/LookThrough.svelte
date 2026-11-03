@@ -7,7 +7,9 @@
   import Money from "../../lib/components/amounts/Money.svelte";
   import Treemap from "../../lib/charts/Treemap.svelte";
 
-  let { lt }: { lt: LookThroughView } = $props();
+  // cash: investment accounts that hold cash rather than funds (an FHSA not invested yet).
+  let { lt, cash = [] }: { lt: LookThroughView; cash?: { name: string; value: number }[] } = $props();
+  const cashTotal = $derived(cash.reduce((s, c) => s + c.value, 0));
   const cur = $derived(lt.base_currency);
   const x = $derived(lt.lookthrough);
   // Ten rows sit level with the detail and funds cards whatever the company count;
@@ -31,9 +33,10 @@
 
 <section class="hero">
   <h1 class="label">Where the money actually is</h1>
-  <Money value={x.total} currency={cur} size="xl" />
+  <Money value={Number(x.total) + cashTotal} currency={cur} size="xl" />
   <div class="sub">
     <PrivacyToggle />
+    {#each cash as c (c.name)}<span class="chip"><Money value={c.value} currency={cur} />&nbsp;<span class="muted">cash in {c.name}, not invested yet</span></span>{/each}
     {#each parts as p}<span class="chip">{p}</span>{/each}
     {#each warns as w}<span class="chip warn">{w}</span>{/each}
   </div>

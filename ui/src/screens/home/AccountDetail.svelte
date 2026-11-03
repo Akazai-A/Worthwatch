@@ -124,8 +124,8 @@
   .key { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: baseline; font-size: 12px; color: var(--text-2); margin-top: 8px; }
   .key i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; }
   .key b { color: var(--text); font-weight: 500; }
-  .ka { background: var(--g-cash); }
-  .kg { background: var(--accent); }
+  .ka { background: var(--fill); }
+  .kg { background: repeating-linear-gradient(-45deg, var(--accent) 0 2px, transparent 2px 4px); box-shadow: inset 0 0 0 1px var(--accent); }
   .key .link { margin-left: auto; padding: 0; }
   .link { color: var(--accent); background: none; border: 0; font: inherit; cursor: pointer; font-size: 12px; padding: 10px 0 0; }
   code { font-family: var(--mono); }

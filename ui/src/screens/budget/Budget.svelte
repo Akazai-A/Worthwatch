@@ -382,7 +382,7 @@
   .chips { display: flex; gap: 10px; flex-wrap: wrap; }
   .chip { display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; background: var(--surface); font: inherit; font-size: 13px; color: var(--text); }
   button.chip { cursor: pointer; }
-  .chip.warn { border-color: color-mix(in oklab, var(--warn) 45%, var(--border)); }
+  .chip.warn { border-color: var(--border); }
   .chip select, .cc { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; font: inherit; font-size: 12px; padding: 3px 6px; }
   .card h2 { margin: 0 0 12px; font-weight: 500; }
   .empty h2 { font-size: 15px; }

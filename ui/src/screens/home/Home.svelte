@@ -5,11 +5,14 @@
   import { parts } from "../../lib/portfolio/changes";
   import SplitStrip from "../../lib/components/amounts/SplitStrip.svelte";
   import { prefs } from "../../lib/stores/prefs.svelte";
+  import { changes } from "../../lib/stores/portfolio/changes.svelte";
   import Money from "../../lib/components/amounts/Money.svelte";
   import NetWorthChart from "../../lib/charts/NetWorthChart.svelte";
   import MarketLine from "../../lib/components/portfolio/MarketLine.svelte";
 
   let { view }: { view: LedgerView } = $props();
+  // "Why it moved" opens Changes on the same period as the headline, so the numbers match.
+  const samePeriod = () => { if (view.deltas.previous) changes.setCustom(view.deltas.previous.from, view.as_of); };
   const STALE_DAYS = 45;
 
   const cur = $derived(view.base_currency);
@@ -82,7 +85,7 @@
       <div class="sub">
         <PrivacyToggle />
         {#if view.deltas.previous}
-          <a class="chip link" href="#/changes" title="What moved it: Changes"><Money value={view.deltas.previous.amount} currency={cur} signed tone="delta" />
+          <a class="chip link" href="#/changes" onclick={samePeriod} title="What moved it: Changes"><Money value={view.deltas.previous.amount} currency={cur} signed tone="delta" />
             <span class="muted">{#if view.deltas.previous.pct != null}({view.deltas.previous.pct}%)&nbsp;{/if}since {formatDate(view.deltas.previous.from)}</span></a>
         {/if}
         {#if view.deltas.ytd}
@@ -96,7 +99,7 @@
         {/if}
       </div>
       {#if whyParts.length}
-        <a class="why" href="#/changes" title="What moved it: Changes">
+        <a class="why" href="#/changes" onclick={samePeriod} title="What moved it: Changes">
           <SplitStrip parts={whyParts} currency={cur} height={6} legend blur={prefs.blur} />
           <span class="go">Why it moved →</span>
         </a>
@@ -130,9 +133,9 @@
                 <span class="n">{a.name}<span class="inst faint">{a.institution ?? ""}{a.currency !== cur ? ` · ${a.currency}` : ""}</span></span>
                 <span class="size" title="{sizeOf(a).toFixed(0)}% of assets"><i style="width:{sizeOf(a)}%"></i></span>
               </span>
-              <span class="move" title={m == null ? "no value 30 days back" : `${formatSigned(m, cur)} in the last 30 days${a.liability ? " (paid down counts as a gain)" : ""}`}>
+              <span class="move" title={m == null ? "no value 30 days back" : a.liability && m > 0 ? `${formatMoney(m, cur)} paid down in the last 30 days` : `${formatSigned(m, cur)} in the last 30 days`}>
                 <span class="dv" aria-hidden="true"><i class:down={(m ?? 0) < 0} style="width:{(Math.abs(m ?? 0) / maxMove) * 50}%"></i></span>
-                <span class="mv" class:down={(m ?? 0) < 0}>{#if m != null && Math.abs(m) >= 0.5}<Money value={m} currency={cur} signed />{/if}</span>
+                <span class="mv" class:down={(m ?? 0) < 0}>{#if m != null && Math.abs(m) >= 0.5}{#if a.liability && m > 0}<span aria-label="paid down">↓&nbsp;</span><Money value={m} currency={cur} />{:else}<Money value={m} currency={cur} signed />{/if}{/if}</span>
               </span>
               <span class="val">
                 {#if a.missing_fx}<span class="warn" title="no FX rate for {a.currency}; add settings.fx in the ledger">no FX</span>
@@ -141,8 +144,7 @@
               </span>
               <span class="age" title={a.as_of ? `updated ${formatDate(a.as_of, "long")}` : "never updated"}>
                 {#if a.days_stale == null}<span class="old">never</span>
-                {:else if isOld(a)}<i class="tick hatch"></i><span class="old">{a.days_stale}d</span>
-                {:else if a.days_stale > 0}<i class="tick" style="width:{Math.max(3, (a.days_stale / STALE_DAYS) * 16)}px"></i>{/if}
+                {:else if isOld(a)}<i class="tick hatch"></i><span class="old">{a.days_stale}d</span>{/if}
               </span>
             </a>
           {/each}
@@ -200,11 +202,11 @@
   .dv::before { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--text-3); }
   .dv i { position: absolute; left: 50%; top: 0; bottom: 0; background: var(--positive); border-radius: 0 3px 3px 0; }
   .dv i.down { left: auto; right: 50%; background: var(--negative); border-radius: 3px 0 0 3px; }
-  .mv { font-size: 12px; text-align: right; color: var(--positive); }
+  .mv { font-size: 12px; text-align: right; color: var(--positive); white-space: nowrap; }
   .mv.down { color: var(--negative); }
   .val { text-align: right; }
   .warn { color: var(--warn); font-size: 12px; }
-  /* Age: nothing when fresh, a tick that grows with age, hatched with the day count once stale. */
+  /* Age: nothing until an account is stale, then the hatch and the day count. */
   .age { display: flex; align-items: center; justify-content: flex-end; gap: 5px; font-size: 12px; }
   .tick { display: block; height: 4px; border-radius: 1px; background: var(--text-3); }
   .tick.hatch { width: 16px; background: repeating-linear-gradient(-45deg, var(--warn) 0 2px, transparent 2px 4px); }

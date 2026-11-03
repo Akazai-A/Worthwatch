@@ -22,6 +22,8 @@
 
 <div class="mb" bind:clientWidth={cw}>
   <svg width={cw} height={TOP + H + FOOT} role="img" aria-label="Month by month: what you added and what grew">
+    <!-- Growth is brass hatch, so the solid brass stays for the one line that matters. -->
+    <defs><pattern id="mb-grown" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="2" height="5" class="hatch" /></pattern></defs>
     <line class="z" x1="0" x2={cw} y1={zero} y2={zero} />
     {#each months as m, i (m.month)}
       {@const x = i * slot + (slot - bw) / 2}
@@ -55,13 +57,14 @@
   svg { display: block; overflow: visible; }
   .z { stroke: var(--border); }
   .hit { fill: transparent; }
-  .added { fill: var(--g-cash); }
+  .added { fill: var(--fill); }
   .added.neg { opacity: 0.55; }
-  .grown { fill: var(--accent); }
+  .grown { fill: url(#mb-grown); stroke: var(--accent); stroke-width: 1; }
+  .hatch { fill: var(--accent); }
   .loss { fill: var(--negative); }
   .v { font-family: var(--figures); font-size: 10px; fill: var(--text-2); }
   .m { font-size: 11px; fill: var(--text-3); }
   .tip { position: absolute; top: 0; width: 190px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 12px; display: flex; flex-direction: column; gap: 2px; pointer-events: none; }
   .tip i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; }
-  .tip i.added { background: var(--g-cash); } .tip i.grown { background: var(--accent); } .tip i.loss { background: var(--negative); }
+  .tip i.added { background: var(--fill); } .tip i.grown { background: repeating-linear-gradient(-45deg, var(--accent) 0 2px, transparent 2px 4px); box-shadow: inset 0 0 0 1px var(--accent); } .tip i.loss { background: var(--negative); }
 </style>

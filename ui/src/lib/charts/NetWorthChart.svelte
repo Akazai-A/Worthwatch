@@ -113,7 +113,8 @@
     } else if (mode === "added") {
       base.series.push(
         { stroke: accent, width: 2, points: { show: false } },
-        { stroke: css("--g-cash"), width: 1.5, dash: [5, 4], points: { show: false } },
+        // What you added: a bone dashed line (cash blue means cash; brass is net worth).
+        { stroke: css("--text-2"), width: 1.5, dash: [5, 4], points: { show: false } },
       );
     } else {
       const c = (k: Group) => css(`--g-${k}`);
@@ -333,7 +334,7 @@
   .legend { display: flex; gap: 14px; margin-top: 8px; font-size: 12px; color: var(--text-2); flex-wrap: wrap; }
   .legend i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
   .legend i.line { height: 2px; width: 10px; background: var(--text); vertical-align: 2px; }
-  .legend i.dash { background: repeating-linear-gradient(90deg, var(--g-cash) 0 4px, transparent 4px 7px); width: 14px; }
+  .legend i.dash { background: repeating-linear-gradient(90deg, var(--text-2) 0 4px, transparent 4px 7px); width: 14px; }
   .totals { margin: 10px 0 0; font-size: 13px; color: var(--text-2); }
   .totals b { color: var(--text); font-weight: 600; }
   .totals b.neg { color: var(--negative); }

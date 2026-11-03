@@ -7,7 +7,7 @@
   import { compactMoney } from "../../lib/portfolio/lookthrough";
   import Money from "../../lib/components/amounts/Money.svelte";
 
-  let { lt }: { lt: LookThroughView } = $props();
+  let { lt, cash = [] }: { lt: LookThroughView; cash?: { name: string; value: number }[] } = $props();
   const cur = $derived(lt.base_currency);
   let mode = $state<"lookthrough" | "as_held">("lookthrough");
   const x = $derived(mode === "lookthrough" ? lt.lookthrough : lt.as_held);
@@ -26,7 +26,7 @@
 <div class="top">
   <div>
     <h1 class="label">Exposure</h1>
-    <div class="muted lead"><Money value={x.total} currency={cur} /> across {lt.holdings.length} {lt.holdings.length === 1 ? "holding" : "holdings"}{#if x.as_of}&nbsp;· holdings as of {formatDate(x.as_of)}{/if}</div>
+    <div class="muted lead"><Money value={x.total} currency={cur} /> across {lt.holdings.length} {lt.holdings.length === 1 ? "holding" : "holdings"}{#each cash as c (c.name)}&nbsp;· plus <Money value={c.value} currency={cur} /> cash in {c.name}{/each}{#if x.as_of}&nbsp;· holdings as of {formatDate(x.as_of)}{/if}</div>
   </div>
   <div class="toggle" role="radiogroup" aria-label="View">
     <button type="button" role="radio" aria-checked={mode === "lookthrough"} class:on={mode === "lookthrough"} onclick={() => (mode = "lookthrough")} disabled={!anyResolved} title={anyResolved ? "" : "No holdings files yet"}>Look-through</button>

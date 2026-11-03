@@ -4,12 +4,13 @@
   import { view } from "../../stores/view.svelte";
   import { drawer } from "../../stores/drawer.svelte";
   import { tick } from "svelte";
+  import { changes } from "../../stores/portfolio/changes.svelte";
   import { formatDate, formatMoney, formatSigned } from "../../format/money";
   let { onPalette }: { onPalette?: () => void } = $props();
   const waiting = $derived(view.current?.pending.length ?? 0);
   const name = $derived(route.current.name);
   const themeLabel = $derived(prefs.theme === "system" ? "Auto" : prefs.theme === "dark" ? "Dark" : "Light");
-  // The rail's live reading: net worth and its last move, visible from every screen.
+  // The rail's live reading: net worth and its last move, on every screen but Home (whose hero shows it).
   const v = $derived(view.current);
   const prev = $derived(v?.deltas.previous ?? null);
 
@@ -32,8 +33,8 @@
 <nav class="rail" aria-label="Main" bind:this={rail}>
   {#if mark}<span class="mark" aria-hidden="true" style="--x:{mark.x}px;--y:{mark.y}px;--w:{mark.w}px;--h:{mark.h}px"></span>{/if}
   <a class="brand" href="#/">Worthwatch</a>
-  {#if v && v.accounts.length}
-    <a class="reading" href="#/changes" title="What moved it: Changes">
+  {#if v && v.accounts.length && name !== "home"}
+    <a class="reading" href="#/changes" onclick={() => { if (prev && v) changes.setCustom(prev.from, v.as_of); }} title="What moved it: Changes">
       <span class="nw money">{formatMoney(v.totals.net_worth, v.base_currency)}</span>
       {#if prev}<span class="d" class:down={Number(prev.amount) < 0}><span class="money">{formatSigned(prev.amount, v.base_currency)}</span> since {formatDate(prev.from)}</span>{/if}
     </a>
