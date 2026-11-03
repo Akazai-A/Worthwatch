@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v5
         with: { version: 10 }
       - uses: actions/setup-node@v7
         with: { node-version: 22, cache: pnpm, cache-dependency-path: ui/pnpm-lock.yaml }
@@ -39,7 +39,7 @@ jobs:
       - uses: taiki-e/install-action@v2
         with: { tool: cargo-audit }
       - run: cargo audit
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v5
         with: { version: 10 }
       - uses: actions/setup-node@v7
         with: { node-version: 22 }
