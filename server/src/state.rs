@@ -85,6 +85,11 @@ impl AppState {
         Ok(Self { ledger_path, quotes_path, holdings_dir, offline, inner, changed })
     }
 
+    /// The folder everything lives in (`WORTHWATCH_DATA`).
+    pub fn data_dir(&self) -> PathBuf {
+        self.ledger_path.parent().map(Path::to_path_buf).unwrap_or_default()
+    }
+
     pub fn snapshot(&self) -> Snapshot {
         self.inner.read().expect("ledger lock").clone()
     }
@@ -257,6 +262,25 @@ impl AppState {
                 }
             })
             .expect("spawn watcher");
+    }
+
+    /// Back up the data folder once a day (at startup if today has none yet), offline too.
+    pub fn schedule_backups(&self) {
+        let dir = self.data_dir();
+        tokio::spawn(async move {
+            loop {
+                let d = dir.clone();
+                match tokio::task::spawn_blocking(move || crate::backup::daily(&d, chrono::Local::now()))
+                    .await
+                {
+                    Ok(Ok(Some(b))) => tracing::info!("backed up data to backups/{}", b.name),
+                    Ok(Ok(None)) => {}
+                    Ok(Err(e)) => tracing::warn!("daily backup failed: {e}"),
+                    Err(e) => tracing::warn!("backup task failed: {e}"),
+                }
+                tokio::time::sleep(Duration::from_secs(60 * 60)).await;
+            }
+        });
     }
 
     /// Refresh once at startup when today's quotes are missing, then check every

@@ -7,7 +7,10 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use chrono::{Datelike, Months, NaiveDate, Weekday};
-use ledger::{Account, AccountKind, Event, Ledger, LedgerError, Position, PositionChange};
+use ledger::{
+    Account, AccountKind, Contribution, Event, Every, Ledger, LedgerError, Position, PositionChange,
+    Projection, Recurring, Room, RoomKind,
+};
 use providers::QuoteCache;
 use rust_decimal::Decimal;
 
@@ -103,6 +106,56 @@ pub fn seed_ledger(today: NaiveDate) -> Ledger {
                 note: Some("monthly buy".into()),
             });
         }
+    }
+    // Plan inputs: what is on autopilot, the rates that differ from the defaults, and
+    // the room CRA reported on January 1 (RRSP from the spring notice of assessment).
+    let rule = |account: &str, cents: i64, every: Every, note: &str| Recurring {
+        account: account.into(),
+        amount: d(cents),
+        every,
+        note: Some(note.into()),
+    };
+    l.recurring = vec![
+        rule("ws-tfsa", 50000, Every::Month, "auto-deposit"),
+        rule("ws-fhsa", 50000, Every::Month, "auto-deposit"),
+        rule("eq-sav", 75000, Every::Month, "pay-day transfer"),
+        rule("td-mortgage", 135000, Every::TwoWeeks, "mortgage payment"),
+    ];
+    l.settings.projection = Projection {
+        return_pct: Decimal::from(6),
+        cash_pct: Decimal::ZERO,
+        property_pct: Decimal::from(2),
+        rates: BTreeMap::from([("td-mortgage".into(), d(490)), ("eq-sav".into(), d(275))]),
+        target: Some(Decimal::from(1_500_000)),
+    };
+    let jan1 = NaiveDate::from_ymd_opt(today.year(), 1, 1).unwrap();
+    l.room = BTreeMap::from([
+        (RoomKind::Tfsa, Room { as_of: jan1, amount: d(1350000) }),
+        (
+            RoomKind::Rrsp,
+            Room { as_of: NaiveDate::from_ymd_opt(today.year(), 5, 1).unwrap(), amount: d(1840000) },
+        ),
+        (RoomKind::Fhsa, Room { as_of: jan1, amount: d(1600000) }),
+    ]);
+    for month in 1..today.month() {
+        let date = NaiveDate::from_ymd_opt(today.year(), month, 15).unwrap();
+        l.contributions.push(Contribution { date, account: "ws-tfsa".into(), amount: d(50000), note: None });
+        if month % 2 == 0 {
+            l.contributions.push(Contribution {
+                date,
+                account: "ws-fhsa".into(),
+                amount: d(100000),
+                note: None,
+            });
+        }
+    }
+    if today.month() > 2 {
+        l.contributions.push(Contribution {
+            date: NaiveDate::from_ymd_opt(today.year(), 2, 20).unwrap(),
+            account: "qt-rrsp".into(),
+            amount: d(300000),
+            note: Some("before the deadline".into()),
+        });
     }
     l.events = vec![
         Event { date: months[7], note: "Condo reassessed".into() },

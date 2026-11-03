@@ -44,6 +44,22 @@ pub enum Mutation {
     AddEvent {
         event: Event,
     },
+    /// Replace every recurring rule for one account with `rules` (empty removes them).
+    SetRecurring {
+        account: AccountId,
+        rules: Vec<Recurring>,
+    },
+    /// Room CRA reported for a kind of account; `None` forgets it.
+    SetRoom {
+        kind: RoomKind,
+        room: Option<Room>,
+    },
+    RecordContribution {
+        contribution: Contribution,
+    },
+    SetProjection {
+        projection: Projection,
+    },
 }
 
 impl Ledger {
@@ -60,6 +76,9 @@ impl Ledger {
             }
             Mutation::RemoveAccount { id } => {
                 next.accounts.retain(|a| a.id != id);
+                next.recurring.retain(|r| r.account != id);
+                next.contributions.retain(|c| c.account != id);
+                next.settings.projection.rates.remove(&id);
                 for day in next.snapshots.values_mut() {
                     day.remove(&id);
                 }
@@ -111,6 +130,28 @@ impl Ledger {
             Mutation::AddEvent { event } => {
                 next.events.push(event);
                 next.events.sort_by_key(|e| e.date);
+            }
+            Mutation::SetRecurring { account, rules } => {
+                if next.account(&account).is_none() {
+                    return Err(LedgerError::UnknownAccount(account));
+                }
+                next.recurring.retain(|r| r.account != account);
+                next.recurring.extend(rules.into_iter().map(|r| Recurring { account: account.clone(), ..r }));
+            }
+            Mutation::SetRoom { kind, room } => match room {
+                Some(r) => {
+                    next.room.insert(kind, r);
+                }
+                None => {
+                    next.room.remove(&kind);
+                }
+            },
+            Mutation::RecordContribution { contribution } => {
+                next.contributions.push(contribution);
+                next.contributions.sort_by_key(|c| c.date);
+            }
+            Mutation::SetProjection { projection } => {
+                next.settings.projection = projection;
             }
         }
         validate::validate(&next)?;
@@ -183,6 +224,41 @@ mod tests {
             })
             .unwrap();
         assert_eq!(l.account("td-chq").unwrap().positions.as_ref().unwrap()[0].book_cost, Some(dec!(50)));
+    }
+
+    #[test]
+    fn recurring_rules_replace_per_account_and_go_with_the_account() {
+        let rule = |amount| Recurring { account: String::new(), amount, every: Every::Month, note: None };
+        let l = Ledger::starter("CAD")
+            .apply(Mutation::UpsertAccount { account: chq() })
+            .unwrap()
+            .apply(Mutation::SetRecurring { account: "td-chq".into(), rules: vec![rule(dec!(100))] })
+            .unwrap()
+            .apply(Mutation::SetRecurring { account: "td-chq".into(), rules: vec![rule(dec!(250))] })
+            .unwrap();
+        assert_eq!(l.recurring.len(), 1);
+        assert_eq!(l.recurring[0].account, "td-chq");
+        assert_eq!(l.recurring[0].amount, dec!(250));
+        let l = l.apply(Mutation::RemoveAccount { id: "td-chq".into() }).unwrap();
+        assert!(l.recurring.is_empty());
+    }
+
+    #[test]
+    fn contributions_go_to_registered_accounts_only() {
+        let date = NaiveDate::from_ymd_opt(2026, 3, 1).unwrap();
+        let c = Contribution { date, account: "td-chq".into(), amount: dec!(500), note: None };
+        let l = Ledger::starter("CAD").apply(Mutation::UpsertAccount { account: chq() }).unwrap();
+        let err = l.apply(Mutation::RecordContribution { contribution: c.clone() }).unwrap_err();
+        assert!(matches!(err, LedgerError::NotRegistered(_)));
+        let tfsa = Account { id: "tfsa".into(), kind: AccountKind::Tfsa, ..chq() };
+        let l = l
+            .apply(Mutation::UpsertAccount { account: tfsa })
+            .unwrap()
+            .apply(Mutation::RecordContribution {
+                contribution: Contribution { account: "tfsa".into(), ..c },
+            })
+            .unwrap();
+        assert_eq!(l.contributions.len(), 1);
     }
 
     #[test]

@@ -29,6 +29,136 @@ pub struct Ledger {
     /// symbol -> hand-typed metadata for look-through (sector, country, ...).
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub securities: BTreeMap<Symbol, Security>,
+    /// Money that moves on a schedule ("$500 to the TFSA every month"). Used for
+    /// projections and contribution-room plans, never to make up actual balances.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub recurring: Vec<Recurring>,
+    /// Contribution room per registered-account kind, as CRA reported it on a date.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub room: BTreeMap<RoomKind, Room>,
+    /// Money you put into (positive) or took out of (negative) a registered account.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub contributions: Vec<Contribution>,
+}
+
+/// One scheduled amount into an account. For an asset it is a deposit; for a debt it
+/// is a payment that lowers what you owe.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Recurring {
+    pub account: AccountId,
+    /// Positive, in the account's currency.
+    pub amount: Decimal,
+    pub every: Every,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum Every {
+    Week,
+    TwoWeeks,
+    Month,
+    Year,
+}
+
+impl Every {
+    /// Occurrences per year.
+    pub fn per_year(self) -> u32 {
+        match self {
+            Every::Week => 52,
+            Every::TwoWeeks => 26,
+            Every::Month => 12,
+            Every::Year => 1,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum RoomKind {
+    Tfsa,
+    Rrsp,
+    Fhsa,
+}
+
+impl RoomKind {
+    pub const ALL: [RoomKind; 3] = [RoomKind::Tfsa, RoomKind::Rrsp, RoomKind::Fhsa];
+
+    pub fn account_kind(self) -> AccountKind {
+        match self {
+            RoomKind::Tfsa => AccountKind::Tfsa,
+            RoomKind::Rrsp => AccountKind::Rrsp,
+            RoomKind::Fhsa => AccountKind::Fhsa,
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            RoomKind::Tfsa => "TFSA",
+            RoomKind::Rrsp => "RRSP",
+            RoomKind::Fhsa => "FHSA",
+        }
+    }
+}
+
+/// Room as CRA reported it (My Account, or the notice of assessment for RRSP).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Room {
+    pub as_of: NaiveDate,
+    pub amount: Decimal,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Contribution {
+    pub date: NaiveDate,
+    pub account: AccountId,
+    /// Positive in, negative out (a withdrawal).
+    pub amount: Decimal,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+}
+
+/// Assumptions for projections. Percentages per year.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Projection {
+    /// Expected return on investment accounts.
+    #[serde(default = "Projection::default_return")]
+    pub return_pct: Decimal,
+    /// Interest on chequing and savings.
+    #[serde(default)]
+    pub cash_pct: Decimal,
+    /// Growth of property and other assets.
+    #[serde(default)]
+    pub property_pct: Decimal,
+    /// account id -> rate that replaces the group default (a debt's interest rate,
+    /// a high-interest savings account).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub rates: BTreeMap<AccountId, Decimal>,
+    /// Net worth you are aiming for ("years to target").
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target: Option<Decimal>,
+}
+
+impl Projection {
+    fn default_return() -> Decimal {
+        Decimal::from(5)
+    }
+    pub fn is_default(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+impl Default for Projection {
+    fn default() -> Self {
+        Self {
+            return_pct: Self::default_return(),
+            cash_pct: Decimal::ZERO,
+            property_pct: Decimal::ZERO,
+            rates: BTreeMap::new(),
+            target: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -49,6 +179,9 @@ pub struct Settings {
     /// (a local Ollama, falling back to the built-in shorthand parser when it is not running).
     #[serde(default, skip_serializing_if = "Assistant::is_default")]
     pub assistant: Assistant,
+    /// Projection assumptions. Omitted means 5% on investments, 0% elsewhere.
+    #[serde(default, skip_serializing_if = "Projection::is_default")]
+    pub projection: Projection,
 }
 
 /// Chat settings. The model only ever proposes; the API key for the cloud option
@@ -250,6 +383,7 @@ impl Ledger {
                 providers: Providers::default(),
                 holdings_urls: BTreeMap::new(),
                 assistant: Assistant::default(),
+                projection: Projection::default(),
             },
             accounts: Vec::new(),
             prices: BTreeMap::new(),
@@ -257,6 +391,9 @@ impl Ledger {
             position_changes: Vec::new(),
             events: Vec::new(),
             securities: BTreeMap::new(),
+            recurring: Vec::new(),
+            room: BTreeMap::new(),
+            contributions: Vec::new(),
         }
     }
 

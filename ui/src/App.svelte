@@ -11,6 +11,12 @@
   import Portfolio from "./screens/Portfolio.svelte";
   import Changes from "./screens/Changes.svelte";
   import Chat from "./screens/Chat.svelte";
+  import Plan from "./screens/Plan.svelte";
+  import Wall from "./screens/Wall.svelte";
+  import Backups from "./screens/Backups.svelte";
+  import Palette from "./lib/components/Palette.svelte";
+
+  let palette = $state(false);
 
   onMount(() => {
     void view.load();
@@ -22,6 +28,9 @@
     if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "h") {
       e.preventDefault();
       prefs.toggleBlur();
+    } else if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === "k") {
+      e.preventDefault();
+      palette = !palette;
     }
   }
 </script>
@@ -29,8 +38,12 @@
 <svelte:window onkeydown={onKey} />
 <svelte:body class:blur={prefs.blur} />
 
+<Palette view={view.current} bind:open={palette} />
+{#if route.current.name === "wall" && view.current}
+  <Wall view={view.current} />
+{:else}
 <div class="app">
-  <Rail />
+  <Rail onPalette={() => (palette = true)} />
   <main class:tight={route.current.name === "chat"}>
     <div class="col" class:wide={route.current.name === "changes"}>
       {#if view.current?.problem}
@@ -48,6 +61,10 @@
         <Changes view={view.current} />
       {:else if route.current.name === "chat"}
         <Chat view={view.current} />
+      {:else if route.current.name === "plan"}
+        <Plan view={view.current} />
+      {:else if route.current.name === "backups"}
+        <Backups view={view.current} />
       {:else if route.current.name === "account"}
         <AccountDetail view={view.current} id={route.current.id} />
       {:else}
@@ -56,6 +73,7 @@
     </div>
   </main>
 </div>
+{/if}
 
 <style>
   .app { display: flex; min-height: 100vh; }

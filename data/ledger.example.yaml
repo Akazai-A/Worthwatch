@@ -5,6 +5,7 @@ settings:
   base_currency: CAD
   fx:
     USD: 1.38
+  projection: { return_pct: 6, property_pct: 2, target: 1500000 }
 
 accounts:
   - id: td-chq
@@ -42,3 +43,13 @@ position_changes:
 
 events:
   - { date: 2026-10-20, note: Annual bonus }
+
+# Plan inputs (optional). Rules drive projections; contributions count against room.
+recurring:
+  - { account: ws-tfsa, amount: 500, every: month, note: auto-deposit }
+
+room:
+  tfsa: { as_of: 2026-01-01, amount: 13500 }
+
+contributions:
+  - { date: 2026-10-15, account: ws-tfsa, amount: 500 }

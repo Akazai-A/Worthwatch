@@ -1,4 +1,4 @@
-# Architecture (Stage 5)
+# Architecture (Stage 6)
 
 Read the design doc for the full picture. The rules that matter in code:
 
@@ -168,11 +168,14 @@ Rules on top of the Stage 3 ones:
 | `GET /api/changes?from&to&threshold` | `ChangesView` for one period: net worth, every account and holding then/now with the market / trades / FX split, exposure drift (through funds and as held), and per-fund file diffs above the threshold; `from` defaults to the last check-in before `to`, `to` to today, `threshold` to 0.5 pt; 422 on a backwards range |
 | `POST /api/refresh-holdings` | fetch holdings files for every held fund and the funds inside them now (offline: re-read `data/holdings/`); answers with the `LookThroughView` |
 | `GET /api/events` | SSE, one `change` event per ledger version |
+| `GET /api/plan?years&return_pct&extra&target` | `PlanView`: the projection (monthly points with a ±2 pt band, milestones, debt payoffs, target date), contribution room per TFSA/RRSP/FHSA, the recurring rules with monthly equivalents, and the ledger's own assumptions; query values override them for this answer only |
+| `GET /api/backups` · `POST /api/backups` · `GET /api/backups/{name}` | list (newest first), make one now, download one |
+| `worthwatch backup` · `worthwatch restore <file> [--force]` | the same backup from the command line; restore unpacks into `WORTHWATCH_DATA`, refuses to replace a ledger without `--force`, and backs the old one up first |
 | `worthwatch seed [--force]` | writes a 14-month sample ledger and a `quotes.json` with daily closes for the same span to `WORTHWATCH_DATA` (no typed prices: what a fetching user's file looks like), plus two dated holdings snapshots per seeded fund under `holdings/` (a month apart, a few sleeves reweighted) so the Changes feed has something to show |
 
 ## UI
 
-Hash routes `#/`, `#/check-in`, `#/portfolio[/look-through|/exposure|/overlap]`, `#/changes`, `#/accounts/<id>`. Global state is five stores under `ui/src/lib/stores`: `view` (the `LedgerView` plus the SSE subscription), `lookthrough` (the `LookThroughView`, fetched once per ledger version when a Portfolio sub-tab needs it), `changes` (the `ChangesView` for the chosen period and threshold, refetched when either or the ledger version moves), `route`, `prefs` (blur, theme). Screens under `ui/src/screens` render the view; the only browser-side arithmetic is the live preview on Check-in (`lib/checkin.ts`, unit-tested), and the saved numbers always come back from the server. Charts live in `lib/charts` (uPlot for time series, d3-hierarchy for the look-through treemap, plain SVG for the net worth bridge). The Changes screen encodes before it writes: a stacked strip for the split of a change (`SplitStrip`), a diverging bar per row (`DeltaBar`), a before/after weight bar per constituent (`WeightMove`); the words sit in hover titles. The screen is one window on a desktop: a 2×3 board (headline and bridge, then accounts beside holdings, then exposure drift beside fund changes) whose four panels scroll inside themselves, so the page never grows with the portfolio; under 1100px it stacks and each panel keeps a capped height. `lib/changes.ts` (tested) does the period presets and the wording. Colours are CSS tokens in `tokens.css`; components never use colour literals.
+Hash routes `#/`, `#/check-in`, `#/portfolio[/look-through|/exposure|/overlap]`, `#/changes`, `#/chat`, `#/plan`, `#/wall` (full screen, no rail), `#/backups`, `#/accounts/<id>`. ⌘K / Ctrl+K opens the command palette anywhere (`lib/palette.ts` matches and ranks, tested). Global state is five stores under `ui/src/lib/stores`: `view` (the `LedgerView` plus the SSE subscription), `lookthrough` (the `LookThroughView`, fetched once per ledger version when a Portfolio sub-tab needs it), `changes` (the `ChangesView` for the chosen period and threshold, refetched when either or the ledger version moves), `route`, `prefs` (blur, theme). Screens under `ui/src/screens` render the view; the only browser-side arithmetic is the live preview on Check-in (`lib/checkin.ts`, unit-tested), and the saved numbers always come back from the server. Charts live in `lib/charts` (uPlot for time series, d3-hierarchy for the look-through treemap, plain SVG for the net worth bridge). The Changes screen encodes before it writes: a stacked strip for the split of a change (`SplitStrip`), a diverging bar per row (`DeltaBar`), a before/after weight bar per constituent (`WeightMove`); the words sit in hover titles. The screen is one window on a desktop: a 2×3 board (headline and bridge, then accounts beside holdings, then exposure drift beside fund changes) whose four panels scroll inside themselves, so the page never grows with the portfolio; under 1100px it stacks and each panel keeps a capped height. `lib/changes.ts` (tested) does the period presets and the wording. Colours are CSS tokens in `tokens.css`; components never use colour literals.
 
 Playwright smoke flow: `ui/e2e/smoke.spec.ts` runs the real binary on a temp data dir.
 
@@ -223,3 +226,32 @@ Rules on top of the earlier ones:
 - **A plan applies whole or not at all.** `resolve` applies every mutation to a copy; if the list fails, `mutations` is emptied and the card cannot be approved. An item that does not resolve (unknown account, selling what is not held, a balance for a holdings account) is a `Rejected` row with a reason and a hint, never a silent zero.
 - **Nothing leaves the machine by default.** The default provider is a local Ollama; when it is not running the shorthand parser answers and the card says so. `cloud` needs `settings.assistant.provider: cloud` and `ANTHROPIC_API_KEY`, and every message first comes back as a preview of the exact prompt (identifiers only) with a Send button. `WORTHWATCH_OFFLINE=1` never asks any model.
 - **MCP is a client of the app, not of the file.** `worthwatch mcp` speaks JSON-RPC on stdio and calls the running server's HTTP API, so Claude Desktop reads the same numbers as the dashboard and its proposals queue as cards. Pending proposals live in memory: a restart drops them, the safe direction.
+
+## Stage 6 data flow: plan, room, backups
+
+```mermaid
+flowchart LR
+  subgraph disk [WORTHWATCH_DATA]
+    L[ledger.yaml<br/>recurring · room · contributions<br/>settings.projection]
+    Q[quotes.json]
+    H[holdings/]
+    B[(backups/<br/>worthwatch-&lt;stamp&gt;.tar.gz<br/>newest 30)]
+  end
+  L & Q --> M[derive::Market]
+  M --> V0[value_account at today<br/>per account, base currency]
+  L --> R[recurring rules<br/>→ monthly equivalent]
+  V0 & R --> PR[derive::project<br/>month by month: balance × rate/12 + rules<br/>debts stop at 0 → payoff date<br/>runs at return, return−2, return+2]
+  Q2[/query: years, return_pct,<br/>extra, target/] --> PR
+  L --> RM[derive::room<br/>CRA figure + new-year limits<br/>− logged contributions<br/>+ plan to Dec 31]
+  R --> RM
+  PR & RM --> PV[/GET /api/plan/]
+  PV --> UI1[Plan: fan chart, milestones,<br/>payoff curves, room bars, rules]
+  PV --> UI2[Wall view: next 12 months]
+  UI1 -- set_recurring · set_room ·<br/>record_contribution · set_projection --> A[/POST /api/apply/] --> L
+  L & Q & H -- daily, on demand, before restore --> B
+  B -- worthwatch restore --> disk
+```
+
+- **Projections never touch the ledger.** `derive::project` is pure and reads today's values; slider values travel as query parameters and are only written when "Save as my defaults" sends a `set_projection` mutation. The model is deliberately plain (nominal monthly compounding, rules as monthly equivalents, money freed by a paid-off debt is not redirected) so the tests can check it against the annuity and amortization formulas.
+- **Rules are plans, contributions are facts.** Recurring rules drive the projection and the "planned to Dec 31" part of a room bar; only logged `contributions` count as used room. CRA's own figure (`room.<kind>.amount` on `as_of`) is the anchor: TFSA adds each later January's limit plus last year's withdrawals, FHSA adds $8,000 a year, RRSP adds nothing and asks for the notice-of-assessment figure.
+- **A backup is the whole folder that matters.** `ledger.yaml`, `quotes.json` and `holdings/` in one `.tar.gz`; `backups/` itself is never included. Restore unpacks into a staging folder, checks every entry is a plain relative path under those three names and that the ledger loads, and only then swaps the files in. The round-trip test restores a seeded backup onto a clean folder and compares the full `LedgerView` and `LookThroughView` JSON.

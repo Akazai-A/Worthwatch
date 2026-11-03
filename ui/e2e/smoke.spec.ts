@@ -210,3 +210,28 @@ test("Chat: a message becomes a diff card, nothing is written until Approve; an 
   const s = await (await request.get(`/api/pending/${body.pending.id}`)).json();
   expect(s.status).toBe("approved");
 });
+
+test("Plan: a recurring rule moves the projection; ⌘K reaches the wall view; a backup can be made", async ({ page }) => {
+  await page.goto("/#/plan");
+  const hero = page.locator(".hero .money.xl");
+  await expect(hero).toBeVisible();
+  const before = await hero.textContent();
+
+  await page.getByRole("button", { name: "+ Add rule" }).click();
+  await page.getByLabel("Account").selectOption({ label: "TD Chequing" });
+  await page.getByLabel("Amount").fill("1000");
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await expect(page.locator(".rules .r")).toContainText("TD Chequing");
+  await expect(hero).not.toHaveText(before!);
+  expect(readFileSync(ledger(), "utf8")).toMatch(/recurring:\n- account: td-chequing\n {2}amount: 1000/);
+
+  await page.keyboard.press("Control+k");
+  await page.getByLabel("Search").fill("wall");
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/#\/wall$/);
+  await expect(page.locator(".wall .big")).toBeVisible();
+
+  await page.goto("/#/backups");
+  await page.getByRole("button", { name: "Back up now" }).click();
+  await expect(page.getByRole("link", { name: "Download" }).first()).toBeVisible();
+});
