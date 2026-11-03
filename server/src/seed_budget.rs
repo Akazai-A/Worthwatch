@@ -43,7 +43,8 @@ pub fn seed_budget_settings() -> Budget {
         bill("Rogers", 9500, 4, None),
         bill("Hydro", 8000, 22, Some("HYDRO")),
     ];
-    b.rules = vec![ledger::CategoryRule { contains: "LANDLORD".into(), category: "bills".into(), account: None }];
+    b.rules =
+        vec![ledger::CategoryRule { contains: "LANDLORD".into(), category: "bills".into(), account: None }];
     b.feed = Feed { mode: FeedMode::Icloud, ..Default::default() };
     b
 }
@@ -132,7 +133,7 @@ pub fn seed_transactions(today: NaiveDate) -> Vec<Record> {
                 let age = (today - day).num_days();
                 let posts = day + Days::new(1 + (i % 2) as u64);
                 // Every 4th purchase is a card swipe or online: statement only.
-                let tapped = i % 4 != 0;
+                let tapped = !i.is_multiple_of(4);
                 if tapped {
                     out.push(Record::Tap(tap(merchant, cents, when, CARD)));
                 }
@@ -169,12 +170,16 @@ mod tests {
         l.budget = seed_budget_settings();
         ledger::validate::validate(&l).unwrap();
         let recs = seed_transactions(today);
-        let taps: Vec<Tap> = recs.iter().filter_map(|r| if let Record::Tap(t) = r { Some(t.clone()) } else { None }).collect();
-        let rows: Vec<CsvRow> = recs.iter().filter_map(|r| if let Record::Csv(c) = r { Some(c.clone()) } else { None }).collect();
+        let taps: Vec<Tap> =
+            recs.iter().filter_map(|r| if let Record::Tap(t) = r { Some(t.clone()) } else { None }).collect();
+        let rows: Vec<CsvRow> =
+            recs.iter().filter_map(|r| if let Record::Csv(c) = r { Some(c.clone()) } else { None }).collect();
         let txns = budget::reconcile(&l, &taps, &rows, &BTreeMap::new(), today);
         let v = budget::month(&l, &txns, today, today, &|_, _| None);
         let has = |s: budget::Status| v.txns.iter().any(|t| t.txn.status == s);
-        assert!(has(budget::Status::Confirmed) && has(budget::Status::Provisional) && has(budget::Status::Posted));
+        assert!(
+            has(budget::Status::Confirmed) && has(budget::Status::Provisional) && has(budget::Status::Posted)
+        );
         assert_eq!(v.review.len(), 1);
         assert_eq!(v.unlinked.len(), 1);
         assert!(v.txns.iter().any(|t| t.txn.tap_amount.is_some()), "a tipped meal");

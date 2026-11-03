@@ -252,7 +252,9 @@ pub fn month(
     let mut so_far = Decimal::ZERO;
     for (i, f) in fixed_by_day.iter().enumerate() {
         so_far += *f;
-        pace_by_day.push((so_far.min(budget) + flexible * Decimal::from(i as u32 + 1) / Decimal::from(days)).round_dp(2));
+        pace_by_day.push(
+            (so_far.min(budget) + flexible * Decimal::from(i as u32 + 1) / Decimal::from(days)).round_dp(2),
+        );
     }
     let pace = if day == 0 { Decimal::ZERO } else { pace_by_day[(day - 1) as usize] };
     let mut run = Decimal::ZERO;
@@ -273,7 +275,6 @@ pub fn month(
             daily_out.push(None);
         }
     }
-
 
     let review = txns
         .iter()

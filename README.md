@@ -84,9 +84,25 @@ Everything stays in one folder you can read, edit in a text editor, and back up.
       </picture>
     </td>
   </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <b>🧾 Budget from your statements</b><br>
+      Import CSV or OFX from any Canadian bank. Spending sorts into categories, bills tick off as they're paid, and a running total shows if you're on pace.<br><br>
+      <picture>
+        <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/budget-light.png">
+        <img src="docs/screenshots/budget-dark.png" alt="Budget screen">
+      </picture>
+    </td>
+    <td width="50%" valign="top">
+      <b>📲 Apple Pay, the moment you tap</b><br>
+      A Shortcut on your iPhone sends each Wallet purchase to your Mac through iCloud Drive or Tailscale. Your statement confirms it later, never counting it twice.<br><br>
+      <picture>
+        <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/settings-light.png">
+        <img src="docs/screenshots/settings-dark.png" alt="Apple Pay feed settings">
+      </picture>
+    </td>
+  </tr>
 </table>
-
-🧾 **Budget** is coming in Stage 7: monthly budgets from bank statements and an Apple Pay feed.
 
 ## Quick start
 
@@ -115,6 +131,17 @@ cargo run --release
 
 Open <http://127.0.0.1:7777>. Your data goes to `./data`. Run `cargo run --release -- seed` to load sample data.
 
+### Mac
+
+To run it in the background on a Mac mini, starting at login:
+
+```sh
+git clone https://github.com/Akazai-A/worthwatch.git && cd worthwatch
+./deploy/macos/install.sh
+```
+
+See [Run Worthwatch on a Mac](docs/macos.md).
+
 For the full setup, your first check-in, and where your data lives, see [Get started](docs/getting-started.md).
 
 ## Private by default
@@ -132,12 +159,15 @@ For the full setup, your first check-in, and where your data lives, see [Get sta
 | Guide | What you learn |
 |---|---|
 | [Get started](docs/getting-started.md) | Install with Docker or from source, load sample data, do your first check-in. |
-| [User guide](docs/user-guide.md) | Use each screen: Home, Check-in, Portfolio, Changes, Chat, Plan, Wall view. |
+| [User guide](docs/user-guide.md) | Use each screen: Home, Check-in, Portfolio, Changes, Chat, Plan, Budget, Wall view. |
+| [Budget your spending](docs/budgeting.md) | Import bank statements, set limits, sort categories, track bills. |
+| [Set up the Apple Pay feed](docs/apple-pay-feed.md) | Send each Wallet purchase from your iPhone to your Mac as you pay. |
 | [Configure Worthwatch](docs/configuration.md) | Settings in `ledger.yaml` and environment variables. |
 | [Prices, FX and fund holdings](docs/data-sources.md) | Where numbers come from and how to override them. |
 | [Connect Claude Desktop](docs/mcp.md) | Ask Claude about your portfolio and propose updates through MCP. |
 | [Access Worthwatch remotely](docs/remote-access.md) | Reach it from your phone with Tailscale, or open it on your network. |
 | [Back up and restore](docs/backup-restore.md) | Daily backups, manual backups, and restoring onto a new machine. |
+| [Run Worthwatch on a Mac](docs/macos.md) | Start it at login on a Mac mini with one install script. |
 | [Architecture](docs/architecture.md) | How the server, the ledger and the UI fit together. |
 | [Contribute](docs/contributing.md) | Build, test and send a change. |
 

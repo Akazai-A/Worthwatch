@@ -23,10 +23,14 @@
   (`data/holdings/`, append-only snapshots, drop-in `<SYM>.csv`); pure `parse_*` fns tested on
   `fixtures/`; `quotes.json` cache. No test may touch the network.
 - `crates/importers` — pasted broker exports → `Vec<Mutation>`.
+- `crates/budget` — pure: Apple Pay taps, bank statement parsing (Canadian presets, OFX), categories,
+  `reconcile` (tap ↔ statement row), the month view, the append-only `transactions/` store, the
+  Shortcut plist. Fixtures under `fixtures/`.
 - `crates/assistant` — chat: shorthand parser, `Llm` trait (Ollama, Anthropic, Manual, Off), and
   `resolve`, which checks a model's `Proposal` against the ledger into a `Plan`. Proposes only.
 - `server` — Axum binary `worthwatch`, embeds the built UI from `ui/dist`.
 - `ui` — Svelte 5 + Vite. `pnpm --dir ui build` before `cargo build --release`.
+- `deploy/macos/` — launchd LaunchAgent and `install.sh` for running the native binary on a Mac.
 - `deploy/ci.yml` belongs at `.github/workflows/ci.yml` (moved by hand; remote file
   tools cannot write into `.github/`).
 

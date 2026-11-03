@@ -9,6 +9,7 @@ flowchart LR
   subgraph clients [Clients]
     B[Browser<br/>Svelte 5 UI]
     CD[Claude Desktop]
+    IP[iPhone Shortcut<br/>Apple Pay taps]
   end
   subgraph bin [worthwatch binary]
     API[Axum server<br/>JSON API + SSE<br/>embedded UI]
@@ -17,12 +18,14 @@ flowchart LR
     DV[derive<br/>valuation, series,<br/>changes, projections]
     HO[holdings<br/>look-through, overlap]
     AS[assistant<br/>parse, propose, check]
+    BU[budget<br/>statements, taps,<br/>reconcile, month]
     PR[providers<br/>prices, FX, holdings files]
   end
   subgraph data [WORTHWATCH_DATA]
     L[(ledger.yaml)]
     Q[(quotes.json)]
     H[(holdings/)]
+    T[(transactions/)]
     BK[(backups/)]
   end
   NET[(Yahoo · Stooq<br/>Bank of Canada<br/>iShares · Vanguard)]
@@ -40,10 +43,13 @@ flowchart LR
   PR --> Q & H
   NET --> PR
   Q --> DV
-  L & Q & H --> BK
+  IP -->|iCloud Drive or Tailscale| API
+  API -->|append| T
+  T & L --> BU --> API
+  L & Q & H & T --> BK
 ```
 
-Read it left to right. The browser and Claude Desktop only talk to the API. The API reads through `derive` and writes through `AppState`. Providers are the only part that touches the network, and they only write `quotes.json` and `holdings/`.
+Read it left to right. The browser, Claude Desktop and the iPhone Shortcut only talk to the API (in iCloud mode, the server reads the Shortcut's file instead). The API reads through `derive` and writes through `AppState`. Providers are the only part that touches the network, and they only write `quotes.json` and `holdings/`.
 
 ## Design rules
 
@@ -66,6 +72,7 @@ These rules hold everywhere in the code. When you change something, keep them tr
 | `crates/holdings` | Holdings file parsing, sector and region names, look-through, overlap, drift. | nothing in the workspace |
 | `crates/providers` | Yahoo, Stooq, Bank of Canada and issuer fetchers behind traits; `quotes.json`; the holdings store. | `holdings` |
 | `crates/importers` | Pasted broker holdings into mutations. | `ledger` |
+| `crates/budget` | Apple Pay taps, statement parsing with Canadian bank presets, categories, `reconcile`, the month view, the transaction store, the Shortcut file. | `ledger` |
 | `crates/assistant` | Shorthand parser, the `Llm` trait (Ollama, Anthropic), and `resolve`, which checks a proposal against the ledger. | `ledger` |
 | `server` | The `worthwatch` binary: Axum routes, file watcher, daily tasks, backups, MCP, embedded UI. | all of the above |
 | `ui` | Svelte 5 and Vite. State lives in stores under `ui/src/lib/stores`; screens are thin. | the HTTP API |
@@ -78,6 +85,9 @@ These rules hold everywhere in the code. When you change something, keep them tr
 | `quotes.json` | Price and FX providers | Fetched data only. Safe to delete. |
 | `holdings/<SYM>/<date>.json` | Holdings store | One file per fund per disclosure date. Never rewritten. |
 | `holdings/<SYM>.csv` | You | Drop-in holdings file, read on load. |
+| `transactions/YYYY-MM.jsonl` | Statement import, Apple Pay feed | Append-only. One line per statement row or tap. |
+| `transactions/categories.json` | Budget screen | Categories you picked by hand. |
+| `ingest-token` | Server, on first start | The Apple Pay feed's token. Readable only by you. |
 | `backups/` | Daily task, Backups screen, `worthwatch backup` | Newest 30 kept. |
 
 ## Commands

@@ -9,6 +9,7 @@ A backup is one `.tar.gz` file named `worthwatch-<date>-<time>.tar.gz`. It holds
 - `ledger.yaml`: your accounts, balances and settings.
 - `quotes.json`: fetched prices and rates.
 - `holdings/`: fund holdings files.
+- `transactions/`: imported statement rows, Apple Pay taps, and categories you picked by hand.
 
 Backups go to `backups/` in your data folder. Worthwatch keeps the newest 30 and deletes older ones.
 

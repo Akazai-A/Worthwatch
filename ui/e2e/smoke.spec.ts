@@ -235,3 +235,65 @@ test("Plan: a recurring rule moves the projection; ⌘K reaches the wall view; a
   await page.getByRole("button", { name: "Back up now" }).click();
   await expect(page.getByRole("link", { name: "Download" }).first()).toBeVisible();
 });
+
+test("Budget: a tap needs the token, shows at once as provisional, and the statement confirms it once", async ({ page, request }) => {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const off = -now.getTimezoneOffset();
+  const tz = `${off < 0 ? "-" : "+"}${pad(Math.floor(Math.abs(off) / 60))}:${pad(Math.abs(off) % 60)}`;
+  const card = "TD Aeroplan Visa";
+  const tap = { merchant: "Pai Northern Thai", amount: "48.00", card, at: `${today}T12:30:00${tz}` };
+
+  const setup = await request.post("/api/apply", {
+    data: [
+      { op: "upsert_account", account: { id: "td-visa", name: "TD Visa", kind: "credit_card", currency: "CAD" } },
+      { op: "set_feed", feed: { mode: "tailscale", icloud_dir: null, tailscale_url: "https://mac-mini.example.ts.net" } },
+    ],
+  });
+  expect(setup.ok()).toBeTruthy();
+
+  // Without the token: 401, nothing saved.
+  const denied = await request.post("/api/ingest/transaction", { data: tap });
+  expect(denied.status()).toBe(401);
+  const wrong = await request.post("/api/ingest/transaction", { data: tap, headers: { Authorization: "Bearer nope" } });
+  expect(wrong.status()).toBe(401);
+  expect((await (await request.get("/api/budget")).json()).txns).toHaveLength(0);
+
+  // With it: saved, and a retry of the same tap (the Shortcut's queue) changes nothing.
+  const token = (await (await request.get("/api/settings")).json()).token as string;
+  const auth = { Authorization: `Bearer ${token}` };
+  const sent = Date.now();
+  const ok = await request.post("/api/ingest/transaction", { data: tap, headers: auth });
+  expect(ok.status()).toBe(200);
+  expect(await ok.text()).toContain("worthwatch_saved");
+  const again = await (await request.post("/api/ingest/transaction", { data: tap, headers: auth })).json();
+  expect(again).toMatchObject({ added: 0, duplicates: 1 });
+
+  // The unlinked card asks for its account; once linked, the tap is provisional.
+  await page.goto("/#/budget");
+  await expect(page.getByText(`${card} tapped 1 time`)).toBeVisible();
+  await page.getByRole("button", { name: "Link" }).click();
+  const rows = page.locator(".tx");
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first().getByLabel("Apple Pay tap, waiting for the statement")).toBeVisible();
+  expect(Date.now() - sent).toBeLessThan(5000);
+
+  // The statement posts the meal with a tip; import matches it to the tap.
+  const csv = `Date,Description,Amount\n${today},PAI NORTHERN THAI KITCH TORONTO,56.64\n`;
+  await page.getByRole("button", { name: "Import statement…" }).click();
+  await page.locator(".imp select").first().selectOption({ label: "TD Visa" });
+  await page.getByLabel("Statement text").fill(csv);
+  await page.getByRole("button", { name: "Import 1 new" }).click();
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first().getByLabel("Tap matched to the statement")).toBeVisible();
+  await expect(rows.first()).toContainText("$56.64");
+
+  // Importing the same file again adds nothing.
+  await page.getByRole("button", { name: "Import statement…" }).click();
+  await page.locator(".imp select").first().selectOption({ label: "TD Visa" });
+  await page.getByLabel("Statement text").fill(csv);
+  await expect(page.getByText("1 already imported")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Import 0 new" })).toBeDisabled();
+  expect((await (await request.get("/api/budget")).json()).txns).toHaveLength(1);
+});
