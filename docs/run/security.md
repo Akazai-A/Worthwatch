@@ -77,7 +77,7 @@ On the mini, share only the tap endpoint with your tailnet:
 tailscale serve --bg --set-path /api/ingest http://127.0.0.1:7777/api/ingest
 ```
 
-Then follow [Set up the Apple Pay feed](apple-pay-feed.md#use-tailscale) and choose **Tailscale**. The server-only setup can't use the iCloud Drive feed, because the mini has no iCloud.
+Then follow [Set up the Apple Pay feed](../use/apple-pay-feed.md#use-tailscale) and choose **Tailscale**. The server-only setup can't use the iCloud Drive feed, because the mini has no iCloud.
 
 ### Open the dashboard from your laptop or phone
 
@@ -154,8 +154,8 @@ You don't need to set anything for these.
 The Apple Pay token stays hidden until you select **Show**:
 
 <picture>
-  <source media="(prefers-color-scheme: light)" srcset="screenshots/security-token-hidden-light.png">
-  <img src="screenshots/security-token-hidden-dark.png" alt="Settings: the Apple Pay token shown as dots and its last four characters, with Show and New token beside it" width="632">
+  <source media="(prefers-color-scheme: light)" srcset="../screenshots/settings/security-token-hidden-light.png">
+  <img src="../screenshots/settings/security-token-hidden-dark.png" alt="Settings: the Apple Pay token shown as dots and its last four characters, with Show and New token beside it" width="632">
 </picture>
 
 ## Understand the risk that's left

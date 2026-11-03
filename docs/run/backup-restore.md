@@ -82,7 +82,7 @@ Restore unpacks a backup into the data folder. It checks the backup first, and o
 
 ## Move to a new machine
 
-1. Install Worthwatch on the new machine, but don't start it yet. See [Get started](getting-started.md). The first start creates an empty ledger, and `restore` then needs `--force`.
+1. Install Worthwatch on the new machine, but don't start it yet. See [Get started](../use/getting-started.md). The first start creates an empty ledger, and `restore` then needs `--force`.
 2. Copy your latest backup to the new machine.
 3. Restore it into an empty data folder:
 

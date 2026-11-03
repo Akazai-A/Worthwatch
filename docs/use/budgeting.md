@@ -3,8 +3,8 @@
 This page shows you how to set a monthly budget, bring in your bank and card transactions, and keep them sorted into categories. To have Apple Pay purchases show up the moment you tap, also set up the [Apple Pay feed](apple-pay-feed.md).
 
 <picture>
-  <source media="(prefers-color-scheme: light)" srcset="screenshots/budget-light.png">
-  <img src="screenshots/budget-dark.png" alt="Budget screen: spent so far against the month's budget, a running total chart against pace, category bars, bills and transactions">
+  <source media="(prefers-color-scheme: light)" srcset="../screenshots/budget/budget-light.png">
+  <img src="../screenshots/budget/budget-dark.png" alt="Budget screen: spent so far against the month's budget, a running total chart against pace, category bars, bills and transactions">
 </picture>
 
 ## How it works
@@ -38,7 +38,7 @@ When you import a statement, Worthwatch pairs each tap with its row, so a purcha
 5. If purchases show as money *in*, turn on **Flip signs**.
 6. Select **Import N new**.
 
-<img src="screenshots/budget-import-dark.png" alt="Import panel with an RBC Visa statement: layout detected, four rows, and the Import 4 new button" width="720">
+<img src="../screenshots/budget/budget-import-dark.png" alt="Import panel with an RBC Visa statement: layout detected, four rows, and the Import 4 new button" width="720">
 
 Nothing is written before you select Import. Importing the same file again adds nothing, so overlapping date ranges are safe.
 
@@ -74,15 +74,15 @@ Use this for anything that doesn't come from Apple Pay or a statement, such as c
 6. Select **Add**.
 
 <picture>
-  <source media="(prefers-color-scheme: light)" srcset="screenshots/budget-add-form-light.png">
-  <img src="screenshots/budget-add-form-dark.png" alt="The + Add form under Transactions: amount 12.50, Farmers market, Groceries, paid with Cash, today's date, and the Add button" width="860">
+  <source media="(prefers-color-scheme: light)" srcset="../screenshots/budget/budget-add-form-light.png">
+  <img src="../screenshots/budget/budget-add-form-dark.png" alt="The + Add form under Transactions: amount 12.50, Farmers market, Groceries, paid with Cash, today's date, and the Add button" width="860">
 </picture>
 
 The entry shows at once with a pencil mark ✎ and counts toward the month, the category bars and the [budget game](budget-game.md). To take it back, select **×** at the end of its row, or **Undo** in the confirmation line.
 
 <picture>
-  <source media="(prefers-color-scheme: light)" srcset="screenshots/budget-added-light.png">
-  <img src="screenshots/budget-added-dark.png" alt="Farmers market at the top of today's transactions, marked by hand, Groceries, Cash, $12.50, with a remove button" width="860">
+  <source media="(prefers-color-scheme: light)" srcset="../screenshots/budget/budget-added-light.png">
+  <img src="../screenshots/budget/budget-added-dark.png" alt="Farmers market at the top of today's transactions, marked by hand, Groceries, Cash, $12.50, with a remove button" width="860">
 </picture>
 
 What happens next depends on what you paid with:
@@ -101,7 +101,7 @@ Each bar shows what you spent, a hatched part for taps that aren't on a statemen
 
 The month's total budget is the sum of your category limits. The running-total chart compares your spending with that budget day by day. Bills count on their due day, and the rest of the budget is spread evenly, so paying rent on the 1st doesn't put you "over pace".
 
-<img src="screenshots/budget-hover-dark.png" alt="Running total chart with a tooltip showing one day's spending and the month so far" width="720">
+<img src="../screenshots/budget/budget-hover-dark.png" alt="Running total chart with a tooltip showing one day's spending and the month so far" width="720">
 
 ## Fix a transaction's category
 
@@ -183,10 +183,10 @@ Transactions themselves live in `transactions/YYYY-MM.jsonl`, one line each. Wor
 {"source":"void","id":"void-man-2026-11-18-6c1f0e2a9b44","target":"man-2026-11-18-6c1f0e2a9b44","date":"2026-11-18","at":"2026-11-18T21:31:00Z"}
 ```
 
-An entry with no `account` is cash. Categories you pick by hand are saved in `transactions/categories.json`. Both are included in [backups](backup-restore.md).
+An entry with no `account` is cash. Categories you pick by hand are saved in `transactions/categories.json`. Both are included in [backups](../run/backup-restore.md).
 
 ## What's next
 
 - [Play the budget game](budget-game.md): beat a daily allowance and fill a jar to your monthly goal.
 - [Set up the Apple Pay feed](apple-pay-feed.md) so taps show up as you pay.
-- [Run Worthwatch on a Mac](macos.md) that stays on, such as a Mac mini.
+- [Run Worthwatch on a Mac](../run/macos.md) that stays on, such as a Mac mini.

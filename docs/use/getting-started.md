@@ -7,7 +7,7 @@ This page shows you how to install Worthwatch, look around with sample data, and
 Choose how you want to run Worthwatch:
 
 - **Docker** needs Docker with Compose. This is the simplest option for a home server or NAS.
-- **On a Mac** that stays on, use the [Mac install script](macos.md). It needs the same tools as building from source.
+- **On a Mac** that stays on, use the [Mac install script](../run/macos.md). It needs the same tools as building from source.
 - **From source** needs Rust (stable, installed with [rustup](https://rustup.rs)) and Node.js 22 with [pnpm](https://pnpm.io). Use this on a laptop or if you want to change the code.
 
 All three run the same single binary. The web UI is built into it.
@@ -105,12 +105,12 @@ Everything you enter goes to `ledger.yaml` in your data folder. You can open it 
 
 If the file has a mistake, the app keeps showing the last good version, shows the line with the problem, and refuses to save until you fix it. Your edit is never overwritten.
 
-For an annotated example, see [`data/ledger.example.yaml`](../data/ledger.example.yaml).
+For an annotated example, see [`data/ledger.example.yaml`](../../data/ledger.example.yaml).
 
 ## What's next
 
 - Learn each screen in the [User guide](user-guide.md).
 - [Budget your spending](budgeting.md) from your bank statements and Apple Pay.
-- [Connect an AI assistant](mcp.md) to ask questions about your portfolio.
-- [Access Worthwatch from your phone](remote-access.md).
-- Set up [backups](backup-restore.md) off the machine.
+- [Connect an AI assistant](../run/mcp.md) to ask questions about your portfolio.
+- [Access Worthwatch from your phone](../run/remote-access.md).
+- Set up [backups](../run/backup-restore.md) off the machine.
