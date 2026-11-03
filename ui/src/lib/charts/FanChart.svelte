@@ -18,10 +18,19 @@
     blur = false,
     height = 300,
     compact = false,
+    ghost = null,
+    ontarget,
+    ondrag,
   }: {
     history: Point[]; points: ProjPoint[]; start: string; startNetWorth: string;
     milestones?: Milestone[]; debts?: DebtPayoff[]; target?: number | null;
     currency?: string; blur?: boolean; height?: number; compact?: boolean;
+    /** The projection before a slider or the target started moving, drawn faint behind the new one. */
+    ghost?: ProjPoint[] | null;
+    /** Set when the target line can be dragged on the chart: gets the new target, rounded to $50k. */
+    ontarget?: (v: number) => void;
+    /** True while the target is being dragged. */
+    ondrag?: (on: boolean) => void;
   } = $props();
 
   let width = $state(700);
@@ -57,6 +66,30 @@
   const mid = $derived(path(f.proj.map((p) => [x(p.t), y(p.v)])));
   const past = $derived(path(f.hist.map((h) => [x(h.t), y(h.v)])));
   const hit = $derived(target != null ? f.proj.find((p) => p.v >= target) ?? null : null);
+  // The ghost: the same scale as now, so the shift reads as movement.
+  const ghostPath = $derived(ghost?.length ? path(ghost.map((p) => [x(sec(p.date)), y(Number(p.net_worth))] as [number, number])) : null);
+
+  // Dragging the target: the brass flag follows the pointer up and down, in $50k steps.
+  const STEP = 50000;
+  const valueAt = (py: number) => f.yMin + (1 - (py - T) / (height - T - B)) * (f.yMax - f.yMin);
+  const snap = (v: number) => Math.max(STEP, Math.round(v / STEP) * STEP);
+  let dragging = $state(false);
+  function grab(e: PointerEvent) {
+    if (!ontarget) return;
+    (e.currentTarget as Element).setPointerCapture(e.pointerId);
+    dragging = true; ondrag?.(true);
+  }
+  function drag(e: PointerEvent) {
+    if (!dragging || !ontarget) return;
+    const box = (e.currentTarget as Element).closest("svg")!.getBoundingClientRect();
+    ontarget(snap(valueAt(e.clientY - box.top)));
+  }
+  function drop() { if (dragging) { dragging = false; ondrag?.(false); } }
+  function nudge(e: KeyboardEvent) {
+    if (!ontarget || target == null) return;
+    const d = e.key === "ArrowUp" ? STEP : e.key === "ArrowDown" ? -STEP : 0;
+    if (d) { e.preventDefault(); ontarget(snap(target + d)); }
+  }
 
   const hovered = $derived.by(() => {
     if (hoverX == null) return null;
@@ -84,8 +117,9 @@
     <line x1={x(sec(start))} x2={x(sec(start))} y1={T} y2={height - B} class="now" />
     <text x={x(sec(start)) + 5} y={T + 9} class="tag">{compact ? "today · next 12 months dashed" : "today"}</text>
     {#if target != null && target <= f.yMax}
-      <line x1={L} x2={width - R} y1={y(target)} y2={y(target)} class="target" />
+      <line x1={L} x2={width - R} y1={y(target)} y2={y(target)} class="target" class:live={!!ontarget} />
     {/if}
+    {#if ghostPath}<path d={ghostPath} class="ghost" />{/if}
     <path d={past} class="past" />
     <path d={mid} class="mid" />
     {#if !compact}
@@ -103,13 +137,23 @@
       <circle cx={x(hit.t)} cy={y(target)} r="4.5" class="hit" />
       {#if !compact}<text x={x(hit.t) - 8} y={y(target) - 8} text-anchor="end" class="tag">{blur ? "target" : formatCompact(target)} · {monthYear(iso(hit.t))}</text>{/if}
     {/if}
-    {#if hovered}
+    {#if ontarget && target != null && target <= f.yMax && !compact}
+      <!-- The finish line's handle: drag it, or focus it and use the arrow keys. -->
+      <g class="flag" class:on={dragging} transform="translate({width - R - 56},{y(target)})" role="slider" tabindex="0"
+        aria-label="Target net worth" aria-valuenow={target} aria-valuemin={STEP} aria-valuetext={formatMoney(target, currency)}
+        onpointerdown={grab} onpointermove={drag} onpointerup={drop} onpointercancel={drop} onkeydown={nudge}>
+        <rect x="-4" y="-11" width="58" height="22" rx="4" />
+        <path d="M6 -4 l4 -4 l4 4 M6 4 l4 4 l4 -4" />
+        <text x="22" y="4">{blur ? "" : formatCompact(target)}</text>
+      </g>
+    {/if}
+    {#if hovered && !dragging}
       <line x1={x(hovered.t)} x2={x(hovered.t)} y1={T} y2={height - B} class="cursor" />
       <!-- A brass level mark across the line, not a dot (same as the net worth chart). -->
       <line x1={x(hovered.t) - 7} x2={x(hovered.t) + 7} y1={y(hovered.v)} y2={y(hovered.v)} class="level" />
     {/if}
   </svg>
-  {#if hovered}
+  {#if hovered && !dragging}
     <div class="tip" style="left:{x(hovered.t) > width / 2 ? x(hovered.t) - 196 : x(hovered.t) + 14}px">
       <div class="top"><b class="money">{money(hovered.v)}</b><span>{monthYear(iso(hovered.t))}</span></div>
       {#if !hovered.past}
@@ -137,6 +181,13 @@
   .mid { fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-dasharray: 5 4; }
   .now { stroke: var(--text-3); stroke-dasharray: 2 3; }
   .target { stroke: var(--text-2); stroke-dasharray: 1 3; }
+  .target.live { stroke: var(--accent); stroke-dasharray: 6 4; stroke-width: 1.5; }
+  .ghost { fill: none; stroke: var(--text-3); stroke-width: 1.2; stroke-dasharray: 2 4; opacity: 0.8; }
+  .flag { cursor: ns-resize; touch-action: none; outline: none; }
+  .flag rect { fill: var(--accent); }
+  .flag path { fill: none; stroke: var(--bg); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; transform: translateX(-4px); }
+  .flag text { font-family: var(--figures); font-size: 10px; fill: var(--bg); font-weight: 600; }
+  .flag:focus-visible rect, .flag.on rect { stroke: var(--text); stroke-width: 1.5; }
   .payoff { stroke: var(--g-debt); stroke-width: 2; }
   .dot { fill: var(--accent); }
   .hit { fill: var(--bg); stroke: var(--accent); stroke-width: 1.5; }
