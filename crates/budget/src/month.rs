@@ -90,7 +90,8 @@ pub fn first_of(d: NaiveDate) -> NaiveDate {
     d.with_day(1).unwrap_or(d)
 }
 
-fn days_in(month: NaiveDate) -> u32 {
+/// Days in the month that starts on `month` (the 1st).
+pub(crate) fn days_in(month: NaiveDate) -> u32 {
     let next = month + Months::new(1);
     (next - month).num_days() as u32
 }

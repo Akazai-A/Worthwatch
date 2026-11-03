@@ -2,15 +2,16 @@
 name = "budget"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 description = "Budgeting: Apple Pay taps and bank statements in one transaction store, matched by reconcile()"
 
 [dependencies]
-ledger = { path = "../ledger" }
+ledger.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 rust_decimal.workspace = true
 chrono.workspace = true
 
 [dev-dependencies]
-rust_decimal_macros = "1"
-tempfile = "3"
+rust_decimal_macros.workspace = true
+tempfile.workspace = true

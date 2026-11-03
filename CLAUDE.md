@@ -28,7 +28,9 @@
   Shortcut plist. Fixtures under `fixtures/`.
 - `crates/assistant` — chat: shorthand parser, `Llm` trait (Ollama, Anthropic, Manual, Off), and
   `resolve`, which checks a model's `Proposal` against the ledger into a `Plan`. Proposes only.
-- `server` — Axum binary `worthwatch`, embeds the built UI from `ui/dist`. `server/src/security.rs` is the
+- `server` — Axum binary `worthwatch`, embeds the built UI from `ui/dist`. `src/api/mod.rs` holds the one route
+  table and the shared `ApiError`; each screen's handlers live in `src/api/<area>.rs` (budget, feed, settings and
+  game under `src/api/budget/`); sample data in `src/seed/`. `server/src/security.rs` is the
   request guard (Host allowlist, same-origin check, Tailscale ingest-only) and the response headers; every
   route goes through it. Tokens come from `getrandom`; files are written with umask 077.
 - `deploy/container/run.sh` — locked-down Docker or Apple `container` run (read-only, no caps, non-root,

@@ -3,6 +3,9 @@
 //! designed against real-looking data. The ledger carries no typed prices: that is
 //! what a fetching user's file looks like. Deterministic (no randomness crate).
 
+pub mod funds;
+mod spending;
+
 use std::collections::BTreeMap;
 use std::path::Path;
 
@@ -26,6 +29,7 @@ fn acct(id: &str, name: &str, inst: Option<&str>, kind: AccountKind, cur: &str) 
     }
 }
 
+/// Cents to dollars: `d(1250)` is 12.50.
 fn d(cents: i64) -> Decimal {
     Decimal::new(cents, 2)
 }
@@ -161,7 +165,7 @@ pub fn seed_ledger(today: NaiveDate) -> Ledger {
         Event { date: months[7], note: "Condo reassessed".into() },
         Event { date: months[13], note: "Annual bonus".into() },
     ];
-    l.budget = crate::seed_budget::seed_budget_settings();
+    l.budget = spending::seed_budget_settings();
     l
 }
 
@@ -216,17 +220,14 @@ pub fn write_seed(data_dir: &Path, today: NaiveDate, force: bool) -> Result<std:
     let mut store = providers::HoldingsStore::load(&data_dir.join("holdings"));
     let holdings_as_of = seed_quotes(&l, today).latest_price_date().unwrap_or(today);
     let earlier = holdings_as_of.checked_sub_months(Months::new(1)).unwrap_or(holdings_as_of);
-    for f in crate::seed_holdings::seed_holdings_earlier(earlier)
-        .into_iter()
-        .chain(crate::seed_holdings::seed_holdings(holdings_as_of))
-    {
+    for f in funds::seed_holdings_earlier(earlier).into_iter().chain(funds::seed_holdings(holdings_as_of)) {
         store.save(f).map_err(|e| LedgerError::Io(std::io::Error::other(e.to_string())))?;
     }
     let txns = data_dir.join("transactions");
     if txns.exists() {
         std::fs::remove_dir_all(&txns)?;
     }
-    budget::TxnStore::load(&txns).append(crate::seed_budget::seed_transactions(today))?;
+    budget::TxnStore::load(&txns).append(spending::seed_transactions(today))?;
     Ok(path)
 }
 
@@ -267,7 +268,7 @@ mod tests {
         let m = derive::Market::merge(&l, &q.prices, &q.fx, &q.currencies);
         let p = derive::portfolio(&l, &m, today);
         let snaps: std::collections::BTreeMap<String, holdings::FundHoldings> =
-            crate::seed_holdings::seed_holdings(today).into_iter().map(|f| (f.symbol.clone(), f)).collect();
+            funds::seed_holdings(today).into_iter().map(|f| (f.symbol.clone(), f)).collect();
         let hs: Vec<holdings::Holding> = p
             .securities
             .iter()

@@ -19,7 +19,7 @@ use chrono::{DateTime, Local, NaiveDate, Utc};
 use rust_decimal::Decimal;
 use serde::Serialize;
 
-use crate::budget::MonthQuery;
+use super::MonthQuery;
 use crate::state::AppState;
 
 pub const STATUS_DIR: &str = "game";
@@ -49,7 +49,7 @@ pub fn build(
     let base = l.settings.base_currency.clone();
     let store = s.txns.read().expect("txn lock");
     let txns = store.reconcile(l, today);
-    let month = month.and_then(crate::budget::parse_month).unwrap_or(today);
+    let month = month.and_then(super::parse_month).unwrap_or(today);
     let rate = |c: &str, d: NaiveDate| market.rate_at(&base, c, d).map(|r| r.rate);
     let game = budget::game::view(l, &txns, month, today, &rate);
     let category = tap_id.and_then(|id| {
@@ -76,7 +76,7 @@ pub fn notify_for(s: &AppState, taps: &[budget::Tap], today: NaiveDate) -> Optio
 
 /// `GET /api/ingest/day`: the morning recap, for the Worthwatch Day Shortcut.
 pub async fn get_day(State(s): State<AppState>, headers: HeaderMap) -> Response {
-    if let Some(r) = crate::budget::token_error(&s, &headers) {
+    if let Some(r) = super::feed::token_error(&s, &headers) {
         return r;
     }
     let (g, _) = build(&s, None, Local::now().date_naive(), None);
@@ -148,8 +148,8 @@ mod tests {
         assert!(text.contains("\"tap\": \"$10 left today before this tap"), "{text}");
         // The reader only looks at files directly in the folder.
         let mut seen = Default::default();
-        let mut st = crate::budget::FeedStatus::default();
-        assert_eq!(crate::budget::scan_icloud(&feed, &s.txns, &mut seen, &mut st), 0);
+        let mut st = super::super::feed::FeedStatus::default();
+        assert_eq!(super::super::feed::scan_icloud(&feed, &s.txns, &mut seen, &mut st), 0);
         assert!(st.errors.is_empty(), "{:?}", st.errors);
     }
 }

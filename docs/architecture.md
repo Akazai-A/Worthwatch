@@ -74,8 +74,37 @@ These rules hold everywhere in the code. When you change something, keep them tr
 | `crates/importers` | Pasted broker holdings into mutations. | `ledger` |
 | `crates/budget` | Apple Pay taps, statement parsing with Canadian bank presets, categories, `reconcile`, the month view, the transaction store, the Shortcut file. | `ledger` |
 | `crates/assistant` | Shorthand parser, the `Llm` trait (Ollama, Anthropic), and `resolve`, which checks a proposal against the ledger. | `ledger` |
-| `server` | The `worthwatch` binary: Axum routes, file watcher, daily tasks, backups, MCP, embedded UI. | all of the above |
+| `server` | The `worthwatch` binary: Axum routes in `src/api/` (one route table in `api/mod.rs`, a module per screen), file watcher, daily tasks, backups, MCP, sample data in `src/seed/`, embedded UI. | all of the above |
 | `ui` | Svelte 5 and Vite. State lives in stores under `ui/src/lib/stores`; screens are thin. | the HTTP API |
+
+### Inside the server
+
+```
+server/src/
+├── main.rs          CLI: run, seed, mcp, backup, restore
+├── state.rs         AppState: the ledger snapshot, watchers, schedules
+├── security.rs      request guard and response headers (wraps every route)
+├── ui.rs            the embedded Svelte build
+├── mcp.rs           `worthwatch mcp` over stdio
+├── backup.rs        tar.gz backups and restore
+├── api/
+│   ├── mod.rs       router(): every /api route; ApiError, bad(), ledger_error()
+│   ├── view.rs      GET /api/view, POST /api/apply, refresh, paste parsing, SSE events
+│   ├── portfolio.rs look-through, changes, growth, account months
+│   ├── plan.rs      GET /api/plan
+│   ├── backups.rs   list, create, download
+│   ├── chat.rs      the chat boundary and /api/chat, context, propose, pending
+│   └── budget/
+│       ├── mod.rs       month view, statement import, spends added by hand
+│       ├── feed.rs      ingest token, POST /api/ingest/transaction, iCloud reader
+│       ├── settings.rs  Settings: token, Shortcuts
+│       ├── game.rs      the budget game and the phone's lines
+│       └── tests.rs
+└── seed/
+    ├── mod.rs       sample ledger and quotes
+    ├── spending.rs  sample budget, taps and statement rows
+    └── funds.rs     sample fund holdings files
+```
 
 ## Data folder
 

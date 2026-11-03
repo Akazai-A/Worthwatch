@@ -285,14 +285,17 @@ mod tests {
         fn get(&self, path: &str) -> Result<Value, String> {
             let snap = self.state.snapshot();
             match path {
-                "/api/context" => Ok(serde_json::to_value(crate::chat::context(&snap, self.today)).unwrap()),
-                "/api/view" => {
-                    Ok(serde_json::to_value(crate::routes::build_view(&snap, "x", self.today, true)).unwrap())
+                "/api/context" => {
+                    Ok(serde_json::to_value(crate::api::chat::context(&snap, self.today)).unwrap())
                 }
-                "/api/lookthrough" => {
-                    Ok(serde_json::to_value(crate::routes::build_lookthrough(&snap, "x", self.today, true))
+                "/api/view" => {
+                    Ok(serde_json::to_value(crate::api::view::build_view(&snap, "x", self.today, true))
                         .unwrap())
                 }
+                "/api/lookthrough" => Ok(serde_json::to_value(crate::api::portfolio::build_lookthrough(
+                    &snap, "x", self.today, true,
+                ))
+                .unwrap()),
                 p if p.starts_with("/api/pending/") => {
                     let id: u64 = p.rsplit('/').next().unwrap().parse().unwrap();
                     let status = if snap.pending.iter().any(|x| x.id == id) {
@@ -308,13 +311,13 @@ mod tests {
         fn post(&self, path: &str, body: Value) -> Result<Value, String> {
             assert_eq!(path, "/api/propose");
             let snap = self.state.snapshot();
-            let ctx = crate::chat::context(&snap, self.today);
+            let ctx = crate::api::chat::context(&snap, self.today);
             let text = body["text"].as_str().unwrap_or_default();
             let p: assistant::Proposal = match &body["proposal"] {
                 Value::Null => assistant::shorthand::parse(text, &ctx),
                 v => serde_json::from_value(v.clone()).map_err(|e| e.to_string())?,
             };
-            let plan = crate::chat::resolve(&snap.ledger, &ctx, &p);
+            let plan = crate::api::chat::resolve(&snap.ledger, &ctx, &p);
             let pending = (!plan.mutations.is_empty() || !plan.spends.is_empty())
                 .then(|| self.state.propose("mcp", text, plan.clone()));
             Ok(json!({ "pending": pending, "plan": plan }))
