@@ -2,7 +2,7 @@
 // provider line. The server builds and checks every plan; this only reshapes one
 // when the user corrects a proposed figure, and the server checks it again on apply.
 import type { AssistantView, Mutation, Plan, PlanRow2, Spend } from "./api";
-import { formatUnits, parseNumber } from "./money";
+import { formatUnits, parseNumber } from "./format/money";
 
 /** The faint second line under a row's name. */
 export function rowHint(r: PlanRow2): string {

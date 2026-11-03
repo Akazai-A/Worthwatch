@@ -3,8 +3,8 @@
   // band, the money you put in as a shaded floor, the target as a dotted rule, and
   // markers for milestones and debt payoffs. Hover shows the month's figures.
   import type { DebtPayoff, Milestone, Point, ProjPoint } from "../api";
-  import { fan, niceStep, monthYear } from "../plan";
-  import { formatCompact, formatMoney } from "../money";
+  import { fan, niceStep, monthYear } from "../networth/plan";
+  import { formatCompact, formatMoney } from "../format/money";
 
   let {
     history,

@@ -34,7 +34,10 @@
 - `deploy/container/run.sh` — locked-down Docker or Apple `container` run (read-only, no caps, non-root,
   `127.0.0.1` only). `deploy/macos/install-container.sh` starts it at login. Keep these defaults safe
   without configuration; see `docs/run/security.md`.
-- `ui` — Svelte 5 + Vite. `pnpm --dir ui build` before `cargo build --release`.
+- `ui` — Svelte 5 + Vite. `pnpm --dir ui build` before `cargo build --release`. `src/screens/<area>/` are the
+  screens; `src/lib/<area>/` the pure, tested logic (`networth`, `portfolio`, `budget`; `format/` for money,
+  percentages and dates); `src/lib/stores/` the state; `src/lib/components/<area>/` and `src/lib/charts/` the
+  pieces. `src/lib/api.ts` is the only place that calls `fetch`.
 - `deploy/macos/` — launchd LaunchAgent and `install.sh` for running the native binary on a Mac.
 - `docs/` — `use/` (task guides), `run/` (deploy, secure, connect), `develop/` (architecture, contributing);
   `screenshots/<screen>/` and `assets/`. `.github/workflows/ci.yml` is the only CI definition.

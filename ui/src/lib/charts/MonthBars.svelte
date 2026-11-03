@@ -1,8 +1,8 @@
 <script lang="ts">
   // One account, month by month: a column per month split into what you added (blue)
   // and what grew (brass), losses below the line in red. Drawn at the width it is given.
-  import type { MonthBar } from "../growth";
-  import { formatCompact, formatSigned } from "../money";
+  import type { MonthBar } from "../networth/growth";
+  import { formatCompact, formatSigned } from "../format/money";
   let { months, currency = "CAD", blur = false }: { months: MonthBar[]; currency?: string; blur?: boolean } = $props();
   let cw = $state(800);
   const H = 120, TOP = 18, FOOT = 20;

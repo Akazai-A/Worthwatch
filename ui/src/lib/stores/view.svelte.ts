@@ -1,5 +1,5 @@
 // The one global: the current LedgerView, kept fresh by the server's event stream.
-import { getView, subscribe, type LedgerView } from "../api";
+import { getView, subscribe, errorMessage, type LedgerView } from "../api";
 
 let current = $state<LedgerView | null>(null);
 let error = $state<string | null>(null);
@@ -17,7 +17,7 @@ export const view = {
       current = await getView();
       error = null;
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      error = errorMessage(e);
     } finally {
       loading = false;
     }
