@@ -6,7 +6,9 @@
 FROM node:26-alpine AS ui
 WORKDIR /ui
 COPY ui/package.json ui/pnpm-lock.yaml ui/pnpm-workspace.yaml ./
-RUN corepack enable && pnpm install --frozen-lockfile
+# Node 25+ no longer ships corepack, so install the pnpm that package.json pins.
+RUN npm install --global "$(node -p 'require("./package.json").packageManager')" \
+    && pnpm install --frozen-lockfile
 COPY ui/ .
 RUN pnpm build
 

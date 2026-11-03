@@ -79,6 +79,14 @@ Read [Architecture](architecture.md) before you change how data moves.
 
 The CI workflow lives at `deploy/ci.yml`. To turn it on in your fork, copy it to `.github/workflows/ci.yml`.
 
+It runs three jobs on every push and pull request:
+
+| Job | What it checks |
+|---|---|
+| `build-and-test` | Formatting, lints, unit tests, the UI build, and the end-to-end smoke flow. |
+| `audit` | Crates and npm packages against the advisory databases. |
+| `docker` | That `deploy/Dockerfile` still builds, so a base-image update that breaks it fails its pull request. |
+
 ## Write docs
 
 Docs follow the [Google developer documentation style guide](https://developers.google.com/style):

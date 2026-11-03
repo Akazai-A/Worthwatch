@@ -44,3 +44,10 @@ jobs:
       - uses: actions/setup-node@v7
         with: { node-version: 22 }
       - run: pnpm --dir ui audit --audit-level high
+
+  # The container image Worthwatch runs in. Catches a base-image bump that breaks the build.
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker build --file deploy/Dockerfile --tag worthwatch:ci .
