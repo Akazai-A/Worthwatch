@@ -11,7 +11,7 @@
 - PR descriptions keep the project's attribution block as their first two lines.
 - Anything UI in a PR or reply comes with screenshots of the real UI (dark and light
   where both exist). Anything about architecture or data flow comes with a Mermaid
-  or ASCII diagram. Screenshots live under `docs/screenshots/`.
+  or ASCII diagram. Screenshots live under `docs/screenshots/<screen>/`.
 
 ## Layout
 - `crates/ledger` — plain-text ledger schema, IO, validation, mutations.
@@ -33,16 +33,17 @@
   route goes through it. Tokens come from `getrandom`; files are written with umask 077.
 - `deploy/container/run.sh` — locked-down Docker or Apple `container` run (read-only, no caps, non-root,
   `127.0.0.1` only). `deploy/macos/install-container.sh` starts it at login. Keep these defaults safe
-  without configuration; see `docs/security.md`.
+  without configuration; see `docs/run/security.md`.
 - `ui` — Svelte 5 + Vite. `pnpm --dir ui build` before `cargo build --release`.
 - `deploy/macos/` — launchd LaunchAgent and `install.sh` for running the native binary on a Mac.
-- `deploy/ci.yml` belongs at `.github/workflows/ci.yml` (moved by hand; remote file
-  tools cannot write into `.github/`).
+- `docs/` — `use/` (task guides), `run/` (deploy, secure, connect), `develop/` (architecture, contributing);
+  `screenshots/<screen>/` and `assets/`. `.github/workflows/ci.yml` is the only CI definition.
 
 ## Checks before any PR
 ```
-cargo fmt --check && cargo clippy --workspace -- -D warnings && cargo test --workspace
-pnpm --dir ui build && pnpm --dir ui test
+cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace
+pnpm --dir ui check && pnpm --dir ui build && pnpm --dir ui test && pnpm --dir ui e2e
+docker build --file deploy/Dockerfile .
 ```
 
 ## Env vars

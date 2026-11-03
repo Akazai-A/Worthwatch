@@ -3,8 +3,8 @@
 This page explains the budget game: a daily allowance you try to beat, a jar that fills with what you don't spend, and weekly challenge cards. The game sits beside the **Budget** screen. You set up categories and limits on **Budget**, and you play on **Budget › Play**.
 
 <picture>
-  <source media="(prefers-color-scheme: light)" srcset="screenshots/play-light.png">
-  <img src="screenshots/play-dark.png" alt="The budget game: a winding track of days with coins on green days, today's token showing $65 left, a jar at $136 of a $500 goal, and this week's challenge cards" width="860">
+  <source media="(prefers-color-scheme: light)" srcset="../screenshots/budget/play-light.png">
+  <img src="../screenshots/budget/play-dark.png" alt="The budget game: a winding track of days with coins on green days, today's token showing $65 left, a jar at $136 of a $500 goal, and this week's challenge cards" width="860">
 </picture>
 
 ## How it works
@@ -54,8 +54,8 @@ The first time you open the game, Worthwatch offers three goals: **easy**, **ste
 2. The jar shows the goal as a dashed line. Coins fill the jar as days close.
 
 <picture>
-  <source media="(prefers-color-scheme: light)" srcset="screenshots/play-pick-goal-light.png">
-  <img src="screenshots/play-pick-goal-dark.png" alt="Pick a goal for November: three jars for $250, $500 and $750, and a field for your own amount" width="860">
+  <source media="(prefers-color-scheme: light)" srcset="../screenshots/budget/play-pick-goal-light.png">
+  <img src="../screenshots/budget/play-pick-goal-dark.png" alt="Pick a goal for November: three jars for $250, $500 and $750, and a field for your own amount" width="860">
 </picture>
 
 The goal carries over from month to month until you change it.
@@ -90,8 +90,8 @@ Taps arrive on their own, but cash doesn't. To count a cash purchase against tod
 3. Select **Add**.
 
 <picture>
-  <source media="(prefers-color-scheme: light)" srcset="screenshots/play-cash-form-light.png">
-  <img src="screenshots/play-cash-form-dark.png" alt="The track with a + cash spend button under today's token, and the add form open below it with Parking meter for $3" width="860">
+  <source media="(prefers-color-scheme: light)" srcset="../screenshots/budget/play-cash-form-light.png">
+  <img src="../screenshots/budget/play-cash-form-dark.png" alt="The track with a + cash spend button under today's token, and the add form open below it with Parking meter for $3" width="860">
 </picture>
 
 Today's token drains at once, and the purchase closes into the jar with the rest of the day. It's the same form as **+ Add** on **Budget**. See [Add a purchase by hand](budgeting.md#add-a-purchase-by-hand).
@@ -104,8 +104,8 @@ Each card shows its progress as a picture: a cup or tube that fills toward its c
 2. Keep spending in that category under the cap, or at zero on the named days, until Sunday.
 
 <picture>
-  <source media="(prefers-color-scheme: light)" srcset="screenshots/play-cards-light.png">
-  <img src="screenshots/play-cards-dark.png" alt="This week's cards: Transport under $35 in play with $30.40 left, Dining under $45 and No-spend Saturday on offer, and the next deal on Monday" width="860">
+  <source media="(prefers-color-scheme: light)" srcset="../screenshots/budget/play-cards-light.png">
+  <img src="../screenshots/budget/play-cards-dark.png" alt="This week's cards: Transport under $35 in play with $30.40 left, Dining under $45 and No-spend Saturday on offer, and the next deal on Monday" width="860">
 </picture>
 
 A card dealt mid-week covers today to Sunday, with its cap cut to the days left. Won cards go on the **Won this year** shelf with how much you kept compared to your usual week.
@@ -117,8 +117,8 @@ Cards don't change the jar on their own. They're a way to aim at the categories 
 On the 1st, the previous month closes. Open it with the **‹** arrow to see the result: the final jar, whether you hit the goal, your green days, and the cards you won.
 
 <picture>
-  <source media="(prefers-color-scheme: light)" srcset="screenshots/play-closed-light.png">
-  <img src="screenshots/play-closed-dark.png" alt="October closed: a full jar with $310, goal $300 hit, 2 months in a row, 19 green days of 31, 1 of 2 cards won" width="860">
+  <source media="(prefers-color-scheme: light)" srcset="../screenshots/budget/play-closed-light.png">
+  <img src="../screenshots/budget/play-closed-dark.png" alt="October closed: a full jar with $310, goal $300 hit, 2 months in a row, 19 green days of 31, 1 of 2 cards won" width="860">
 </picture>
 
 If Worthwatch suggests a new goal, select **Raise the goal** or **Lower the goal** to accept it, or **Keep** to stay where you are. A raise is 5% higher, rounded up to $10. A lower goal is 5% less, rounded down to $10.
@@ -145,9 +145,9 @@ To set them up, see [Get notified on your iPhone](apple-pay-feed.md#get-notified
 
 ## Use the game on a phone
 
-**Play** works in Safari on your iPhone over [Tailscale](remote-access.md#use-tailscale). The track turns into five stops a row, and the cards scroll sideways.
+**Play** works in Safari on your iPhone over [Tailscale](../run/remote-access.md#use-tailscale). The track turns into five stops a row, and the cards scroll sideways.
 
-<img src="screenshots/play-mobile-dark.png" alt="The budget game on a phone: the jar at the top and a five-a-row track" width="320">
+<img src="../screenshots/budget/play-mobile-dark.png" alt="The budget game on a phone: the jar at the top and a five-a-row track" width="320">
 
 ## Edit the game by hand
 

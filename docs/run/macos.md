@@ -54,7 +54,7 @@ To reach Worthwatch from your phone, use Tailscale. See [Access Worthwatch remot
 
 macOS blocks a background program from reading iCloud Drive. The only switch that unblocks it, **Full Disk Access**, also opens your Mail, Messages, Safari data and the rest of iCloud Drive to Worthwatch. Don't turn it on.
 
-Send Apple Pay taps over Tailscale instead. See [Set up the Apple Pay feed](apple-pay-feed.md#use-tailscale). If you gave Worthwatch Full Disk Access before, remove it in **System Settings › Privacy & Security › Full Disk Access**.
+Send Apple Pay taps over Tailscale instead. See [Set up the Apple Pay feed](../use/apple-pay-feed.md#use-tailscale). If you gave Worthwatch Full Disk Access before, remove it in **System Settings › Privacy & Security › Full Disk Access**.
 
 ## Upgrade Worthwatch
 

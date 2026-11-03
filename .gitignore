@@ -5,3 +5,4 @@
 !/data/ledger.example.yaml
 .env
 .DS_Store
+/ui/test-results
