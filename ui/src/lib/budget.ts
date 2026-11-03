@@ -147,3 +147,44 @@ export function byDay(txns: Txn[], spending: (t: Txn) => boolean): { date: strin
 }
 
 export const counts = (category: string) => category !== "income" && category !== "transfer";
+
+// ---- Draft: "days on pace" and "months kept" (gamification exploration) ----
+
+export type PaceDay = { day: number; state: "under" | "over" | "today-under" | "today-over" | "future"; noSpend: boolean; total: number; pace: number; spent: number };
+
+/** Each day of the month against the pace line: on pace means the running total at the
+ *  end of the day (taps included) was at or under where the budget said you'd be. */
+export function paceDays(v: BudgetView): { days: PaceDay[]; run: number; best: number; under: number; noSpend: number; overSince: number | null } {
+  const days: PaceDay[] = [];
+  for (let i = 0; i < v.days; i++) {
+    const c = v.cumulative[i];
+    const pace = Number(v.pace_by_day[i] ?? 0);
+    if (c == null || i + 1 > v.day) { days.push({ day: i + 1, state: "future", noSpend: false, total: 0, pace, spent: 0 }); continue; }
+    const total = Number(c);
+    const spent = Number(v.daily[i] ?? 0);
+    const ok = total <= pace;
+    const today = i + 1 === v.day && v.day < v.days;
+    days.push({ day: i + 1, state: today ? (ok ? "today-under" : "today-over") : ok ? "under" : "over", noSpend: spent <= 0, total, pace, spent });
+  }
+  const past = days.filter((d) => d.state !== "future");
+  const ok = (d: PaceDay) => d.state === "under" || d.state === "today-under";
+  let run = 0;
+  for (let i = past.length - 1; i >= 0 && ok(past[i]); i--) run++;
+  let best = 0, cur = 0;
+  for (const d of past) { cur = ok(d) ? cur + 1 : 0; best = Math.max(best, cur); }
+  let overSince: number | null = null;
+  if (run === 0 && past.length) { let i = past.length - 1; while (i > 0 && !ok(past[i - 1])) i--; overSince = past[i].day; }
+  return { days, run, best, under: past.filter(ok).length, noSpend: past.filter((d) => d.noSpend).length, overSince };
+}
+
+/** The five months before this one against today's budget (draft: uses current limits). */
+export function monthsKept(v: BudgetView): { month: string; spent: number; budget: number; kept: boolean; current: boolean }[] {
+  const budget = Number(v.budget);
+  const out = [];
+  for (let k = 5; k >= 1; k--) {
+    const spent = v.categories.reduce((a, c) => a + Number(c.history[5 - k] ?? 0), 0);
+    out.push({ month: shiftMonth(v.month, -k), spent, budget, kept: spent <= budget, current: false });
+  }
+  out.push({ month: v.month.slice(0, 7), spent: Number(v.spent), budget: Number(v.pace), kept: Number(v.spent) <= Number(v.pace), current: true });
+  return out.filter((m) => m.current || m.spent > 0);
+}
