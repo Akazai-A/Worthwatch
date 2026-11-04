@@ -26,10 +26,8 @@
     const screens: [string, string, string][] = [
       ["Home", "#/", "net worth"],
       ["Check-in", "#/check-in", "enter this month's balances"],
-      ["Portfolio", "#/portfolio", "positions"],
-      ["Portfolio › Look-through", "#/portfolio/look-through", "companies inside your funds"],
-      ["Portfolio › Exposure", "#/portfolio/exposure", "sectors regions"],
-      ["Portfolio › Overlap", "#/portfolio/overlap", "funds"],
+      ["Portfolio", "#/portfolio", "look-through companies inside your funds exposure sectors countries overlap concentration"],
+      ["Portfolio › Positions", "#/portfolio/positions", "units prices gains"],
       ["Changes", "#/changes", "what moved"],
       ["Plan", "#/plan", "projections contribution room"],
       ["Budget", "#/budget", "spending this month apple pay"],
@@ -51,11 +49,11 @@
     const held: Item[] = (view?.portfolio.securities ?? []).map((r) => ({
       id: `s:${r.symbol}`, section: "Holdings", label: r.symbol,
       hint: `${r.accounts.map((a) => a.name).join(" + ")}${r.value != null ? ` · ${formatMoney(r.value, view!.base_currency)}` : ""}`,
-      run: go("#/portfolio"),
+      run: go(`#/security/${encodeURIComponent(r.symbol)}`),
     }));
     const inside: Item[] = (lookthrough.current?.lookthrough.companies ?? []).slice(0, 300).map((c) => ({
       id: `c:${c.key}`, section: "Inside your funds", label: c.name, hint: `${c.ticker ?? ""} ${c.sector}`,
-      run: go("#/portfolio/look-through"),
+      run: go(`#/company/${encodeURIComponent(c.key)}`),
     }));
     const periods: Item[] = PRESETS.filter((p) => p.id !== "custom").map((p) => ({
       id: `p:${p.id}`, section: "Changes", label: `Changes · ${p.label}`, hint: `${p.title} what moved period`,

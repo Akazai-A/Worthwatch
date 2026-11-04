@@ -1,7 +1,7 @@
 // Browser-side wording and layout for the Changes screen. Period arithmetic on
 // dates only; every dollar figure comes from the server.
-import type { AccountDiff, ConstituentChange, FundFeed } from "../api";
-import { formatDate, formatSigned, formatPct } from "../format/money";
+import type { ConstituentChange, FundFeed } from "../api";
+import { formatDate, formatPct } from "../format/money";
 
 export type Preset = "checkin" | "1m" | "3m" | "ytd" | "1y" | "custom";
 export const PRESETS: { id: Preset; label: string; title: string }[] = [
@@ -67,51 +67,6 @@ export function parts(c: { market: string; trades: string; fx: string; balances:
     { label: "unpriced", value: Number(c.residual), hint: "Holdings without a price at one end, or no FX rate" },
   ];
   return all.filter((p) => Math.abs(p.value) >= 0.005);
-}
-
-/** One line under an account row: "USD → CAD · market +$2,653 · bought 14 XEQT.TO +$742 · fx −$12". */
-export function accountHint(a: AccountDiff, base: string, tradeNotes: string[]): string {
-  const bits: string[] = [];
-  if (a.currency !== base) bits.push(`${a.currency} → ${base}`);
-  const add = (label: string, v?: string | null) => {
-    if (v != null && Math.abs(Number(v)) >= 0.005) bits.push(`${label} ${formatSigned(v, base)}`);
-  };
-  add("market", a.market);
-  if (a.trades != null && Math.abs(Number(a.trades)) >= 0.005) bits.push(`${tradeNotes.length ? tradeNotes.join(", ") : "trades"} ${formatSigned(a.trades, base)}`);
-  add("fx", a.fx);
-  if (Math.abs(Number(a.residual)) >= 0.005) bits.push(`unpriced ${formatSigned(a.residual, base)}`);
-  if (a.missing_fx) bits.push("no FX rate");
-  if (a.missing_price) bits.push("a holding has no price");
-  if (a.from_value == null) bits.push("new in this period");
-  return bits.join(" · ");
-}
-
-/** What mostly moved an account: prices and FX, money you moved in or out, or a debt. */
-export type Cause = "market" | "money" | "debt";
-export interface BridgeStep { label: string; delta: number; folded?: number; account?: string; cause?: Cause }
-
-export function causeOf(a: AccountDiff): Cause {
-  if (a.liability) return "debt";
-  const m = Math.abs(Number(a.market ?? 0)) + Math.abs(Number(a.fx ?? 0));
-  const money = Math.abs(Number(a.balance ?? 0)) + Math.abs(Number(a.trades ?? 0));
-  return m > money ? "market" : "money";
-}
-
-/** One sentence for the top of Changes: the account that did most of it, or "spread across". */
-export function verdict(steps: BridgeStep[], change: number): { who: string; delta: number } | null {
-  const top = steps.filter((s) => !s.folded).sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))[0];
-  if (!top || Math.abs(change) < 0.5) return null;
-  return Math.abs(top.delta) >= Math.abs(change) * 0.25 ? { who: top.label, delta: top.delta } : null;
-}
-
-/** Keep the biggest movers; fold the rest into one step so the chart stays one screen tall. */
-export function bridgeSteps(accounts: AccountDiff[], keep = 8): BridgeStep[] {
-  const moving = accounts.filter((a) => Math.abs(Number(a.change)) >= 0.005);
-  const step = (a: AccountDiff): BridgeStep => ({ label: a.name, delta: Number(a.change), account: a.account, cause: causeOf(a) });
-  if (moving.length <= keep + 1) return moving.map(step);
-  const head = moving.slice(0, keep).map(step);
-  const tail = moving.slice(keep);
-  return [...head, { label: `${tail.length} others`, delta: tail.reduce((s, a) => s + Number(a.change), 0), folded: tail.length }];
 }
 
 /** "XEC 7.37% → 7.92% (+0.55 pt)" / "Celestica added at 0.84%" / "Algonquin Power removed (was 0.11%)". */

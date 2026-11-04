@@ -1,8 +1,9 @@
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use ledger::{io, Diagnostic, FxSource, Ledger, LedgerError, Mutation, PriceSource};
 use providers::cache::RefreshReport;
 use providers::holdings::HoldingsReport;
@@ -37,6 +38,9 @@ impl Snapshot {
     }
 }
 
+/// symbol -> when it was looked up, and what came back.
+pub type Lookups = BTreeMap<String, (DateTime<Utc>, providers::PriceHistory)>;
+
 #[derive(Clone)]
 pub struct AppState {
     pub ledger_path: PathBuf,
@@ -49,6 +53,9 @@ pub struct AppState {
     pub feed: Arc<RwLock<crate::api::budget::feed::FeedStatus>>,
     /// `WORTHWATCH_OFFLINE=1`: never touch the network (tests, air-gapped use).
     pub offline: bool,
+    /// Price history fetched on request for something you don't hold directly (a company
+    /// inside a fund), so its page has a chart. In memory only; a restart forgets it.
+    pub lookups: Arc<RwLock<Lookups>>,
     inner: Arc<RwLock<Snapshot>>,
     changed: broadcast::Sender<u64>,
 }
@@ -95,7 +102,8 @@ impl AppState {
         }));
         let txns = Arc::new(RwLock::new(budget::TxnStore::load(&data_dir.join("transactions"))));
         let feed = Arc::new(RwLock::new(crate::api::budget::feed::FeedStatus::default()));
-        Ok(Self { ledger_path, quotes_path, holdings_dir, txns, feed, offline, inner, changed })
+        let lookups = Arc::new(RwLock::new(BTreeMap::new()));
+        Ok(Self { ledger_path, quotes_path, holdings_dir, txns, feed, offline, lookups, inner, changed })
     }
 
     /// The folder everything lives in (`WORTHWATCH_DATA`).

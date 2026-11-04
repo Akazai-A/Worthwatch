@@ -57,7 +57,7 @@ pub struct SnapshotInfo {
 }
 
 const COMPANY_CAP: usize = 300;
-const DEPTH: u8 = 3;
+pub(crate) const DEPTH: u8 = 3;
 
 pub fn build_lookthrough(
     snap: &Snapshot,
@@ -113,6 +113,31 @@ pub fn build_lookthrough(
     }
 }
 
+#[derive(Serialize, Debug, PartialEq)]
+pub struct PathPoint {
+    pub date: NaiveDate,
+    pub close: Decimal,
+}
+
+/// Closes from the last one on or before `from` through `to`, per symbol.
+fn price_paths(
+    prices: &BTreeMap<String, BTreeMap<NaiveDate, Decimal>>,
+    symbols: &[&str],
+    from: NaiveDate,
+    to: NaiveDate,
+) -> BTreeMap<String, Vec<PathPoint>> {
+    symbols
+        .iter()
+        .filter_map(|s| {
+            let closes = prices.get(*s)?;
+            let start = closes.range(..=from).next_back().map_or(from, |(d, _)| *d);
+            let pts: Vec<PathPoint> =
+                closes.range(start..=to).map(|(d, c)| PathPoint { date: *d, close: *c }).collect();
+            (!pts.is_empty()).then(|| (s.to_string(), pts))
+        })
+        .collect()
+}
+
 /// Everything the Changes screen needs for one period: `GET /api/changes?from&to&threshold`.
 #[derive(Serialize)]
 pub struct ChangesView {
@@ -128,6 +153,9 @@ pub struct ChangesView {
     /// Percentage points a constituent must move to make the feed.
     pub threshold: Decimal,
     pub changes: derive::Changes,
+    /// Daily closes inside the period for each holding, in the currency it trades in:
+    /// the sparklines on Changes. The close on or before `from` starts each line.
+    pub paths: BTreeMap<String, Vec<PathPoint>>,
     /// Through funds (depth 3) and as held (depth 0), both ends valued on their own date.
     pub drift: holdings::Drift,
     pub as_held_drift: holdings::Drift,
@@ -163,7 +191,11 @@ pub struct ChangesQuery {
 const FEED_CAP: usize = 20;
 pub const DEFAULT_THRESHOLD: Decimal = Decimal::from_parts(5, 0, 0, false, 1);
 
-fn holdings_inputs(snap: &Snapshot, m: &derive::Market, date: NaiveDate) -> Vec<holdings::Holding> {
+pub(crate) fn holdings_inputs(
+    snap: &Snapshot,
+    m: &derive::Market,
+    date: NaiveDate,
+) -> Vec<holdings::Holding> {
     derive::portfolio(&snap.ledger, m, date)
         .securities
         .iter()
@@ -178,7 +210,7 @@ fn holdings_inputs(snap: &Snapshot, m: &derive::Market, date: NaiveDate) -> Vec<
         .collect()
 }
 
-fn security_meta(l: &ledger::Ledger) -> BTreeMap<String, holdings::SecurityMeta> {
+pub(crate) fn security_meta(l: &ledger::Ledger) -> BTreeMap<String, holdings::SecurityMeta> {
     l.securities
         .iter()
         .map(|(sym, sec)| {
@@ -262,6 +294,9 @@ pub fn build_changes(snap: &Snapshot, q: &ChangesQuery, today: NaiveDate) -> Res
             .then(a.diff.symbol.cmp(&b.diff.symbol))
     });
     let dates = derive::change_dates(l, &m);
+    let changes = derive::changes(l, &m, from, to);
+    let symbols: Vec<&str> = changes.holdings.iter().map(|h| h.symbol.as_str()).collect();
+    let paths = price_paths(&snap.quotes.prices, &symbols, from, to);
     Ok(ChangesView {
         version: snap.version,
         as_of: today,
@@ -271,7 +306,8 @@ pub fn build_changes(snap: &Snapshot, q: &ChangesQuery, today: NaiveDate) -> Res
         checkins: l.snapshots.keys().copied().collect(),
         first_date: dates.first().copied(),
         threshold,
-        changes: derive::changes(l, &m, from, to),
+        changes,
+        paths,
         funds_resolved_from: lt_from.funds.iter().filter(|f| f.resolved).count(),
         funds_resolved_to: lt_to.funds.iter().filter(|f| f.resolved).count(),
         drift,
@@ -394,6 +430,10 @@ mod tests {
         assert_eq!(v.threshold, dec!(0.5));
         assert!(v.changes.accounts.len() >= 9);
         assert!(!v.changes.holdings.is_empty());
+        // One price line per holding, starting at the close on or before `from`.
+        let vti = &v.paths["VTI"];
+        assert!(vti.first().unwrap().date <= v.from && vti.last().unwrap().date <= today);
+        assert!(vti.windows(2).all(|w| w[0].date < w[1].date));
         assert_eq!(v.checkins.len(), 15);
         assert_eq!(v.funds_resolved_to, 3);
         // The period (Oct 31 -> Nov 2) sees the same Oct 30 file at both ends: nothing to diff.

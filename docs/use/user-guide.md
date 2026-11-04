@@ -8,9 +8,9 @@ This page explains what each screen shows and how to use it. Every screen reads 
 
 Home answers "what am I worth, and is it going up?"
 
-- The large figure is your net worth in your base currency. Below it are the change since your last check-in, this year, and over one year.
-- The strip under the figure splits the change since your last check-in into market moves, cash and property, debt paid down, and FX. Select **Why it moved** to open Changes.
-- The chart opens on **Added vs grown**. It draws your net worth against what you put in yourself (saving, contributions and debt paid down), so the gap between the lines is what the market added. Switch to **Line** for net worth alone, or **By group** to see cash, investments, property and debt stacked.
+- The large figure is your net worth in your base currency. Below it are three changes: since your last check-in, this year, and the last 12 months, each in dollars and percent.
+- The strip under the changes splits the change since your last check-in into market moves, cash and property, debt paid down, and FX. Hover a part to light the accounts it came from.
+- The chart draws your net worth against what you put in yourself (saving, contributions and debt paid down), so the gap between the lines is what the market added. Hover any day to read both lines and the gap.
 - The group totals show investments, cash, debt and liquid net worth, each with its share of your assets. Each colour means the same group on every screen.
 - Each account row has a sparkline, its value, and how many days since you last updated it. Select a row to open the account's history.
 
@@ -34,39 +34,55 @@ Worthwatch values holdings from fetched prices. You don't need to type a value f
 
 ## Portfolio
 
-Portfolio has four tabs: **Positions**, **Look-through**, **Exposure** and **Overlap**.
+![Portfolio look-through page](../screenshots/portfolio/lookthrough-dark.png)
 
-### Look-through
+Portfolio opens on **Look-through**: the companies you own through your funds. A fund that holds other funds, such as XEQT, is opened up to three levels deep. **Positions**, the second tab, lists units, prices and gains.
 
-![Look-through treemap](../screenshots/portfolio/lookthrough-dark.png)
+### Find what you really own
 
-Look-through shows the companies you own through your funds. A fund that holds other funds, such as XEQT, is opened up to three levels deep. Each tile's size is your dollars in that company. Hover a tile for its weight and which funds it came from.
+- The treemap sizes each company by your dollars in it. Select a tile or a row in **Top companies** to see which funds carry it, in **Selected**.
+- **Top companies** lists your 50 biggest. The list scrolls inside its card.
+- An amber note under the total flags two funds that hold mostly the same things, such as `VFV.TO and VTI are 95% the same`.
 
-### Exposure
+### Compare your funds
 
-![Exposure breakdown](../screenshots/portfolio/exposure-dark.png)
+**Your funds** shows one row per fund:
 
-Exposure groups your money by sector, region, country, asset class and currency. Switch between **Look-through** (through every fund) and **As held** (each fund as one line).
+- **Your value**, with its share of your investments.
+- **Inside**: the fund split by sector family, in the treemap's colours.
+- **Acts like**: how many equal-sized names the fund spreads risk across.
 
-### Overlap
+A missing or old holdings file is flagged on the fund's row.
 
-![Fund overlap matrix](../screenshots/portfolio/overlap-dark.png)
+### Check your exposure
 
-Overlap shows how much each pair of funds holds in common. A high figure means the two funds mostly duplicate each other.
+**Exposure** shows country, sector, currency and asset class as one donut each, with the biggest share in the middle. Select **All** to list every bucket. Switch between **Look-through** (through every fund) and **As held** (each fund as one line).
 
 Fund holdings come from the issuers' published files. See [Prices, FX and fund holdings](data-sources.md#fund-holdings).
+
+## Open a fund or company
+
+![A fund's page](../screenshots/portfolio/security-dark.png)
+
+Select any fund or company name on Portfolio, Changes or <kbd>⌘</kbd> <kbd>K</kbd> to open its page.
+
+- **You own**: your dollars in it today, through every fund, and its share of your investments.
+- **Price**: a year of closes for anything you hold. For a company inside your funds, Worthwatch looks the price up when you open the page (never when offline).
+- **What you own**: your dollars in it at each check-in. Before your first holdings file, that file's weights stand in, and the page says so.
+- A fund's page shows its sector mix as a donut, lists what's inside it, and shows its overlap with your other funds. A company's page shows which of your funds it comes through.
 
 ## Changes
 
 ![Changes screen](../screenshots/changes/changes-dark.png)
 
-Changes explains the difference between two dates.
+Changes shows what moved in your investments between two dates, told through your funds. Net worth by account stays on Home; Changes links to it.
 
 1. Pick a period: **Since last check-in**, **1M**, **3M**, **YTD**, **1Y**, or enter custom dates.
-2. Read the bridge at the top. It splits the change into market moves, cash and property, debt paid down, and FX.
-3. Look at the panels below for each account, each holding, how your exposure drifted, and what your funds added or dropped.
+2. Read the tiles: one per fund, with its price line over the period, the % move, your dollars gained or lost, and units you bought or sold. Select a tile to open the fund's page.
+3. Look underneath: your dollars in each company and sector, through every fund.
+4. Look at **Inside your funds** for what each fund bought and sold itself.
 
-Hover any bar for the exact figures. Moves smaller than the threshold are counted but not listed. Change the threshold at the top of the fund panel.
+Moves smaller than the threshold are counted but not listed. Change the threshold at the top of **Inside your funds**.
 
 ## Chat
 

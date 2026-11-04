@@ -73,7 +73,7 @@ If your base currency isn't CAD, set `fx: off` and type every rate.
 
 ## Fund holdings
 
-Look-through, Exposure, Overlap and the Changes fund panel need to know what each fund holds.
+Portfolio, the fund and company pages, and Changes need to know what each fund holds.
 
 Worthwatch fetches holdings files from iShares (Canada and US) for every fund you hold, and for funds inside those funds, up to three levels. It checks for a new file every 30 days. Each new disclosure date is saved as a new file and old files are never rewritten, so Changes can compare a fund's holdings over time.
 

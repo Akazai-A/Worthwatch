@@ -33,11 +33,11 @@ colors:
   sage-gain-deep: "#4f7f52"
 typography:
   display:
-    fontFamily: "Newsreader, Georgia, serif"
-    fontSize: "4.25rem"
-    fontWeight: 500
+    fontFamily: "IBM Plex Sans, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "3.75rem"
+    fontWeight: 600
     lineHeight: 1
-    letterSpacing: "-0.01em"
+    letterSpacing: "-0.025em"
   headline:
     fontFamily: "IBM Plex Sans, ui-sans-serif, system-ui, sans-serif"
     fontSize: "22px"
@@ -137,7 +137,7 @@ The system is coherent in its colours and figures. It is generic in its scaffold
 - Warm graphite ground with bone text. Dark-first, with an equal light theme.
 - One brass accent, kept rare.
 - Fixed group colours: cash blue, investments orange, property green, debt violet. They mean the same thing on every chart.
-- Headline figures in the Newsreader serif; every other amount in IBM Plex Mono with tabular numerals. Prose in IBM Plex Sans.
+- Headline figures in IBM Plex Sans semibold; every other amount in IBM Plex Mono with tabular numerals. Prose in IBM Plex Sans. The Newsreader serif is kept for the budget game.
 - Flat, bordered surfaces. Depth comes from tone, not shadow.
 - Small type: most UI text is 11–13px.
 
@@ -177,14 +177,14 @@ A warm, low-chroma neutral system with one metallic accent and four fixed catego
 
 ## Typography
 
-**Display Font:** Newsreader (500), lining tabular numerals, for headline figures.
+**Display Font:** IBM Plex Sans (600), lining tabular numerals, for headline figures. Newsreader (500) only in the budget game.
 **Body Font:** IBM Plex Sans (400, 500, 600), with a system sans fallback.
 **Figures Font:** IBM Plex Mono (400, 500), with a system mono fallback.
 
-**Character:** Newsreader gives the headline figure a printed, private-ledger voice. Plex Sans is a quiet grotesque for labels and prose. Plex Mono gives every amount a ledger feel, and tabular numerals keep columns aligned.
+**Character:** the headline figure is plain and heavy, so it reads at a glance; the owner found the serif figure fussy. Plex Sans is a quiet grotesque for labels and prose. Plex Mono gives every amount a ledger feel, and tabular numerals keep columns aligned.
 
 ### Hierarchy
-- **Display** (Newsreader 500, 4.25rem, line-height 1, −0.01em): the headline figure on Home, Portfolio, Changes, Plan, Account and Budget. It drops to 3.25rem below 760px, and rolls like a counter when its value changes. Wall view scales to `clamp(64px, 10vw, 128px)`.
+- **Display** (Plex Sans 600, 3.75rem, line-height 1, −0.025em): the headline figure on Home, Portfolio, a holding's page, Plan, Account and Budget. It drops to 2.9rem below 760px, and rolls like a counter when its value changes. Wall view scales to `clamp(56px, 13vw, 176px)`.
 - **Headline** (Plex Sans 600, 22px, −0.01em): screen titles on Check-in, Chat and Account detail.
 - **Title** (Plex Sans 600, 20px): empty-state and detail headings.
 - **Body** (Plex Sans 400, 14px, line-height 1.45): base text. Explanatory paragraphs are capped near 52ch.

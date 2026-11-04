@@ -3,30 +3,25 @@
   import type { LedgerView, SecurityRow } from "../../lib/api";
   import { formatDate, formatPlain, formatUnits, formatPct } from "../../lib/format/money";
   import { providerLabel } from "../../lib/portfolio/market";
-  import { costByAccount } from "../../lib/portfolio/costgain";
   import Money from "../../lib/components/amounts/Money.svelte";
   import MarketLine from "../../lib/components/portfolio/MarketLine.svelte";
   import HoldingsLine from "../../lib/components/portfolio/HoldingsLine.svelte";
   import PortfolioTabs from "../../lib/components/portfolio/PortfolioTabs.svelte";
   import LookThrough from "./LookThrough.svelte";
-  import Exposure from "./Exposure.svelte";
-  import Overlap from "./Overlap.svelte";
   import { lookthrough } from "../../lib/stores/portfolio/lookthrough.svelte";
-  import type { PortfolioTab } from "../../lib/stores/route.svelte";
+  import { hashFor, type PortfolioTab } from "../../lib/stores/route.svelte";
 
-  let { view, tab = "positions" }: { view: LedgerView; tab?: PortfolioTab } = $props();
-  // The look-through view is its own call; keep it in step with the ledger version while a tab needs it.
+  let { view, tab = "lookthrough" }: { view: LedgerView; tab?: PortfolioTab } = $props();
+  // The look-through view is its own call; keep it in step with the ledger version. Positions use it too, for fund names.
   $effect(() => {
-    if (tab !== "positions") void lookthrough.ensure(view.version);
+    void lookthrough.ensure(view.version);
   });
   const lt = $derived(lookthrough.current);
   const cur = $derived(view.base_currency);
   const p = $derived(view.portfolio);
   const STALE_DAYS = 4;
   let open = $state<Record<string, boolean>>({});
-  // Book cost vs gain per account; the gap to Home's investments total is accounts with no positions.
-  const costs = $derived(costByAccount(p.securities));
-  const maxCost = $derived(Math.max(1, ...costs.map((r) => Math.max(r.value, r.cost ?? 0)), ...view.accounts.filter((a) => a.group === "investments" && a.positions == null).map((a) => Number(a.value ?? 0))));
+  const fundName = (sym: string) => lt?.lookthrough.funds.find((f) => f.symbol === sym)?.name ?? lt?.snapshots.find((s) => s.symbol === sym)?.name ?? null;
   // An investment account without positions (an FHSA that hasn't bought anything yet) holds cash:
   // that cash is a position of the account, so Portfolio and Home show the same investments total.
   const cashAccts = $derived(view.accounts.filter((a) => a.group === "investments" && a.positions == null && Number(a.value ?? 0) !== 0));
@@ -53,17 +48,13 @@
   </div>
   <PortfolioTabs {tab} />
 
-  {#if tab !== "positions"}
+  {#if tab === "lookthrough"}
     {#if lookthrough.error && !lt}
       <p class="error">Could not load look-through: {lookthrough.error}</p>
     {:else if !lt}
       <p class="faint">Loading…</p>
-    {:else if tab === "lookthrough"}
-      <LookThrough {lt} cash={cashList} />
-    {:else if tab === "exposure"}
-      <Exposure {lt} cash={cashList} />
     {:else}
-      <Overlap {lt} />
+      <LookThrough {lt} cash={cashList} />
     {/if}
   {:else if p.securities.length === 0}
     <section class="card empty">
@@ -92,35 +83,6 @@
       </div>
     </section>
 
-    {#if costs.length}
-      <section class="card cost" aria-label="What you put in and what it grew">
-        <div class="ch"><h2 class="label">What you put in, and what it grew</h2><span class="key"><span><i class="c"></i>book cost</span><span><i class="g"></i>gain</span>{#if costs.some((r) => (r.gain ?? 0) < 0)}<span><i class="l"></i>loss</span>{/if}</span></div>
-        {#each costs as r (r.account)}
-          {@const whole = Math.max(r.value, r.cost ?? 0)}
-          <div class="crow">
-            <span class="cn">{r.name}</span>
-            <span class="cb" style="width:{(whole / maxCost) * 100}%">
-              {#if r.cost != null && r.gain != null}
-                <!-- A gain extends past what you put in; a loss eats into it, shown in red at the end. -->
-                <i class="c" style="width:{(Math.min(r.cost, r.value) / whole) * 100}%"></i>
-                <i class={r.gain >= 0 ? "g" : "l"} style="width:{(Math.abs(r.gain) / whole) * 100}%"></i>
-              {:else}<i class="c" style="width:100%;opacity:.5" title="some holdings have no book cost"></i>{/if}
-            </span>
-            <span class="cv num">
-              {#if r.cost != null && r.gain != null}<Money value={r.cost} currency={cur} /> <Money value={r.gain} currency={cur} signed tone="delta" />{:else}<Money value={r.value} currency={cur} />{/if}
-            </span>
-          </div>
-        {/each}
-        {#each cashAccts as a (a.id)}
-          <div class="crow">
-            <span class="cn">{a.name}</span>
-            <span class="cb" style="width:{(Number(a.value) / maxCost) * 100}%"><i class="c cash" style="width:100%" title="cash, not invested yet"></i></span>
-            <span class="cv num"><Money value={a.value ?? 0} currency={cur} /> <span class="faint">cash</span></span>
-          </div>
-        {/each}
-      </section>
-    {/if}
-
     <section class="card">
       <h2 class="label">Positions · grouped by security</h2>
       <table>
@@ -131,8 +93,8 @@
             {@const multi = r.accounts.length > 1}
             <tr class="sec" class:multi onclick={() => multi && toggle(r.symbol)}>
               <td>
-                <span class="sym">{r.symbol}</span>
-                <span class="sub2">{r.accounts.map((a) => a.name).join(" + ")} · {r.currency}{#if r.currency !== cur && !r.missing_fx}&nbsp;→ {cur}{/if}{#if multi}&nbsp;<button type="button" class="tw" aria-expanded={!!open[r.symbol]} aria-label="Show each account holding {r.symbol}" onclick={(e) => { e.stopPropagation(); toggle(r.symbol); }}>{open[r.symbol] ? "▾" : "▸"}</button>{/if}</span>
+                <a class="sym" href={hashFor({ name: "security", symbol: r.symbol })} onclick={(e) => e.stopPropagation()}>{r.symbol}</a>
+                <span class="sub2">{#if fundName(r.symbol)}{fundName(r.symbol)} · {/if}{r.currency}{#if r.currency !== cur && !r.missing_fx}&nbsp;→ {cur}{/if}{#if multi}&nbsp;<button type="button" class="tw" aria-expanded={!!open[r.symbol]} aria-label="Show the {r.accounts.length} accounts holding {r.symbol}" onclick={(e) => { e.stopPropagation(); toggle(r.symbol); }}>{open[r.symbol] ? "▾" : "▸"}</button>{/if}</span>
               </td>
               <td class="r num">{formatUnits(r.units)}</td>
               <td class="r num">
@@ -194,26 +156,13 @@
   .hero .sub { margin-top: 8px; display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; }
   .chip { display: inline-flex; gap: 5px; align-items: baseline; }
   .warn { color: var(--warn); }
-  .ch { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
-  .ch h2 { margin: 0; }
-  .key { display: flex; gap: 14px; font-size: 12px; color: var(--text-2); }
-  .key i, .cb i { display: inline-block; }
-  .key i { width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; }
-  .crow { display: grid; grid-template-columns: 180px 1fr 210px; gap: 16px; align-items: center; padding: 7px 0; }
-  .cn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .cb { display: flex; gap: 2px; height: 12px; }
-  .cb i { height: 100%; }
-  .c { background: var(--fill); }
-  .c.cash { background: var(--fill-soft); }
-  .g { background: var(--positive); }
-  .l { background: var(--negative); }
-  .cv { text-align: right; display: flex; gap: 8px; justify-content: flex-end; }
   h2 { margin: 0 0 8px; font-weight: 500; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th { text-align: left; font-weight: 500; color: var(--text-3); font-size: 12px; padding: 4px 0; }
   td { padding: 8px 0; border-top: 1px solid var(--border); vertical-align: middle; }
   .r { text-align: right; }
-  .sym { font-weight: 500; }
+  .sym { font-weight: 500; color: var(--text); text-decoration: none; }
+  .sym:hover { color: var(--accent); }
   .sub2 { display: block; font-size: 11px; color: var(--text-3); }
   .multi { cursor: pointer; }
   .multi:hover .sym { color: var(--accent); }
@@ -227,8 +176,6 @@
   .note { font-size: 12px; margin: 12px 0 0; }
   code { font-family: var(--mono); font-size: 11px; }
   @media (max-width: 700px) {
-    .crow { grid-template-columns: 1fr 120px; }
-    .cb { grid-column: 1 / -1; grid-row: 2; }
     th:nth-child(2), td:nth-child(2), th:nth-child(5), td:nth-child(5) { display: none; }
     .wt { display: none; }
   }

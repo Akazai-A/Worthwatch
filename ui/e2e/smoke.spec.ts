@@ -39,7 +39,7 @@ test("first run: add an account, check in, the chart gets a point", async ({ pag
   await expect(page.locator(".swing")).toContainText("-22% from last time");
   await page.getByRole("button", { name: "Save check-in" }).click();
   await expect(page.locator(".hero .money.xl")).toHaveText("$5,102");
-  await expect(page.locator(".hero .sub")).toContainText("+$1,102");
+  await expect(page.locator(".hero .stats")).toContainText("+$1,102");
 });
 
 test("hand edit on disk shows up within a second; a broken edit shows a line number", async ({ page }) => {
@@ -91,14 +91,14 @@ test("paste a holdings export into a new investment account; portfolio values it
   const yaml = readFileSync(ledger(), "utf8");
   expect(yaml).toMatch(/symbol: ZAG\.TO\n\s+units: 200\n/);
   expect(yaml).toMatch(/from pasted holdings/);
-  await page.goto("/#/portfolio");
+  await page.goto("/#/portfolio/positions");
   await expect(page.locator(".portfolio .hero .money.xl")).toHaveText("$17,362");
   await expect(page.locator(".portfolio tbody tr.sec")).toHaveCount(2);
   await expect(page.locator(".portfolio .top")).toContainText("offline · manual prices only");
   await expect(page.locator("#refresh")).toHaveCount(0);
 });
 
-test("a holdings file dropped into data/holdings shows up in Look-through, Exposure and Overlap", async ({ page }) => {
+test("a holdings file dropped into data/holdings shows up on the look-through page: treemap, funds, exposure", async ({ page }) => {
   const { mkdirSync } = await import("node:fs");
   mkdirSync(join(dataDir, "holdings"), { recursive: true });
   const csv = [
@@ -113,7 +113,7 @@ test("a holdings file dropped into data/holdings shows up in Look-through, Expos
   ].join("\n");
   writeFileSync(join(dataDir, "holdings", "XEQT.TO.csv"), csv);
 
-  await page.goto("/#/portfolio/look-through");
+  await page.goto("/#/portfolio/look-through"); // an old link: lands on the look-through page
   await expect(page.getByRole("heading", { name: "No holdings files yet" })).toBeVisible();
   await page.locator("#refresh-holdings").click(); // offline: re-reads the folder
   await expect(page.locator(".treemap .cell")).toHaveCount(4); // 3 companies + ZAG.TO as itself
@@ -128,37 +128,52 @@ test("a holdings file dropped into data/holdings shows up in Look-through, Expos
   await expect(detail.locator(".money.l")).toHaveText("$8,731");
   expect(readFileSync(join(dataDir, "holdings", "XEQT.TO", "2026-10-30.json"), "utf8")).toContain("\"source\": \"file\"");
 
-  await page.goto("/#/portfolio/exposure");
-  const sector = page.locator(".read").filter({ hasText: "Sector" });
+  // Your funds: what's inside, and the missing file flagged on the fund.
+  const funds = page.locator(".funds");
+  await expect(funds).toContainText("XEQT.TO");
+  await expect(funds).toContainText("Tech 90%");
+  await expect(funds.locator(".row").filter({ hasText: "ZAG.TO" })).toContainText("no holdings file");
+
+  const sector = page.locator(".exp .q").filter({ hasText: "Sector" });
   await expect(sector).toContainText("Technology");
   await sector.getByRole("button", { name: /^All \d+/ }).click();
-  await expect(sector).toContainText("Unclassified"); // ZAG.TO, no file and no securities entry
+  await expect(page.locator(".exp .list")).toContainText("Unclassified"); // ZAG.TO, no file and no securities entry
   await page.getByRole("radio", { name: "As held" }).click();
-  await expect(sector).toContainText("Funds");
+  await expect(page.locator(".exp .list")).toContainText("Funds");
 
-  await page.goto("/#/portfolio/overlap");
-  await expect(page.locator(".empty")).toContainText("at least two funds");
+  // One fund on file: nothing to overlap, so no pair is flagged.
+  await expect(page.locator(".hero .sub")).not.toContainText("% the same");
+
+  // A fund's name opens its page: what you own, what's inside; a company opens its own.
+  await funds.getByRole("link", { name: "XEQT.TO" }).click();
+  await expect(page).toHaveURL(/#\/security\/XEQT\.TO$/);
+  await expect(page.locator(".sec h1")).toHaveText("XEQT.TO");
+  await expect(page.locator(".sec .hero .money.xl")).toHaveText(/^\$[\d,]+$/);
+  await expect(page.getByRole("heading", { name: "Inside XEQT.TO" })).toBeVisible();
+  await page.getByRole("link", { name: /Apple Inc/ }).click();
+  await expect(page.locator(".sec h1")).toHaveText("Apple Inc");
+  await expect(page.locator(".sec .hero .money.xl")).toHaveText("$8,731");
+  await expect(page.getByRole("link", { name: "XEQT.TO ›" })).toBeVisible();
+  // Offline, nothing is looked up: the chart shows what you own, and says why there's no price.
+  await expect(page.getByRole("radio", { name: "Price" })).toBeDisabled();
+  await expect(page.locator(".sec .chart")).toContainText("Offline");
+  await page.goto("/#/portfolio");
 });
 
-test("Changes compares the last check-in with today: bridge, accounts, holdings, and the fund feed", async ({ page }) => {
+test("Changes follows your funds between the last check-in and today: fund tiles, underneath, and the fund feed", async ({ page }) => {
   await page.goto("/#/changes");
-  // Check-ins so far: Jan 31 (4,000) and today (5,102.10 in TD Chequing), plus the pasted TFSA.
-  await expect(page.locator(".changes .hero .money.xl")).toContainText("+$");
+  // Check-ins so far: Jan 31 and today, plus the pasted TFSA. The page opens on your funds: no accounts, no net worth.
   await expect(page.locator(".range .dates")).toContainText("Jan 31 →");
-  await expect(page.locator("svg.bridge")).toBeVisible();
-  // The bridge is the account list: tab to a step for from → to.
-  const step = page.getByRole("listitem", { name: /^TD Chequing/ });
-  await expect(step).toBeVisible();
-  await step.focus();
-  const tip = page.locator(".fit .tip");
-  await expect(tip).toContainText("$4,000");
-  await expect(tip).toContainText("+$1,102");
-  // The pasted positions count as trades (the account did not exist on Jan 31).
-  const xeqt = page.locator(".hold tr", { hasText: "XEQT.TO" });
-  await expect(xeqt).toContainText("426.5");
-  await expect(xeqt).toContainText("+$14,552");
-  await expect(page.locator(".hero .split")).toContainText("contributions & trades");
-  // One holdings file per fund so far: nothing to compare yet.
+  await expect(page.locator(".changes")).not.toContainText("TD Chequing");
+  await expect(page.locator(".changes")).not.toContainText("net worth");
+  // One tile per fund; the pasted positions count as units bought (the account did not exist on Jan 31).
+  const tile = page.locator(".tile", { hasText: "XEQT.TO" });
+  await expect(tile).toContainText("+$14,552");
+  await expect(tile).toContainText("bought 426.5 units");
+  await tile.click();
+  await expect(page).toHaveURL(/#\/security\/XEQT\.TO$/);
+  await page.goBack();
+  // One holdings file per fund so far: nothing to compare underneath or in the feed.
   await expect(page.locator(".changes .empty-line").last()).toContainText("Only one holdings file per fund");
 
   // A custom range that starts before any data is clamped to the first known date.
@@ -170,7 +185,8 @@ test("Changes compares the last check-in with today: bridge, accounts, holdings,
   await page.getByRole("textbox", { name: "To" }).dispatchEvent("change");
   await expect(page.getByRole("heading", { name: "One check-in so far" })).toBeHidden();
   await expect(page.locator(".range .dates")).toContainText("Feb 15, 2026 · 15 days");
-  await expect(page.locator(".changes .hero .money.xl")).toHaveText("$0");
+  // No funds held yet in that window: the page says so.
+  await expect(page.getByRole("heading", { name: "No funds to follow" })).toBeVisible();
 });
 
 test("Chat: a message becomes a diff card, nothing is written until Approve; an MCP proposal waits for its own Approve", async ({ page, request }) => {
@@ -410,7 +426,7 @@ test("⌘⇧H hides every amount as stars, and shows them again", async ({ page 
   // The rail's utilities live in ⌘K now; the eye under the big figure shows the state.
   await expect(page.locator(".hero").getByRole("button", { name: "Show amounts" })).toHaveAttribute("aria-pressed", "true");
   // Unit counts are personal too; share prices are public and stay.
-  await page.goto("/#/portfolio");
+  await page.goto("/#/portfolio/positions");
   await expect(page.locator("table td.num").filter({ hasText: /^\*{5}$/ }).first()).toBeVisible();
   await page.goto("/#/");
   await page.keyboard.press("Control+Shift+H");

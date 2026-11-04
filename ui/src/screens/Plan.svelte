@@ -330,7 +330,7 @@
   .cols { display: flex; align-items: flex-end; border-top: 1px solid var(--border); padding-top: 16px; }
   .col { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 0 12px; }
   .cv { display: flex; flex-direction: column; align-items: center; }
-  .cv .money { font-family: var(--display); font-size: 1.4rem; line-height: 1.1; font-variant-numeric: lining-nums; }
+  .cv .money { font-family: var(--font); font-weight: 600; font-size: 1.4rem; line-height: 1.1; letter-spacing: -0.015em; font-variant-numeric: lining-nums tabular-nums; }
   .cg { font-size: 12px; color: var(--accent); }
   .stack { width: min(120px, 100%); display: flex; flex-direction: column; gap: 1px; }
   .stack i { display: block; min-height: 0; }

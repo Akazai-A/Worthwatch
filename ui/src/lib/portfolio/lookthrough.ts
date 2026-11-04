@@ -1,6 +1,6 @@
 // Browser-side wording for the look-through screens. No arithmetic on money here
 // beyond layout; every figure comes from the server.
-import type { Bucket, Company, FundStatus, Via } from "../api";
+import type { Bucket, Company, FundStatus, Overlap, SharedName, Via } from "../api";
 import { formatCompact, formatPct } from "../format/money";
 
 /** "XEQT.TO → XUS.TO" */
@@ -82,4 +82,46 @@ export function topBuckets(b: Bucket[], n: number): Bucket[] {
   const value = tail.reduce((s, x) => s + Number(x.value), 0);
   const pct = tail.reduce((s, x) => s + Number(x.pct), 0);
   return [...head, { label: `${tail.length} others`, value: value.toFixed(2), pct: pct.toFixed(1) }];
+}
+
+/** What one held fund is made of, by treemap family, as shares of the fund's disclosed dollars.
+ *  Layout only: the widths of a stacked bar. Families in FAMILY_ORDER, empty ones dropped. */
+export function fundMix(companies: Company[], symbol: string): { family: Family; share: number }[] {
+  const by = new Map<Family, number>();
+  let sum = 0;
+  for (const c of companies) {
+    for (const v of c.via) {
+      if (v.path[0] !== symbol) continue;
+      const f = familyOf(c.slot);
+      by.set(f, (by.get(f) ?? 0) + Number(v.value));
+      sum += Number(v.value);
+    }
+  }
+  if (sum <= 0) return [];
+  return FAMILY_ORDER.filter((f) => (by.get(f) ?? 0) > 0).map((f) => ({ family: f, share: by.get(f)! / sum }));
+}
+
+export interface Pair { a: string; b: string; pct: number; shared_value: string; shared: SharedName[] }
+/** Each pair of funds with a file once, biggest overlap first. `a` is the side with fewer dollars
+ *  in common, so the sentence reads "$X of your A is already in B". */
+export function overlapPairs(o: Overlap): Pair[] {
+  const idx = o.symbols.map((_, i) => i).filter((i) => o.cells[i][i] != null);
+  const out: Pair[] = [];
+  for (const i of idx) for (const j of idx) {
+    if (j <= i) continue;
+    const ij = o.cells[i][j], ji = o.cells[j][i];
+    if (!ij || !ji) continue;
+    const [a, b, cell] = Number(ij.shared_value) <= Number(ji.shared_value) ? [i, j, ij] : [j, i, ji];
+    out.push({ a: o.symbols[a], b: o.symbols[b], pct: Number(ij.pct), shared_value: cell.shared_value, shared: cell.shared });
+  }
+  return out.sort((x, y) => y.pct - x.pct);
+}
+
+/** Two funds this much alike get a flag. */
+export const FLAG = { pair: 50 } as const;
+
+/** For each fund, its biggest overlap with another of your funds, if any. */
+export function closestTwin(pairs: Pair[], symbol: string): { other: string; pct: number } | null {
+  const p = pairs.find((q) => q.a === symbol || q.b === symbol);
+  return p ? { other: p.a === symbol ? p.b : p.a, pct: p.pct } : null;
 }

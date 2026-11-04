@@ -359,7 +359,7 @@
   .playbtn circle { fill: var(--accent); }
   .link { background: none; border: 0; color: var(--accent); font: inherit; cursor: pointer; padding: 0; }
   .hero { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: end; }
-  .big { font-family: var(--display); font-size: 4rem; font-weight: 500; letter-spacing: -0.01em; line-height: 1; font-variant-numeric: lining-nums tabular-nums; }
+  .big { font-family: var(--font); font-size: 3.75rem; font-weight: 600; letter-spacing: -0.025em; line-height: 1; font-variant-numeric: lining-nums tabular-nums; }
   .sub { color: var(--text-2); font-size: 13px; }
   .sub b { font-weight: 500; color: var(--text); }
   .neg { color: var(--negative) !important; }

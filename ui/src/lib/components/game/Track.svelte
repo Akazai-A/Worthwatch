@@ -78,7 +78,7 @@
 </div>
 
 <style>
-  .track { width: 100%; min-width: 0; }
+  .track { width: 100%; min-width: 0; contain: inline-size; }
   svg { display: block; width: 100%; height: auto; overflow: visible; }
   svg text { font-family: var(--mono); text-anchor: middle; }
   .road { fill: none; stroke: var(--border); stroke-width: 22; stroke-linecap: round; }

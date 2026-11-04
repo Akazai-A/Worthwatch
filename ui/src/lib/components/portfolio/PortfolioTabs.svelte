@@ -2,10 +2,8 @@
   import { hashFor, type PortfolioTab } from "../../stores/route.svelte";
   let { tab }: { tab: PortfolioTab } = $props();
   const TABS: { tab: PortfolioTab; label: string }[] = [
-    { tab: "positions", label: "Positions" },
     { tab: "lookthrough", label: "Look-through" },
-    { tab: "exposure", label: "Exposure" },
-    { tab: "overlap", label: "Overlap" },
+    { tab: "positions", label: "Positions" },
   ];
 </script>
 

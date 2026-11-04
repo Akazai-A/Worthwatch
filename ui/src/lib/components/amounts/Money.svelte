@@ -40,13 +40,14 @@
 <style>
   .s { font-size: 0.875rem; }
   .l { font-size: 1.25rem; font-weight: 500; }
-  /* Headline figures: the serif display face, lining tabular numerals, no tight tracking (it read "$279 , 877"). */
-  .xl { font-family: var(--display); font-size: 4.25rem; font-weight: 500; letter-spacing: -0.01em; line-height: 1; font-variant-numeric: lining-nums tabular-nums; }
+  /* Headline figures: the sans at semibold, tabular numerals, tracked in a little so it reads as one figure. */
+  .xl { font-family: var(--font); font-size: 3.75rem; font-weight: 600; letter-spacing: -0.025em; line-height: 1; font-variant-numeric: lining-nums tabular-nums; }
   .xl { display: inline-flex; white-space: nowrap; }
   /* One reel of 0–9 per digit, clipped to a single line and moved to the current digit. The glyphs are
      generated content, so the element's text (copy, tests, screen readers) is just the figure in .sr. */
-  .dg { display: inline-block; height: 1em; overflow: hidden; line-height: 1; }
-  .reel { display: block; transform: translateY(calc(var(--d) * -1em)); }
+  /* Rows sit --row apart, taller than a glyph, so the next digit never peeks in under the window. */
+  .dg { --row: 1.4em; display: inline-block; height: 1.12em; margin-bottom: -0.12em; overflow: hidden; contain: paint; line-height: var(--row); }
+  .reel { display: block; transform: translateY(calc(var(--d) * -1 * var(--row) - (var(--row) - 1em) / 2)); }
   .reel::before { content: "0\A 1\A 2\A 3\A 4\A 5\A 6\A 7\A 8\A 9"; white-space: pre; display: block; }
   .ch::before { content: attr(data-c); }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -55,5 +56,5 @@
   }
   .neg, .down { color: var(--negative); }
   .up { color: var(--positive); }
-  @media (max-width: 760px) { .xl { font-size: 3.25rem; } }
+  @media (max-width: 760px) { .xl { font-size: 2.9rem; } }
 </style>

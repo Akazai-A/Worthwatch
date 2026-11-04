@@ -237,8 +237,7 @@
   .choice.own input { width: 90px; background: var(--surface-2); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 4px 6px; font: inherit; text-align: center; }
   .hrow { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 12px; }
   .hand h2 { margin: 0; }
-  .cards { display: flex; gap: 16px; overflow-x: auto; padding: 6px 12px 40px; margin: 0 -12px -26px; scroll-snap-type: x mandatory; }
-  .cards > :global(*) { scroll-snap-align: start; }
+  .cards { display: flex; flex-wrap: wrap; gap: 16px; padding: 6px 0 40px; margin-bottom: -26px; }
   .deck { width: 120px; height: 226px; flex: none; border-radius: 14px; border: 1px dashed var(--border); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; color: var(--text-3); font-size: 12px;
     background: repeating-linear-gradient(45deg, var(--surface-2) 0 6px, transparent 6px 12px); }
   .deck-n { font-size: 26px; color: var(--text-2); }

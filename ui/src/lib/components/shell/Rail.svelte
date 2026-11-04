@@ -39,7 +39,7 @@
   {/if}
   <a class="nav" class:on={name === "home" || name === "account"} aria-current={name === "home" || name === "account" ? "page" : undefined} href="#/">Home</a>
   <a class="nav" class:on={name === "checkin"} aria-current={name === "checkin" ? "page" : undefined} href="#/check-in">Check-in</a>
-  <a class="nav" class:on={name === "portfolio"} aria-current={name === "portfolio" ? "page" : undefined} href="#/portfolio">Portfolio</a>
+  <a class="nav" class:on={name === "portfolio" || name === "security" || name === "company"} aria-current={name === "portfolio" ? "page" : undefined} href="#/portfolio">Portfolio</a>
   <a class="nav" class:on={name === "changes"} aria-current={name === "changes" ? "page" : undefined} href="#/changes">Changes</a>
   <a class="nav wide" class:on={name === "plan"} aria-current={name === "plan" ? "page" : undefined} href="#/plan">Plan</a>
   <a class="nav wide" class:on={name === "budget" || name === "play"} aria-current={name === "budget" || name === "play" ? "page" : undefined} href="#/budget">Budget</a>

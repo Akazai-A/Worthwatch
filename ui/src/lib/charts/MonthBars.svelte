@@ -53,7 +53,8 @@
 </div>
 
 <style>
-  .mb { position: relative; }
+  /* contain: inline-size: a measured width never props its parent open, so the chart shrinks when the window does. */
+  .mb { position: relative; contain: inline-size; }
   svg { display: block; overflow: visible; }
   .z { stroke: var(--border); }
   .hit { fill: transparent; }

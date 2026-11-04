@@ -195,6 +195,22 @@ impl HoldingsStore {
         self.dates.keys().filter_map(|s| self.at(s, date).map(|h| (s.clone(), h))).collect()
     }
 
+    /// Like [`Self::snapshots_at`], but a fund with no snapshot that old gets its earliest
+    /// one: for a "what you had then" estimate before the first file arrived.
+    pub fn snapshots_near(&self, date: NaiveDate) -> BTreeMap<String, FundHoldings> {
+        self.dates
+            .iter()
+            .filter_map(|(s, ds)| {
+                self.at(s, date).or_else(|| self.at(s, *ds.first()?)).map(|h| (s.clone(), h))
+            })
+            .collect()
+    }
+
+    /// The date of the earliest snapshot on disk for any fund.
+    pub fn earliest(&self) -> Option<NaiveDate> {
+        self.dates.values().filter_map(|ds| ds.first().copied()).min()
+    }
+
     /// Symbols among `held` with no snapshot or one older than [`STALE_DAYS`].
     pub fn stale(&self, held: &[String], today: NaiveDate) -> Vec<String> {
         held.iter()
