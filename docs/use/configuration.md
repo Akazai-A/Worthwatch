@@ -115,6 +115,8 @@ contributions:             # money you put in; negative is a withdrawal
 
 Each account has a `kind`. The kind decides its group on charts and which room it counts against.
 
+Worthwatch is built for Canadian investors. The registered kinds `tfsa`, `rrsp`, `fhsa` and `resp` follow CRA rules, and Plan tracks contribution room for TFSA, RRSP and FHSA. If you invest outside Canada, use `non_registered` for your investment accounts.
+
 | Group | Kinds |
 |---|---|
 | Cash | `chequing`, `savings` |

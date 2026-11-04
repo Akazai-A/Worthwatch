@@ -11,6 +11,12 @@
 </p>
 
 <p align="center">
+  🇨🇦 <b>Built for Canadian investors.</b> Canada has no open banking yet, so cloud trackers ask for your bank password<br>
+  and scrape your accounts, which usually breaks your bank's terms. Worthwatch never logs in to your bank.<br>
+  It knows TFSA, RRSP and FHSA room, values in CAD, and uses Bank of Canada exchange rates.
+</p>
+
+<p align="center">
   <a href="#quick-start">Quick start</a> ·
   <a href="docs/use/getting-started.md">Get started</a> ·
   <a href="docs/use/user-guide.md">User guide</a> ·

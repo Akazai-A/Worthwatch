@@ -2,6 +2,8 @@
 
 This page shows you how to install Worthwatch, look around with sample data, and record your first balances. It takes about ten minutes.
 
+Worthwatch is built for Canadian investors. Canada has no open banking yet, so there's no approved way for an app to read your bank accounts. Worthwatch never asks for your bank password and never scrapes your bank, so you stay within your bank's terms. You type balances, paste broker exports, or import the statements you download. It knows TFSA, RRSP and FHSA accounts, values everything in CAD by default, and fetches exchange rates from the Bank of Canada. You can use another base currency, but you then type exchange rates yourself. See [Set your base currency](configuration.md#set-your-base-currency).
+
 ## Before you begin
 
 Choose how you want to run Worthwatch:
