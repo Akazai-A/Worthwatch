@@ -39,7 +39,7 @@ test("first run: add an account, check in, the chart gets a point", async ({ pag
   await expect(page.locator(".swing")).toContainText("-22% from last time");
   await page.getByRole("button", { name: "Save check-in" }).click();
   await expect(page.locator(".hero .money.xl")).toHaveText("$5,102");
-  await expect(page.locator(".hero .sub")).toContainText("+$1,102");
+  await expect(page.locator(".hero .stats")).toContainText("+$1,102");
 });
 
 test("hand edit on disk shows up within a second; a broken edit shows a line number", async ({ page }) => {
@@ -134,12 +134,12 @@ test("a holdings file dropped into data/holdings shows up on the look-through pa
   await expect(funds).toContainText("Tech 90%");
   await expect(funds.locator(".row").filter({ hasText: "ZAG.TO" })).toContainText("no holdings file");
 
-  const sector = page.locator(".exp .read").filter({ hasText: "Sector" });
+  const sector = page.locator(".exp .q").filter({ hasText: "Sector" });
   await expect(sector).toContainText("Technology");
   await sector.getByRole("button", { name: /^All \d+/ }).click();
-  await expect(sector).toContainText("Unclassified"); // ZAG.TO, no file and no securities entry
+  await expect(page.locator(".exp .list")).toContainText("Unclassified"); // ZAG.TO, no file and no securities entry
   await page.getByRole("radio", { name: "As held" }).click();
-  await expect(sector).toContainText("Funds");
+  await expect(page.locator(".exp .list")).toContainText("Funds");
 
   // One fund on file: nothing to overlap, so no pair is flagged.
   await expect(page.locator(".hero .sub")).not.toContainText("% the same");

@@ -1,19 +1,23 @@
 <script lang="ts">
   import PrivacyToggle from "../../lib/components/shell/PrivacyToggle.svelte";
-  import { GROUPS, GROUP_LABEL, getChanges, getGrowth, type AccountDiff, type AccountView, type Changes, type GrowthPoint, type LedgerView } from "../../lib/api";
+  import { GROUPS, GROUP_LABEL, getChanges, getGrowth, type AccountDiff, type AccountView, type Changes, type Delta, type GrowthPoint, type LedgerView } from "../../lib/api";
   import { formatDate, formatMoney, formatSigned } from "../../lib/format/money";
   import { parts } from "../../lib/portfolio/changes";
   import { checkinMonths } from "../../lib/networth/cadence";
   import SplitStrip from "../../lib/components/amounts/SplitStrip.svelte";
   import { prefs } from "../../lib/stores/prefs.svelte";
-  import { changes } from "../../lib/stores/portfolio/changes.svelte";
   import Money from "../../lib/components/amounts/Money.svelte";
   import NetWorthChart from "../../lib/charts/NetWorthChart.svelte";
   import MarketLine from "../../lib/components/portfolio/MarketLine.svelte";
 
   let { view }: { view: LedgerView } = $props();
   // "Why it moved" opens Changes on the same period as the headline, so the numbers match.
-  const samePeriod = () => { if (view.deltas.previous) changes.setCustom(view.deltas.previous.from, view.as_of); };
+  // Three labelled changes under the figure: since the last check-in, this year, the last 12 months.
+  const stats = $derived([
+    view.deltas.previous && { k: `Since ${formatDate(view.deltas.previous.from)}`, d: view.deltas.previous },
+    view.deltas.ytd && { k: "This year", d: view.deltas.ytd },
+    view.deltas.one_year && { k: "Last 12 months", d: view.deltas.one_year },
+  ].filter((x): x is { k: string; d: Delta } => !!x));
   const STALE_DAYS = 45;
 
   const cur = $derived(view.base_currency);
@@ -100,29 +104,22 @@
     </section>
   {:else}
     <section class="hero">
-      <h1 class="label">Net worth</h1>
+      <h1 class="label hl">Net worth <PrivacyToggle /></h1>
       <Money value={view.totals.net_worth} currency={cur} size="xl" />
-      <div class="sub">
-        <PrivacyToggle />
-        {#if view.deltas.previous}
-          <a class="chip link" href="#/changes" onclick={samePeriod} title="What moved it: Changes"><Money value={view.deltas.previous.amount} currency={cur} signed tone="delta" />
-            <span class="muted">{#if view.deltas.previous.pct != null}({view.deltas.previous.pct}%)&nbsp;{/if}since {formatDate(view.deltas.previous.from)}</span></a>
-        {/if}
-        {#if view.deltas.ytd}
-          <span class="chip"><Money value={view.deltas.ytd.amount} currency={cur} signed /><span class="muted">YTD</span></span>
-        {/if}
-        {#if view.deltas.one_year?.pct != null}
-          <span class="chip"><span class="num">{Number(view.deltas.one_year.pct) > 0 ? "+" : ""}{view.deltas.one_year.pct}%</span><span class="muted">1Y</span></span>
-        {/if}
-        {#if !view.deltas.previous && !view.deltas.ytd}
-          <span class="muted">One check-in so far. The change line appears after the next one.</span>
-        {/if}
-      </div>
+      {#if stats.length}
+        <div class="stats">
+          {#each stats as st (st.k)}
+            <div class="stat">
+              <div class="k">{st.k}</div>
+              <div class="v">{#if st.d.amount != null}<Money value={st.d.amount} currency={cur} signed tone="delta" />{/if}{#if st.d.pct != null}<span class="pct num">{Number(st.d.pct) > 0 ? "+" : ""}{st.d.pct}%</span>{/if}</div>
+            </div>
+          {/each}
+        </div>
+      {:else}
+        <p class="muted one">One check-in so far. The change line appears after the next one.</p>
+      {/if}
       {#if whyParts.length}
-        <a class="why" href="#/changes" onclick={samePeriod} title="What moved it: Changes">
-          <SplitStrip parts={whyParts} currency={cur} height={6} legend blur={prefs.blur} bind:lit />
-          <span class="go">Why it moved →</span>
-        </a>
+        <div class="why"><SplitStrip parts={whyParts} currency={cur} height={6} legend blur={prefs.blur} bind:lit /></div>
       {/if}
     </section>
 
@@ -205,10 +202,12 @@
   .small { font-size: 12px; }
   .btn { background: var(--accent); color: var(--bg); border: 0; border-radius: 8px; padding: 9px 16px; font-weight: 600; text-decoration: none; }
   code { font-family: var(--mono); font-size: 12px; }
-  .hero .sub { margin-top: 8px; display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; }
-  .chip { display: inline-flex; gap: 5px; align-items: baseline; }
-  a.chip { text-decoration: none; color: inherit; }
-  a.chip:hover .muted { color: var(--accent); }
+  .hl { display: flex; align-items: center; gap: 10px; }
+  .stats { display: flex; flex-wrap: wrap; gap: 12px 32px; margin-top: 16px; }
+  .stat .k { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); }
+  .stat .v { margin-top: 3px; font-family: var(--figures); font-size: 17px; display: flex; gap: 6px; align-items: baseline; }
+  .stat .pct { font-size: 12px; color: var(--text-2); }
+  .one { margin: 10px 0 0; font-size: 13px; }
   .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
   /* Ledger tiles: no box, a rule on top in the group's colour. */
   .tile { padding: 10px 0 0; border-top: 2px solid var(--gc, var(--text-3)); }
@@ -245,10 +244,7 @@
   .tick { display: block; height: 4px; border-radius: 1px; background: var(--text-3); }
   .tick.hatch { width: 16px; background: repeating-linear-gradient(-45deg, var(--warn) 0 2px, transparent 2px 4px); }
   .old { color: var(--warn); }
-  .why { display: flex; align-items: flex-end; gap: 16px; margin-top: 14px; color: inherit; text-decoration: none; font-size: 12px; }
-  .why :global(.strip) { flex: 1; max-width: 560px; }
-  .go { color: var(--text-2); white-space: nowrap; }
-  .why:hover .go { color: var(--accent); }
+  .why { margin-top: 18px; max-width: 560px; font-size: 12px; }
   /* The check-in rhythm: a year of month ticks, and a stamp once this month is in. */
   .rhythm { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; border-top: 1px solid var(--border); padding-top: 14px; }
   .stamp { display: inline-flex; gap: 8px; align-items: baseline; border: 1.5px solid var(--accent); color: var(--accent); border-radius: 4px; padding: 3px 10px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; transform: rotate(-1.5deg); }

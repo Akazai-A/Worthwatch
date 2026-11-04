@@ -12,6 +12,7 @@
   import PrivacyToggle from "../../lib/components/shell/PrivacyToggle.svelte";
   import Lineage from "../../lib/components/portfolio/Lineage.svelte";
   import LineChart from "../../lib/charts/LineChart.svelte";
+  import Donut from "../../lib/charts/Donut.svelte";
 
   let { view, symbol, company }: { view: LedgerView; symbol?: string; company?: string } = $props();
   $effect(() => { void lookthrough.ensure(view.version); });
@@ -48,6 +49,8 @@
   const win = $derived(data ? window(data.prices, range) : null);
   const mode = $derived(win ? show : "yours");
   const yoursPts = $derived((data?.yours ?? []).map((y) => ({ date: y.date, v: Number(y.value) })));
+  // Sector families in the treemap's colours; bonds, cash and the rest a soft grey.
+  const famColor = (family: string) => { const h = familyHue(family as never); return h === "--f-none" ? "var(--fill-soft)" : `var(${h})`; };
   const famHue = (slot: string) => { const h = familyHue(familyOf(slot)); return h === "--f-none" ? "var(--fill)" : `var(${h})`; };
 </script>
 
@@ -120,8 +123,10 @@
         <section class="card">
           <div class="cht"><h2 class="label">Inside {sym}</h2>{#if fund?.effective_holdings}<span class="faint small" title="1 ÷ the sum of squared weights inside the fund">acts like ~{fund.effective_holdings} equal names</span>{/if}</div>
           {#if mix.length}
-            <div class="stack" title={mix.map((m) => `${m.family} ${formatPct(m.share * 100, 0)}`).join(" · ")}>{#each mix as m (m.family)}<i style="width:{m.share * 100}%;background:{familyHue(m.family) === '--f-none' ? 'var(--fill-soft)' : `var(${familyHue(m.family)})`}"></i>{/each}</div>
-            <div class="keys">{#each mix.slice(0, 4) as m (m.family)}<span><i class="sq" style="background:{familyHue(m.family) === '--f-none' ? 'var(--fill-soft)' : `var(${familyHue(m.family)})`}"></i>{m.family} <b class="num">{formatPct(m.share * 100, 0)}</b></span>{/each}</div>
+            <div class="mix">
+              <Donut size={132} label="Inside {sym}" slices={mix.map((m) => ({ label: m.family, value: m.share, color: famColor(m.family) }))} />
+              <div class="keys">{#each mix as m (m.family)}<span><i class="sq" style="background:{famColor(m.family)}"></i>{m.family} <b class="num">{formatPct(m.share * 100, 0)}</b></span>{/each}</div>
+            </div>
           {/if}
           {#if inside.length}
             {@const max = inside[0].share}
@@ -211,9 +216,8 @@
   h2.label { margin: 0 0 10px; font-weight: 500; }
   h2.gap { margin-top: 18px; }
   .small { font-size: 12px; }
-  .stack { display: flex; gap: 1px; height: 10px; border-radius: 3px; overflow: hidden; background: var(--surface-2); }
-  .stack i { display: block; height: 100%; }
-  .keys { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 7px 0 10px; font-size: 12px; color: var(--text-2); }
+  .mix { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; margin: 4px 0 12px; }
+  .keys { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-2); }
   .keys b { color: var(--text); font-weight: 500; }
   .sq { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
   .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 7px; vertical-align: 1px; }

@@ -8,9 +8,9 @@ This page explains what each screen shows and how to use it. Every screen reads 
 
 Home answers "what am I worth, and is it going up?"
 
-- The large figure is your net worth in your base currency. Below it are the change since your last check-in, this year, and over one year.
-- The strip under the figure splits the change since your last check-in into market moves, cash and property, debt paid down, and FX. Select **Why it moved** to open Changes.
-- The chart opens on **Added vs grown**. It draws your net worth against what you put in yourself (saving, contributions and debt paid down), so the gap between the lines is what the market added. Switch to **Line** for net worth alone, or **By group** to see cash, investments, property and debt stacked.
+- The large figure is your net worth in your base currency. Below it are three changes: since your last check-in, this year, and the last 12 months, each in dollars and percent.
+- The strip under the changes splits the change since your last check-in into market moves, cash and property, debt paid down, and FX. Hover a part to light the accounts it came from.
+- The chart draws your net worth against what you put in yourself (saving, contributions and debt paid down), so the gap between the lines is what the market added. Hover any day to read both lines and the gap.
 - The group totals show investments, cash, debt and liquid net worth, each with its share of your assets. Each colour means the same group on every screen.
 - Each account row has a sparkline, its value, and how many days since you last updated it. Select a row to open the account's history.
 
@@ -56,7 +56,7 @@ A missing or old holdings file is flagged on the fund's row.
 
 ### Check your exposure
 
-**Exposure** shows country, sector, currency and asset class as one bar each. Select **All** to list every bucket. Switch between **Look-through** (through every fund) and **As held** (each fund as one line).
+**Exposure** shows country, sector, currency and asset class as one donut each, with the biggest share in the middle. Select **All** to list every bucket. Switch between **Look-through** (through every fund) and **As held** (each fund as one line).
 
 Fund holdings come from the issuers' published files. See [Prices, FX and fund holdings](data-sources.md#fund-holdings).
 
@@ -69,7 +69,7 @@ Select any fund or company name on Portfolio, Changes or <kbd>⌘</kbd> <kbd>K</
 - **You own**: your dollars in it today, through every fund, and its share of your investments.
 - **Price**: a year of closes for anything you hold. For a company inside your funds, Worthwatch looks the price up when you open the page (never when offline).
 - **What you own**: your dollars in it at each check-in. Before your first holdings file, that file's weights stand in, and the page says so.
-- A fund's page lists what's inside it and its overlap with your other funds. A company's page shows which of your funds it comes through.
+- A fund's page shows its sector mix as a donut, lists what's inside it, and shows its overlap with your other funds. A company's page shows which of your funds it comes through.
 
 ## Changes
 

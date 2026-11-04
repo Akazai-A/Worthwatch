@@ -40,8 +40,8 @@
 <style>
   .s { font-size: 0.875rem; }
   .l { font-size: 1.25rem; font-weight: 500; }
-  /* Headline figures: the serif display face, lining tabular numerals, no tight tracking (it read "$279 , 877"). */
-  .xl { font-family: var(--display); font-size: 4.25rem; font-weight: 500; letter-spacing: -0.01em; line-height: 1; font-variant-numeric: lining-nums tabular-nums; }
+  /* Headline figures: the sans at semibold, tabular numerals, tracked in a little so it reads as one figure. */
+  .xl { font-family: var(--font); font-size: 3.75rem; font-weight: 600; letter-spacing: -0.025em; line-height: 1; font-variant-numeric: lining-nums tabular-nums; }
   .xl { display: inline-flex; white-space: nowrap; }
   /* One reel of 0–9 per digit, clipped to a single line and moved to the current digit. The glyphs are
      generated content, so the element's text (copy, tests, screen readers) is just the figure in .sr. */
@@ -56,5 +56,5 @@
   }
   .neg, .down { color: var(--negative); }
   .up { color: var(--positive); }
-  @media (max-width: 760px) { .xl { font-size: 3.25rem; } }
+  @media (max-width: 760px) { .xl { font-size: 2.9rem; } }
 </style>
