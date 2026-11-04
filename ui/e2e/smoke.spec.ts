@@ -341,7 +341,7 @@ test("Play: the game asks for a budget, then a goal; the jar and today's token s
   await expect(page.getByRole("heading", { name: /^Pick a goal for / })).toBeVisible();
   await page.locator(".choice").first().click();
   await expect(page.getByRole("heading", { name: /^Pick a goal for / })).toHaveCount(0);
-  await expect(page.locator(".jarbox")).toContainText(/of \$\d/);
+  await expect(page.locator(".jarbox")).toContainText(/(of|past the) \$\d/);
   await expect(page.locator(".tile.today")).toHaveCount(1);
   const game = await (await request.get("/api/game")).json();
   expect(Number(game.goal)).toBeGreaterThan(0);
