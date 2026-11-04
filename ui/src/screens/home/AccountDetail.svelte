@@ -54,7 +54,7 @@
     {#if a.holdings.length}
       <section class="card">
         <h2 class="label">Holdings</h2>
-        <table>
+        <table class="hold">
           <thead><tr><th>Symbol</th><th class="r">Units</th><th class="r">Price ({a.currency})</th><th class="r">Value ({a.currency})</th><th class="r">Book cost</th><th class="r">Gain</th></tr></thead>
           <tbody>
             {#each a.holdings as h}
@@ -117,8 +117,12 @@
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th { text-align: left; font-weight: 500; color: var(--text-3); font-size: 12px; padding: 4px 0; }
   td { padding: 7px 0; border-top: 1px solid var(--border); }
-  .r { text-align: right; }
+  .r { text-align: right; padding-left: 10px; }
   .small { font-size: 11px; }
+  /* Holdings on a phone: units and book cost step aside so value and gain stay on screen. */
+  @media (max-width: 600px) {
+    .hold th:nth-child(2), .hold td:nth-child(2), .hold th:nth-child(5), .hold td:nth-child(5) { display: none; }
+  }
   .warn { color: var(--warn); }
   .hh { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
   .key { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: baseline; font-size: 12px; color: var(--text-2); margin-top: 8px; }

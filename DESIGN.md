@@ -184,7 +184,7 @@ A warm, low-chroma neutral system with one metallic accent and four fixed catego
 **Character:** the headline figure is plain and heavy, so it reads at a glance; the owner found the serif figure fussy. Plex Sans is a quiet grotesque for labels and prose. Plex Mono gives every amount a ledger feel, and tabular numerals keep columns aligned.
 
 ### Hierarchy
-- **Display** (Plex Sans 600, 3.75rem, line-height 1, −0.025em): the headline figure on Home, Portfolio, a holding's page, Plan, Account and Budget. It drops to 2.9rem below 760px, and rolls like a counter when its value changes. Wall view scales to `clamp(96px, 13vw, 176px)`.
+- **Display** (Plex Sans 600, 3.75rem, line-height 1, −0.025em): the headline figure on Home, Portfolio, a holding's page, Plan, Account and Budget. It drops to 2.9rem below 760px, and rolls like a counter when its value changes. Wall view scales to `clamp(56px, 13vw, 176px)`.
 - **Headline** (Plex Sans 600, 22px, −0.01em): screen titles on Check-in, Chat and Account detail.
 - **Title** (Plex Sans 600, 20px): empty-state and detail headings.
 - **Body** (Plex Sans 400, 14px, line-height 1.45): base text. Explanatory paragraphs are capped near 52ch.

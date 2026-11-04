@@ -162,10 +162,13 @@
   .errs { margin: 0 0 10px; padding: 0; list-style: none; font-size: 12px; }
   .errs li { padding: 4px 0; }
   code { font-family: var(--mono); font-size: 11px; }
-  @media (max-width: 760px) {
+  /* Top companies and Selected stack before the table gets too narrow for its columns. */
+  @media (max-width: 960px) {
     .two { grid-template-columns: 1fr; }
-    th.bar, td.bar { display: none; }
     .detail { position: static; }
     .scroll { max-height: 440px; }
+  }
+  @media (max-width: 760px) {
+    th.bar, td.bar { display: none; }
   }
 </style>
