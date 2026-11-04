@@ -4,10 +4,13 @@
   import type { Company, LookThroughView } from "../../lib/api";
   import { formatDate, formatMoney, formatPct } from "../../lib/format/money";
   import { caveats, familyHue, familyOf, headlineParts, shortPath, viaLabel } from "../../lib/portfolio/lookthrough";
+  import Lineage from "../../lib/components/portfolio/Lineage.svelte";
   import Money from "../../lib/components/amounts/Money.svelte";
   import Treemap from "../../lib/charts/Treemap.svelte";
 
-  let { lt }: { lt: LookThroughView } = $props();
+  // cash: investment accounts that hold cash rather than funds (an FHSA not invested yet).
+  let { lt, cash = [] }: { lt: LookThroughView; cash?: { name: string; value: number }[] } = $props();
+  const cashTotal = $derived(cash.reduce((s, c) => s + c.value, 0));
   const cur = $derived(lt.base_currency);
   const x = $derived(lt.lookthrough);
   // Ten rows sit level with the detail and funds cards whatever the company count;
@@ -30,10 +33,11 @@
 </script>
 
 <section class="hero">
-  <div class="label">Where the money actually is</div>
-  <Money value={x.total} currency={cur} size="xl" />
+  <h1 class="label">Where the money actually is</h1>
+  <Money value={Number(x.total) + cashTotal} currency={cur} size="xl" />
   <div class="sub">
     <PrivacyToggle />
+    {#each cash as c (c.name)}<span class="chip"><Money value={c.value} currency={cur} />&nbsp;<span class="muted">cash in {c.name}, not invested yet</span></span>{/each}
     {#each parts as p}<span class="chip">{p}</span>{/each}
     {#each warns as w}<span class="chip warn">{w}</span>{/each}
   </div>
@@ -91,11 +95,7 @@
         <div class="big"><Money value={selected.value} currency={cur} size="l" /></div>
         <div class="sub2">{formatPct(selected.pct, 2)} of your investments</div>
         {#if selected.via.length}
-          <ul class="via">
-            {#each selected.via as v}
-              <li><span>{viaLabel(v)} <small>{formatPct(v.weight_pct, 2)} of {v.path[0]}</small></span><Money value={v.value} currency={cur} /></li>
-            {/each}
-          </ul>
+          <Lineage via={selected.via} name={selected.name} color="var({familyHue(familyOf(selected.slot))})" currency={cur} label={viaLabel} />
         {/if}
         <p class="note faint">Your value in each fund × the fund's disclosed weight, through every level.</p>
       {/if}
@@ -176,9 +176,6 @@
   .detail h3 { margin: 2px 0 0; font-size: 17px; font-weight: 600; }
   .detail .tk { font-weight: 400; font-size: 13px; }
   .detail .big { margin-top: 12px; }
-  .via { margin: 12px 0 0; padding: 0; list-style: none; font-size: 13px; }
-  .via li { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-top: 1px solid var(--border); }
-  .via small { color: var(--text-3); margin-left: 6px; }
   .note { font-size: 12px; margin: 12px 0 0; }
   .foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 10px; font-size: 12px; min-height: 20px; }
   .more { font: inherit; font-size: 12px; color: var(--text-2); background: none; border: 1px solid var(--border); border-radius: 6px; padding: 3px 10px; cursor: pointer; }

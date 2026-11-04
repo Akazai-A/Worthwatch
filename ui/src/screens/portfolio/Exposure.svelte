@@ -4,10 +4,10 @@
   // list on demand. Region is left out: it repeats country. Through funds or as held.
   import type { Bucket, LookThroughView } from "../../lib/api";
   import { formatDate, formatMoney, formatPct } from "../../lib/format/money";
-  import { compactMoney } from "../../lib/portfolio/lookthrough";
+  import { compactMoney, familyHue, familyOf } from "../../lib/portfolio/lookthrough";
   import Money from "../../lib/components/amounts/Money.svelte";
 
-  let { lt }: { lt: LookThroughView } = $props();
+  let { lt, cash = [] }: { lt: LookThroughView; cash?: { name: string; value: number }[] } = $props();
   const cur = $derived(lt.base_currency);
   let mode = $state<"lookthrough" | "as_held">("lookthrough");
   const x = $derived(mode === "lookthrough" ? lt.lookthrough : lt.as_held);
@@ -20,13 +20,19 @@
     { title: "Sector", rows: x.by_sector },
   ]);
   let open = $state<Record<string, boolean>>({});
+  // Sectors take the treemap's family colours, so a colour means the same thing on both tabs.
+  const hue = (title: string, r: Bucket) => {
+    if (title !== "Sector" || !r.slot) return null;
+    const h = familyHue(familyOf(r.slot));
+    return h === "--f-none" ? null : `var(${h})`;
+  };
   const muted = (label: string) => label === "Undisclosed" || label === "Unknown" || label === "Unclassified" || label.endsWith("others");
 </script>
 
 <div class="top">
   <div>
-    <div class="label">Exposure</div>
-    <div class="muted lead"><Money value={x.total} currency={cur} /> across {lt.holdings.length} {lt.holdings.length === 1 ? "holding" : "holdings"}{#if x.as_of}&nbsp;· holdings as of {formatDate(x.as_of)}{/if}</div>
+    <h1 class="label">Exposure</h1>
+    <div class="muted lead"><Money value={x.total} currency={cur} /> across {lt.holdings.length} {lt.holdings.length === 1 ? "holding" : "holdings"}{#each cash as c (c.name)}&nbsp;· plus <Money value={c.value} currency={cur} /> cash in {c.name}{/each}{#if x.as_of}&nbsp;· holdings as of {formatDate(x.as_of)}{/if}</div>
   </div>
   <div class="toggle" role="radiogroup" aria-label="View">
     <button type="button" role="radio" aria-checked={mode === "lookthrough"} class:on={mode === "lookthrough"} onclick={() => (mode = "lookthrough")} disabled={!anyResolved} title={anyResolved ? "" : "No holdings files yet"}>Look-through</button>
@@ -50,11 +56,11 @@
           </div>
           <div class="rest">
             <div class="one" title="{s.rows.map((r) => `${r.label} ${formatPct(r.pct)}`).join(' · ')}">
-              <i style="width:{top.pct}%"></i>
-              {#each next as r, i (r.label)}<i class="n" style="width:{r.pct}%;opacity:{0.7 - i * 0.18}"></i>{/each}
+              <i style="width:{top.pct}%;{hue(s.title, top) ? `background:${hue(s.title, top)}` : ''}"></i>
+              {#each next as r, i (r.label)}<i class="n" style="width:{r.pct}%;{hue(s.title, r) ? `background:${hue(s.title, r)};opacity:0.75` : `opacity:${0.7 - i * 0.18}`}"></i>{/each}
             </div>
             <div class="nx">
-              {#each next as r (r.label)}<span>{r.label} <b class="num">{formatPct(r.pct)}</b></span>{/each}
+              {#each next as r (r.label)}<span>{#if hue(s.title, r)}<i class="dot" style="background:{hue(s.title, r)}"></i>{/if}{r.label} <b class="num">{formatPct(r.pct)}</b></span>{/each}
               {#if s.rows.length > 1}<button type="button" class="all" aria-expanded={!!open[s.title]} onclick={() => (open[s.title] = !open[s.title])}>{open[s.title] ? "Hide" : `All ${s.rows.length}`}</button>{/if}
             </div>
             {#if open[s.title]}
@@ -63,7 +69,7 @@
                 {#each s.rows as r (r.label)}
                   <div class="row" class:faint={muted(r.label)} title="{r.label}: {formatMoney(r.value, cur)} ({r.pct}%)">
                     <span class="name">{r.label}</span>
-                    <span class="track"><i style="width:{(Number(r.pct) / max) * 100}%" class:soft={muted(r.label)}></i></span>
+                    <span class="track"><i style="width:{(Number(r.pct) / max) * 100}%;{hue(s.title, r) ? `background:${hue(s.title, r)}` : ''}" class:soft={muted(r.label)}></i></span>
                     <span class="pct num">{formatPct(r.pct)}</span>
                     <span class="amt money">{compactMoney(r.value)}</span>
                   </div>
@@ -112,4 +118,5 @@
   .amt { text-align: right; color: var(--text-2); }
   .note { font-size: 12px; margin: 0; }
   @media (max-width: 760px) { .read { grid-template-columns: 1fr; gap: 6px; } .rest { padding-top: 0; } .row { grid-template-columns: 96px 1fr 44px 52px; } }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
 </style>

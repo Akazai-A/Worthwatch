@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AccountView } from "../api";
-import { balanceDelta, buildCheckin, slugify, summarize } from "./checkin";
+import { balanceDelta, bigSwings, buildCheckin, slugify, summarize } from "./checkin";
 
 const base = {
   institution: null, tags: [], group: "cash" as const, liability: false, as_of: null, days_stale: null,
@@ -68,5 +68,17 @@ describe("helpers", () => {
     expect(slugify("TD Chequing!", [])).toBe("td-chequing");
     expect(slugify("TD Chequing", ["td-chequing"])).toBe("td-chequing-2");
     expect(slugify("***", [])).toBe("account");
+  });
+});
+
+describe("bigSwings", () => {
+  it("flags a balance that moved more than 20%, as a signed share of the old value", () => {
+    const m = bigSwings([chq, visa], { chq: { balance: "510.21" }, visa: { balance: "700" } });
+    expect([...m.keys()]).toEqual(["chq"]);
+    expect(m.get("chq")).toBeCloseTo(-0.9, 2);
+  });
+  it("ignores empty, invalid and zero-based entries", () => {
+    const zero = { ...chq, id: "z", native_value: "0" };
+    expect(bigSwings([chq, zero], { chq: { balance: "abc" }, z: { balance: "100" } }).size).toBe(0);
   });
 });

@@ -5,22 +5,40 @@
   import { prefs } from "./lib/stores/prefs.svelte";
   import Rail from "./lib/components/shell/Rail.svelte";
   import ProblemBanner from "./lib/components/shell/ProblemBanner.svelte";
+  import type { Component } from "svelte";
   import Home from "./screens/home/Home.svelte";
-  import CheckIn from "./screens/home/CheckIn.svelte";
-  import AccountDetail from "./screens/home/AccountDetail.svelte";
-  import Portfolio from "./screens/portfolio/Portfolio.svelte";
-  import Changes from "./screens/portfolio/Changes.svelte";
-  import Plan from "./screens/Plan.svelte";
-  import Wall from "./screens/home/Wall.svelte";
-  import Backups from "./screens/settings/Backups.svelte";
-  import Budget from "./screens/budget/Budget.svelte";
-  import Play from "./screens/budget/Play.svelte";
-  import Settings from "./screens/settings/Settings.svelte";
   import Palette from "./lib/components/shell/Palette.svelte";
   import ChatDrawer from "./lib/components/chat/ChatDrawer.svelte";
+  import UndoBar from "./lib/components/shell/UndoBar.svelte";
   import { drawer } from "./lib/stores/drawer.svelte";
 
   let palette = $state(false);
+
+  // Home ships in the first load; every other screen loads its code the first time you open it.
+  // The screen you are leaving stays up until the next one is ready, so nothing flashes.
+  type Name = Exclude<typeof route.current.name, "home" | "chat">;
+  const loaders: Record<Name, () => Promise<{ default: Component<any> }>> = {
+    checkin: () => import("./screens/home/CheckIn.svelte"),
+    account: () => import("./screens/home/AccountDetail.svelte"),
+    portfolio: () => import("./screens/portfolio/Portfolio.svelte"),
+    changes: () => import("./screens/portfolio/Changes.svelte"),
+    plan: () => import("./screens/Plan.svelte"),
+    wall: () => import("./screens/home/Wall.svelte"),
+    backups: () => import("./screens/settings/Backups.svelte"),
+    budget: () => import("./screens/budget/Budget.svelte"),
+    play: () => import("./screens/budget/Play.svelte"),
+    settings: () => import("./screens/settings/Settings.svelte"),
+  };
+  const loaded = $state<Partial<Record<Name, Component<any>>>>({});
+  const wanted = $derived<Name | null>(route.current.name === "home" || route.current.name === "chat" ? null : route.current.name);
+  let shown = $state<Name | "home">("home");
+  $effect(() => {
+    const n = wanted;
+    if (n == null) { shown = "home"; return; }
+    if (loaded[n]) { shown = n; return; }
+    void loaders[n]().then((m) => { loaded[n] = m.default; if (wanted === n) shown = n; });
+  });
+  const Screen = $derived(shown === "home" ? null : loaded[shown] ?? null);
 
   // <svelte:body class:…> is not applied in Svelte 5, so the privacy blur sets the class itself.
   $effect(() => { document.body.classList.toggle("blur", prefs.blur); });
@@ -61,8 +79,8 @@
 <svelte:window onkeydown={onKey} />
 
 <Palette view={view.current} bind:open={palette} />
-{#if route.current.name === "wall" && view.current}
-  <Wall view={view.current} />
+{#if shown === "wall" && Screen && view.current}
+  <Screen view={view.current} />
 {:else}
 <div class="app">
   <Rail onPalette={() => (palette = true)} />
@@ -75,24 +93,9 @@
         <p class="error">Could not reach the server: {view.error}</p>
       {:else if !view.current}
         <p class="faint">Loading…</p>
-      {:else if route.current.name === "checkin"}
-        <CheckIn view={view.current} />
-      {:else if route.current.name === "portfolio"}
-        <Portfolio view={view.current} tab={route.current.tab} />
-      {:else if route.current.name === "changes"}
-        <Changes view={view.current} />
-      {:else if route.current.name === "plan"}
-        <Plan view={view.current} />
-      {:else if route.current.name === "budget"}
-        <Budget view={view.current} month={route.current.month} importing={route.current.import ?? false} />
-      {:else if route.current.name === "play"}
-        <Play view={view.current} month={route.current.month} />
-      {:else if route.current.name === "settings"}
-        <Settings view={view.current} />
-      {:else if route.current.name === "backups"}
-        <Backups view={view.current} />
-      {:else if route.current.name === "account"}
-        <AccountDetail view={view.current} id={route.current.id} />
+      {:else if Screen && shown !== "home" && shown !== "wall"}
+        {@const r = route.current}
+        <Screen view={view.current} tab={r.name === "portfolio" ? r.tab : undefined} month={r.name === "budget" || r.name === "play" ? r.month : undefined} importing={r.name === "budget" ? (r.import ?? false) : undefined} id={r.name === "account" ? r.id : undefined} />
       {:else}
         <Home view={view.current} />
       {/if}
@@ -100,6 +103,7 @@
   </main>
 </div>
 {#if drawer.open && view.current}<ChatDrawer view={view.current} />{/if}
+<UndoBar />
 {/if}
 
 <style>

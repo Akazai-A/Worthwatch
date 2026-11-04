@@ -77,6 +77,17 @@ describe("chart", () => {
     expect(c.bars[0].h).toBe(30);
     expect(c.bars[5].h).toBeGreaterThan(10);
   });
+  it("takes paid bills out of the running total and onto their own lane", () => {
+    const bills = [{ name: "Rent", amount: "1000", category: "bills", paid_on: "2026-11-01", paid_amount: "1000", due_day: 1 }, { name: "Hydro", amount: "80", category: "bills", paid_on: null, paid_amount: null, due_day: 22 }];
+    const daily = Array.from({ length: 30 }, (_, i) => (i === 0 ? "1050" : i < 10 ? "50" : null));
+    let run = 0;
+    const cumulative = daily.map((d) => (d == null ? null : String((run += Number(d)))));
+    const c = chart(view({ bills, daily, cumulative, cumulative_provisional: Array(30).fill("0") }), 780, 230);
+    expect(c.everyday).toBe(420);
+    expect(c.bills.map((b) => [b.name, b.day, b.paid])).toEqual([["Rent", 1, true], ["Hydro", 22, false]]);
+    expect(c.bars[0].value).toBe(50);
+    expect(c.today!.y).toBeCloseTo(c.y(500));
+  });
   it("has no dashed line when everything is confirmed", () => {
     const v = view({ cumulative_provisional: Array(30).fill("0") });
     expect(chart(v, 780, 230).total).toBeNull();

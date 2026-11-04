@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { accountHint, bridgeSteps, changeLine, minorLine, parts, presetFrom, rangeLabel } from "./changes";
+import { accountHint, bridgeSteps, causeOf, changeLine, minorLine, parts, presetFrom, rangeLabel, verdict } from "./changes";
 import type { AccountDiff, FundFeed } from "../api";
 
 const acct = (over: Partial<AccountDiff>): AccountDiff => ({
@@ -49,5 +49,18 @@ describe("wording", () => {
   it("sums up the moves under the threshold", () => {
     const f: FundFeed = { symbol: "VTI", from: "2026-09-30", to: "2026-10-31", from_constituents: 3600, to_constituents: 3612, threshold: "0.5", changes: [], minor_added: 2, minor_removed: 5, minor_reweighted: 0, turnover_pct: "0.4", held: true, hidden: 0 };
     expect(minorLine(f)).toBe("3,612 names · 2 added, 5 removed under 0.5 pt · 0.4% of the fund changed hands");
+  });
+});
+
+describe("causes and the verdict", () => {
+  it("names what mostly moved an account", () => {
+    expect(causeOf(acct({ liability: true }))).toBe("debt");
+    expect(causeOf(acct({ market: "900", fx: "50", trades: "100" }))).toBe("market");
+    expect(causeOf(acct({ balance: "-780" }))).toBe("money");
+  });
+  it("names the account that did a quarter or more of the change, else nothing", () => {
+    expect(verdict([{ label: "RRSP", delta: 1011 }, { label: "FHSA", delta: 1000 }], 3939)).toEqual({ who: "RRSP", delta: 1011 });
+    expect(verdict([{ label: "A", delta: 100 }, { label: "B", delta: 90 }], 1000)).toBeNull();
+    expect(verdict([], 0)).toBeNull();
   });
 });

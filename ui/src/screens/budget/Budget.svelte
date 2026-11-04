@@ -243,12 +243,12 @@
       </section>
     {:else}
       <section class="card">
-        <div class="hrow"><h2 class="label">Running total</h2><span class="faint small">hover a day</span></div>
+        <div class="hrow"><h2 class="label">Running total</h2><span class="faint small"><span class="on-hover">hover</span><span class="on-touch">tap</span> a day</span></div>
         <RunningTotal v={b} />
         <div class="legend">
           <span><i class="ln"></i>On a statement</span>
           {#if Number(b.provisional) > 0}<span><i class="ln dash"></i>Including Apple Pay taps</span>{/if}
-          {#if Number(b.budget) > 0}<span><i class="ln pace"></i>Budget pace (bills on their day)</span>{/if}
+          {#if Number(b.budget) > 0}<span><i class="ln pace"></i>Everyday pace (bills sit on their own line)</span>{/if}
           <span><i class="sw fill"></i>Each day (own scale)</span>
         </div>
       </section>
@@ -382,7 +382,7 @@
   .chips { display: flex; gap: 10px; flex-wrap: wrap; }
   .chip { display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; background: var(--surface); font: inherit; font-size: 13px; color: var(--text); }
   button.chip { cursor: pointer; }
-  .chip.warn { border-color: color-mix(in oklab, var(--warn) 45%, var(--border)); }
+  .chip.warn { border-color: var(--border); }
   .chip select, .cc { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; font: inherit; font-size: 12px; padding: 3px 6px; }
   .card h2 { margin: 0 0 12px; font-weight: 500; }
   .empty h2 { font-size: 15px; }
@@ -409,14 +409,18 @@
   .tx.xfer { color: var(--text-3); }
   .m { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .m small { color: var(--text-3); margin-left: 6px; font-size: 11px; }
-  .cc { justify-self: start; border-radius: 999px; color: var(--text-2); max-width: 124px; }
+  /* The category reads as text and is still one click to change: the menu shows on hover and focus. */
+  .cc { justify-self: start; border-radius: 6px; color: var(--text-2); max-width: 124px; }
+  .tx .cc { appearance: none; -webkit-appearance: none; background: transparent; border-color: transparent; padding-right: 6px; cursor: pointer; text-decoration: underline dotted var(--text-3); text-underline-offset: 3px; }
+  .tx .cc:hover, .tx .cc:focus-visible { background: var(--surface-2); border-color: var(--border); text-decoration: none; }
   .acct { font-size: 12px; color: var(--text-3); display: flex; gap: 6px; align-items: center; overflow: hidden; white-space: nowrap; }
   .gd { width: 6px; height: 6px; border-radius: 50%; flex: none; }
   .a { text-align: right; }
   .in { color: var(--positive); }
   .st { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: none; }
+  /* States differ by shape, not only by shade: tap = ring, matched = filled dot, statement = square. */
   .st.confirmed { background: var(--text-2); }
-  .st.posted { background: var(--fill-soft); }
+  .st.posted { background: var(--text-3); border-radius: 1px; }
   .st.provisional, .st.unlinked { border: 1.5px solid var(--accent); }
   .st.tap_only { background: var(--accent); }
   .st.review { background: var(--warn); box-shadow: 0 0 0 2px color-mix(in oklab, var(--warn) 30%, transparent); }
@@ -429,6 +433,8 @@
   .addbtn.on { background: var(--accent); color: var(--bg); border-style: solid; }
   .tl { margin-top: 12px; }
   .more { margin-top: 10px; font-size: 13px; }
+  /* Two category columns need about 1000px; a tablet gets one, so nothing scrolls sideways. */
+  @media (max-width: 1000px) { .cats { grid-template-columns: 1fr; } }
   @media (max-width: 760px) {
     .hero { grid-template-columns: 1fr; }
     .big { font-size: 2.6rem; }

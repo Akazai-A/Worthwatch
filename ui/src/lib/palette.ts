@@ -1,7 +1,7 @@
 // The ⌘K palette's matching: letters of the query in order, anywhere in the label,
 // scored so word starts and runs beat scattered letters. Pure, so it is tested.
 
-export type Section = "Accounts" | "Go to" | "Actions";
+export type Section = "Accounts" | "Holdings" | "Go to" | "Changes" | "Actions" | "Inside your funds";
 export interface Item {
   id: string;
   section: Section;
@@ -39,7 +39,9 @@ export function match(query: string, label: string): { score: number; marks: num
   return { score, marks };
 }
 
-const ORDER: Section[] = ["Accounts", "Go to", "Actions"];
+const ORDER: Section[] = ["Accounts", "Holdings", "Go to", "Changes", "Actions", "Inside your funds"];
+/** Shown only when you type: there are too many to list. */
+const ON_QUERY: Section[] = ["Holdings", "Changes", "Inside your funds"];
 
 /** Matching items, best first within each section. With no query the sections keep a
  *  fixed order; with one, the section holding the best hit comes first, so Enter
@@ -50,7 +52,7 @@ export function rank(items: Item[], query: string, perSection = 6): Hit[] {
     const m = match(query, item.label) ?? (item.hint ? match(query, item.hint) && { score: -20, marks: [] } : null);
     if (m) hits.push({ item, score: m.score, marks: m.marks });
   }
-  const groups = ORDER.map((s) =>
+  const groups = ORDER.filter((s) => query.trim() || !ON_QUERY.includes(s)).map((s) =>
     hits
       .filter((h) => h.item.section === s)
       .sort((a, b) => b.score - a.score)

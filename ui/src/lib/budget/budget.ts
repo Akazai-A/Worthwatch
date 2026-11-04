@@ -1,5 +1,5 @@
 // Budget page layout: pure, so it is tested. Amounts arrive as decimal strings.
-import type { BudgetView, CategoryLine, Txn, TxnStatus } from "../api";
+import type { BillStatus, BudgetView, CategoryLine, Txn, TxnStatus } from "../api";
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
@@ -65,6 +65,10 @@ export interface Chart {
   total: string | null;
   pace: string | null;
   bars: { x: number; w: number; h: number; day: number; value: number; clipped: boolean }[];
+  /** Bills on their own lane: drawn apart so a rent day doesn't set the scale of everyday spending. */
+  bills: { x: number; day: number; name: string; amount: number; paid: boolean }[];
+  /** The budget for everyday spending: the budget less the bills. */
+  everyday: number;
   today: { x: number; y: number } | null;
   yTicks: { y: number; value: number }[];
   max: number;
@@ -77,9 +81,17 @@ export interface Chart {
 export function chart(v: BudgetView, w: number, h: number, strip = 34): Chart {
   const L = 8, R = 56, T = 12;
   const plotH = h - T - strip - 22;
-  const cum = v.cumulative.map((c) => (c == null ? null : Number(c)));
+  // Bills come out of the running total, the pace and the daily bars, and go on a lane of their own.
+  const billDay = (b: BillStatus) => (b.paid_on ? Number(b.paid_on.slice(8, 10)) : b.due_day);
+  const paidOn = new Array<number>(v.days).fill(0);
+  for (const b of v.bills) if (b.paid_on && b.paid_on.slice(0, 7) === v.month.slice(0, 7)) paidOn[Number(b.paid_on.slice(8, 10)) - 1] += Number(b.paid_amount ?? b.amount);
+  let paidSoFar = 0;
+  const paidBy = paidOn.map((p) => (paidSoFar += p));
+  const billTotal = v.bills.reduce((s, b) => s + Number(b.amount), 0);
+  const dueBy = Array.from({ length: v.days }, (_, i) => v.bills.reduce((s, b) => s + ((billDay(b) ?? 99) <= i + 1 ? Number(b.amount) : 0), 0));
+  const cum = v.cumulative.map((c, i) => (c == null ? null : Math.max(0, Number(c) - paidBy[i])));
   const prov = v.cumulative_provisional.map((c) => (c == null ? null : Number(c)));
-  const budget = Number(v.budget);
+  const budget = Math.max(0, Number(v.budget) - billTotal);
   const top = Math.max(budget, ...cum.map((c) => c ?? 0), 1);
   const max = niceCeil(top * 1.05);
   const x = (day: number) => L + ((w - L - R) * day) / v.days;
@@ -101,7 +113,7 @@ export function chart(v: BudgetView, w: number, h: number, strip = 34): Chart {
     total = seg.join(" ");
   }
   const lastDay = cum.reduce<number>((a, c, i) => (c != null ? i + 1 : a), 0);
-  const daily = v.daily.map((d) => (d == null ? null : Number(d)));
+  const daily = v.daily.map((d, i) => (d == null ? null : Math.max(0, Number(d) - paidOn[i])));
   // One rent day would flatten every other bar; scale to the busy-day level instead
   // and clip the outliers (they are marked, and the hover shows the real number).
   const sorted = daily.filter((d): d is number => d != null && d > 0).sort((a, b) => a - b);
@@ -117,9 +129,11 @@ export function chart(v: BudgetView, w: number, h: number, strip = 34): Chart {
   return {
     confirmed,
     total,
-    // Bills step up on their day; the rest of the budget is a straight line.
-    pace: budget > 0 ? [`M${x(0).toFixed(1)} ${y(0).toFixed(1)}`, ...v.pace_by_day.map((p, i) => `L${x(i + 1).toFixed(1)} ${y(Number(p)).toFixed(1)}`)].join(" ") : null,
+    // The rest of the budget is a straight line once the bills are taken out.
+    pace: budget > 0 ? [`M${x(0).toFixed(1)} ${y(0).toFixed(1)}`, ...v.pace_by_day.map((p, i) => `L${x(i + 1).toFixed(1)} ${y(Math.max(0, Number(p) - dueBy[i])).toFixed(1)}`)].join(" ") : null,
     bars,
+    bills: v.bills.filter((b) => billDay(b) != null).map((b) => ({ x: x(billDay(b)! - 0.5), day: billDay(b)!, name: b.name, amount: Number(b.paid_amount ?? b.amount), paid: b.paid_on != null })),
+    everyday: budget,
     today: lastDay > 0 ? { x: x(lastDay), y: y(cum[lastDay - 1] ?? 0) } : null,
     yTicks: ticks,
     max,

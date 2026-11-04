@@ -26,9 +26,13 @@
   let open = $state<Record<string, boolean>>({});
   // Book cost vs gain per account; the gap to Home's investments total is accounts with no positions.
   const costs = $derived(costByAccount(p.securities));
-  const maxCost = $derived(Math.max(1, ...costs.map((r) => Math.max(r.value, r.cost ?? 0))));
-  const gap = $derived(Number(view.totals.by_group.investments ?? 0) - Number(p.total));
-  const cashOnly = $derived(view.accounts.filter((a) => a.group === "investments" && a.positions == null).map((a) => a.name));
+  const maxCost = $derived(Math.max(1, ...costs.map((r) => Math.max(r.value, r.cost ?? 0)), ...view.accounts.filter((a) => a.group === "investments" && a.positions == null).map((a) => Number(a.value ?? 0))));
+  // An investment account without positions (an FHSA that hasn't bought anything yet) holds cash:
+  // that cash is a position of the account, so Portfolio and Home show the same investments total.
+  const cashAccts = $derived(view.accounts.filter((a) => a.group === "investments" && a.positions == null && Number(a.value ?? 0) !== 0));
+  const cashList = $derived(cashAccts.map((a) => ({ name: a.name, value: Number(a.value ?? 0) })));
+  const invTotal = $derived(Number(p.total) + cashAccts.reduce((s, a) => s + Number(a.value ?? 0), 0));
+  const weightOf = (v: number | string | null) => (v == null || invTotal <= 0 ? null : (Number(v) / invTotal) * 100);
 
   function toggle(sym: string) {
     open[sym] = !open[sym];
@@ -55,9 +59,9 @@
     {:else if !lt}
       <p class="faint">Loading…</p>
     {:else if tab === "lookthrough"}
-      <LookThrough {lt} />
+      <LookThrough {lt} cash={cashList} />
     {:else if tab === "exposure"}
-      <Exposure {lt} />
+      <Exposure {lt} cash={cashList} />
     {:else}
       <Overlap {lt} />
     {/if}
@@ -72,8 +76,8 @@
     </section>
   {:else}
     <section class="hero">
-      <div class="label">Investments</div>
-      <Money value={p.total} currency={cur} size="xl" />
+      <h1 class="label">Investments</h1>
+      <Money value={invTotal} currency={cur} size="xl" />
       <div class="sub">
         <PrivacyToggle />
         {#if p.day_change != null}
@@ -107,9 +111,13 @@
             </span>
           </div>
         {/each}
-        {#if cashOnly.length && Math.abs(gap) >= 1}
-          <p class="faint small gap">Home counts <Money value={gap} currency={cur} /> more in investments: {cashOnly.join(", ")} {cashOnly.length === 1 ? "holds" : "hold"} cash, not positions.</p>
-        {/if}
+        {#each cashAccts as a (a.id)}
+          <div class="crow">
+            <span class="cn">{a.name}</span>
+            <span class="cb" style="width:{(Number(a.value) / maxCost) * 100}%"><i class="c cash" style="width:100%" title="cash, not invested yet"></i></span>
+            <span class="cv num"><Money value={a.value ?? 0} currency={cur} /> <span class="faint">cash</span></span>
+          </div>
+        {/each}
       </section>
     {/if}
 
@@ -124,7 +132,7 @@
             <tr class="sec" class:multi onclick={() => multi && toggle(r.symbol)}>
               <td>
                 <span class="sym">{r.symbol}</span>
-                <span class="sub2">{r.accounts.map((a) => a.name).join(" + ")} · {r.currency}{#if r.currency !== cur && !r.missing_fx}&nbsp;→ {cur}{/if}{#if multi}&nbsp;<span class="tw">{open[r.symbol] ? "▾" : "▸"}</span>{/if}</span>
+                <span class="sub2">{r.accounts.map((a) => a.name).join(" + ")} · {r.currency}{#if r.currency !== cur && !r.missing_fx}&nbsp;→ {cur}{/if}{#if multi}&nbsp;<button type="button" class="tw" aria-expanded={!!open[r.symbol]} aria-label="Show each account holding {r.symbol}" onclick={(e) => { e.stopPropagation(); toggle(r.symbol); }}>{open[r.symbol] ? "▾" : "▸"}</button>{/if}</span>
               </td>
               <td class="r num">{formatUnits(r.units)}</td>
               <td class="r num">
@@ -137,7 +145,7 @@
                 {:else}<Money value={r.value} currency={cur} />{/if}
               </td>
               <td class="r">
-                {#if r.weight_pct != null}<span class="wt"><i style="width:{r.weight_pct}%"></i></span><span class="num">{formatPct(r.weight_pct)}</span>{:else}<span class="faint">—</span>{/if}
+                {#if weightOf(r.value) != null}<span class="wt"><i style="width:{weightOf(r.value)}%"></i></span><span class="num">{formatPct(weightOf(r.value)!)}</span>{:else}<span class="faint">—</span>{/if}
               </td>
               <td class="r">
                 {#if r.gain != null}<Money value={r.gain} currency={cur} signed tone="delta" />{#if r.gain_pct != null}<span class="sub2">{Number(r.gain_pct) > 0 ? "+" : ""}{r.gain_pct}%</span>{/if}{:else}<span class="faint" title="add book_cost to the position to see gain">—</span>{/if}
@@ -155,6 +163,16 @@
                 </tr>
               {/each}
             {/if}
+          {/each}
+          {#each cashAccts as a (a.id)}
+            {@const w = weightOf(a.value)}
+            <tr class="sec cash">
+              <td><span class="sym">Cash</span><span class="sub2"><a href="#/accounts/{encodeURIComponent(a.id)}">{a.name}</a> · not invested yet</span></td>
+              <td></td><td></td>
+              <td class="r"><Money value={a.value ?? 0} currency={cur} /></td>
+              <td class="r">{#if w != null}<span class="wt"><i style="width:{w}%"></i></span><span class="num">{formatPct(w)}</span>{/if}</td>
+              <td></td>
+            </tr>
           {/each}
         </tbody>
       </table>
@@ -186,10 +204,10 @@
   .cb { display: flex; gap: 2px; height: 12px; }
   .cb i { height: 100%; }
   .c { background: var(--fill); }
+  .c.cash { background: var(--fill-soft); }
   .g { background: var(--positive); }
   .l { background: var(--negative); }
   .cv { text-align: right; display: flex; gap: 8px; justify-content: flex-end; }
-  .gap { margin: 8px 0 0; }
   h2 { margin: 0 0 8px; font-weight: 500; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th { text-align: left; font-weight: 500; color: var(--text-3); font-size: 12px; padding: 4px 0; }
@@ -199,7 +217,8 @@
   .sub2 { display: block; font-size: 11px; color: var(--text-3); }
   .multi { cursor: pointer; }
   .multi:hover .sym { color: var(--accent); }
-  .tw { font-size: 10px; }
+  .tw { font-size: 10px; background: none; border: 0; color: inherit; padding: 2px 4px; cursor: pointer; }
+  .tw:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 3px; }
   .wt { display: inline-block; width: 64px; height: 6px; background: var(--surface-2); border-radius: 3px; vertical-align: middle; margin-right: 8px; overflow: hidden; }
   .wt i { display: block; height: 100%; background: var(--fill); }
   .acct td { padding: 6px 0 6px 18px; font-size: 12px; color: var(--text-2); border-top: 1px dashed var(--border); }

@@ -32,9 +32,14 @@
   const clock = $derived(
     `${now.toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" })} · ${now.toLocaleTimeString("en-CA", { hour: "2-digit", minute: "2-digit", hour12: false })}`,
   );
+  const owedPct = $derived(assets > 0 ? Math.min(100, (Number(view.totals.liabilities) / assets) * 100) : 0);
+  // A tablet that shows the Wall all day: everything drifts a few pixels each hour so nothing burns in.
+  let hour = $state(new Date().getHours());
+  $effect(() => { const t = setInterval(() => (hour = new Date().getHours()), 60000); return () => clearInterval(t); });
+  const drift = $derived({ x: [0, 4, 6, 3, -2, -5, -3, 2][hour % 8], y: [0, 3, -2, -4, -1, 3, 5, 1][hour % 8] });
 </script>
 
-<div class="wall" class:blur={prefs.blur}>
+<div class="wall" class:blur={prefs.blur} style="--dx:{drift.x}px;--dy:{drift.y}px">
   <div class="top"><a href="#/" title="Back to the app">Worthwatch</a><span>net worth · {cur} · as of {formatDate(view.as_of)}</span><span class="clock">{clock}</span></div>
   <div>
     <div class="big money">{formatMoney(view.totals.net_worth, cur)}</div>
@@ -51,10 +56,13 @@
   </div>
   <div class="foot">
     <div>
+      <!-- What you own on top; what you owe under it, from the left; the brass box is what's left. -->
       <div class="split">{#each GROUPS.filter((g) => g !== "debt") as g}<i style="width:{share(g)}%;background:var(--g-{g})"></i>{/each}</div>
+      <div class="owe"><i class="debt" style="width:{owedPct}%"></i><i class="left" style="width:{Math.max(0, 100 - owedPct)}%"></i></div>
       <div class="lg">
         {#each GROUPS.filter((g) => g !== "debt") as g}<span><i style="background:var(--g-{g})"></i>{GROUP_LABEL[g]} {share(g).toFixed(0)}%</span>{/each}
-        <span><i style="background:var(--g-debt)"></i>Debt {assets > 0 ? ((Number(view.totals.liabilities) / assets) * 100).toFixed(0) : "–"}% of assets</span>
+        <span class="dl"><i class="sq debt"></i>Debt {hide(formatCompact(Number(view.totals.liabilities)))}</span>
+        <span class="nl"><i class="sq left"></i>Net worth {hide(formatCompact(Number(view.totals.net_worth)))}</span>
       </div>
     </div>
     {#if P}
@@ -84,7 +92,16 @@
   .chips b.down { color: var(--negative); }
   .chart { min-height: 160px; overflow: hidden; }
   .foot { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 28px; align-items: end; }
+  .wall { transform: translate(var(--dx), var(--dy)); }
+  @media (prefers-reduced-motion: no-preference) { .wall { transition: transform 4s ease-in-out; } }
   .split { display: flex; height: 12px; border-radius: 4px; overflow: hidden; }
+  .owe { display: flex; gap: 2px; height: 12px; margin-top: 3px; }
+  .owe i, .sq { display: block; border-radius: 3px; }
+  .owe .debt, .sq.debt { background: repeating-linear-gradient(-45deg, var(--g-debt) 0 3px, transparent 3px 6px); box-shadow: inset 0 0 0 1px var(--g-debt); }
+  .owe .left, .sq.left { box-shadow: inset 0 0 0 1.5px var(--accent); }
+  .lg .sq { display: inline-block; width: 12px; height: 9px; border-radius: 2px; }
+  .dl { color: var(--g-debt); }
+  .nl { color: var(--accent); }
   .split i { display: block; }
   .lg span { white-space: nowrap; }
   .lg { display: flex; gap: 6px 16px; font-size: 13px; color: var(--text-2); margin-top: 8px; flex-wrap: wrap; }

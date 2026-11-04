@@ -3,6 +3,7 @@
   import { apply, ApiError, EVERY_LABEL, type Every, type LedgerView, type Mutation, type Recurring, type RoomKind } from "../lib/api";
   import { formatCompact, formatDate, formatMoney, parseAmount, todayIso } from "../lib/format/money";
   import { milestoneSplit, monthYear, payoffLine, roomBar, roomLine, yearsBetween } from "../lib/networth/plan";
+  import { undo } from "../lib/stores/undo.svelte";
   import { plan } from "../lib/stores/plan.svelte";
   import { prefs } from "../lib/stores/prefs.svelte";
   import { view as viewStore } from "../lib/stores/view.svelte";
@@ -24,7 +25,18 @@
   const tgt = $derived(plan.target != null ? Number(plan.target) : p?.settings.target != null ? Number(p.settings.target) : null);
   const extraN = $derived(Number(plan.extra));
   const changed = $derived(p != null && ((plan.returnPct != null && Number(plan.returnPct) !== ledgerReturn) || (plan.target != null && Number(plan.target) !== Number(p.settings.target ?? 0))));
-  const headline = $derived(P ? (P.milestones.find((m) => m.years === 10) ?? P.milestones[P.milestones.length - 1]) : null);
+  // The headline follows the 10y / 20y / 30y toggle.
+  // While a slider or the finish line moves: the old projection as a faint ghost, and one line on what changed.
+  let ghost = $state<{ points: NonNullable<typeof P>["points"]; date: string | null } | null>(null);
+  const hold = () => { if (P && !ghost) ghost = { points: P.points, date: P.target_date ?? null }; };
+  const release = () => { setTimeout(() => (ghost = null), 1200); };
+  const shift = $derived.by(() => {
+    if (!ghost || !P?.target_date || !ghost.date || ghost.date === P.target_date) return null;
+    const m = (d: string) => Number(d.slice(0, 4)) * 12 + Number(d.slice(5, 7));
+    const months = m(ghost.date) - m(P.target_date);
+    return months === 0 ? null : { months, date: P.target_date };
+  });
+  const headline = $derived(P ? (P.milestones.find((m) => m.years === plan.years) ?? P.milestones[P.milestones.length - 1]) : null);
   const money = (v: number | string) => (prefs.blur ? "*****" : formatMoney(v, cur));
   const compact = (v: number | string) => (prefs.blur ? "*****" : formatCompact(Number(v)));
   const COLH = 180;
@@ -69,8 +81,9 @@
   async function removeRule(i: number) {
     const r = p!.recurring[i];
     const same = p!.recurring.filter((x) => x.account === r.account);
-    const keep = same.filter((x) => x !== r).map(({ account, amount, every, note }) => ({ account, amount, every, note }));
-    await save([{ op: "set_recurring", account: r.account, rules: keep }]);
+    const plain = (xs: typeof same) => xs.map(({ account, amount, every, note }) => ({ account, amount, every, note }));
+    const keep = plain(same.filter((x) => x !== r));
+    if (await save([{ op: "set_recurring", account: r.account, rules: keep }]) !== false) undo.offer(`Removed the ${r.name} rule`, [{ op: "set_recurring", account: r.account, rules: plain(same) }]);
   }
 
   // ---- Room ----
@@ -121,7 +134,7 @@
   {:else}
     {#if headline}
       <section class="hero">
-        <div class="label">In {headline.years} year{headline.years > 1 ? "s" : ""}, at {ret}%</div>
+        <h1 class="label">In {headline.years} year{headline.years > 1 ? "s" : ""}, at {ret}%</h1>
         <Money value={headline.net_worth} currency={cur} size="xl" />
         <div class="sub">
           <PrivacyToggle />
@@ -136,18 +149,21 @@
 
     <section class="card knobs">
       <label class="knob"><span class="row"><span>Return on investments</span><b>{ret}%</b></span>
-        <input type="range" min="0" max="10" step="0.5" value={ret} oninput={(e) => plan.setReturn(e.currentTarget.value)} aria-label="Return on investments, percent a year" />
+        <input type="range" min="0" max="10" step="0.5" value={ret} list="ret-stops" onpointerdown={hold} onchange={release} oninput={(e) => plan.setReturn(e.currentTarget.value)} aria-label="Return on investments, percent a year" />
+        <datalist id="ret-stops"><option value="4"></option><option value="6"></option><option value="8"></option></datalist>
+        <span class="stops" aria-hidden="true"><span style="left:40%">4%</span><span style="left:60%">6%</span><span style="left:80%">8%</span></span>
         <span class="hint">ledger says {ledgerReturn}% · band ±2 pts</span></label>
       <label class="knob"><span class="row"><span>Save extra each month</span><b class="money">+{money(extraN)}</b></span>
-        <input type="range" min="0" max="3000" step="50" value={extraN} oninput={(e) => plan.setExtra(e.currentTarget.value)} aria-label="Extra saving per month" />
+        <input type="range" min="0" max="3000" step="50" value={extraN} onpointerdown={hold} onchange={release} oninput={(e) => plan.setExtra(e.currentTarget.value)} aria-label="Extra saving per month" />
         <span class="hint">on top of {money(P.monthly_saving)}/mo in rules</span></label>
       <label class="knob"><span class="row"><span>Target net worth</span><b class="money">{tgt ? money(tgt) : "none"}</b></span>
-        <input type="range" min="0" max="5000000" step="50000" value={tgt ?? 0} oninput={(e) => plan.setTarget(e.currentTarget.value)} aria-label="Target net worth" />
+        <input type="range" min="0" max="5000000" step="50000" value={tgt ?? 0} onpointerdown={hold} onchange={release} oninput={(e) => plan.setTarget(e.currentTarget.value)} aria-label="Target net worth" />
         <span class="hint">{P.target_date ? `reached ${monthYear(P.target_date)}` : tgt ? "not within the horizon" : "drag to set one"}</span></label>
       <div class="foot">
         <div class="seg" role="group" aria-label="Horizon">
           {#each [10, 20, 30] as y}<button type="button" class:on={plan.years === y} onclick={() => plan.setYears(y)}>{y}y</button>{/each}
         </div>
+        {#if shift && tgt}<span class="shift" role="status">{compact(tgt)} moves to {monthYear(shift.date)}, {Math.abs(shift.months)} month{Math.abs(shift.months) === 1 ? "" : "s"} {shift.months > 0 ? "sooner" : "later"}</span>{/if}
         <span class="spacer"></span>
         {#if changed || extraN > 0}<button type="button" class="link" onclick={() => plan.reset()}>Reset</button>{/if}
         {#if changed}<button type="button" class="btn" disabled={saving} onclick={saveDefaults}>Save {ret}%{tgt ? ` and ${compact(tgt)}` : ""} as my defaults</button>{/if}
@@ -155,7 +171,8 @@
     </section>
 
     <section class="card">
-      <FanChart history={view.series} points={P.points} start={P.start} startNetWorth={P.start_net_worth} milestones={P.milestones} debts={P.debts} target={tgt && tgt > 0 ? tgt : null} currency={cur} blur={prefs.blur} />
+      <FanChart history={view.series} points={P.points} start={P.start} startNetWorth={P.start_net_worth} milestones={P.milestones} debts={P.debts} target={tgt && tgt > 0 ? tgt : null} currency={cur} blur={prefs.blur}
+        ghost={ghost?.points ?? null} ontarget={(v) => plan.setTarget(String(v))} ondrag={(on) => (on ? hold() : release())} />
       <div class="legend">
         <span><i class="sw past"></i>Net worth so far</span>
         <span><i class="sw band"></i>Projected, {ret - 2}–{ret + 2}% band</span>
@@ -173,7 +190,7 @@
         <div class="col" style="width:{100 / P.milestones.length}%" title="today {money(sp.today)} · put in {money(sp.putIn)} · growth and paydown {money(sp.growth)}">
           <div class="cv"><span class="money">{compact(m.net_worth)}</span><span class="cg">{Math.round((sp.growth / sp.total) * 100)}% growth</span></div>
           <div class="stack" style="height:{Math.max(4, h)}px">
-            <i style="flex:{sp.growth};background:var(--accent)"></i>
+            <i class="grow" style="flex:{sp.growth}"></i>
             <i style="flex:{sp.putIn};background:var(--fill-soft)"></i>
             <i style="flex:{sp.today};background:var(--fill)"></i>
           </div>
@@ -182,7 +199,7 @@
         </div>
       {/each}
     </section>
-    <div class="legend under"><span><i style="background:var(--fill)"></i>Today's net worth</span><span><i style="background:var(--fill-soft)"></i>Money put in</span><span><i style="background:var(--accent)"></i>Growth and debt paydown</span></div>
+    <div class="legend under"><span><i style="background:var(--fill)"></i>Today's net worth</span><span><i style="background:var(--fill-soft)"></i>Money put in</span><span><i class="grow"></i>Growth and debt paydown</span></div>
 
     <div class="two">
       <section class="card">
@@ -291,6 +308,11 @@
   .hint { font-size: 11px; color: var(--text-3); }
   .foot { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; }
   .spacer { flex: 1; }
+  /* Growth is brass hatch: solid brass stays for the projection line. */
+  .grow, .legend i.grow { background: repeating-linear-gradient(-45deg, var(--accent) 0 2px, transparent 2px 5px); box-shadow: inset 0 0 0 1px var(--accent); }
+  .stops { position: relative; display: block; height: 14px; margin: -2px 0 2px; font-family: var(--figures); font-size: 10px; color: var(--text-3); }
+  .stops span { position: absolute; transform: translateX(-50%); }
+  .shift { font-size: 12px; color: var(--accent); }
   .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
   .seg button { background: none; border: 0; color: var(--text-2); font: inherit; font-size: 12px; padding: 3px 10px; cursor: pointer; }
   .seg button.on { background: var(--surface-2); color: var(--text); }

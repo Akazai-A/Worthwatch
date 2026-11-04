@@ -6,7 +6,8 @@
   let list = $state<BackupInfo[] | null>(null);
   let busy = $state(false);
   let err = $state<string | null>(null);
-  const dir = $derived(view.ledger_path.replace(/ledger\.yaml$/, ""));
+  // Shown with ~ for the home folder, as you'd type it in a terminal.
+  const dir = $derived(view.ledger_path.replace(/ledger\.yaml$/, "").replace(/^\/(Users|home)\/[^/]+\//, "~/"));
 
   onMount(async () => {
     try { list = await listBackups(); } catch (e) { err = String(e); }

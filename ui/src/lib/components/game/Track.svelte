@@ -98,7 +98,7 @@
   .ring-spent.over { stroke: var(--negative); }
   .ring-left { fill: none; stroke: var(--positive); stroke-width: 6; transition: stroke-dasharray 0.6s ease; }
   .today-n { font-size: 12px; font-weight: 600; fill: var(--text); }
-  .coin { stroke: var(--coin-lo); stroke-width: 0.6; animation: drop 0.5s cubic-bezier(0.3, 1.4, 0.6, 1) both; animation-delay: calc(var(--i) * 25ms + var(--k) * 60ms); }
+  .coin { stroke: var(--coin-lo); stroke-width: 0.6; animation: drop 0.5s var(--ease-out) both; animation-delay: calc(var(--i) * 25ms + var(--k) * 60ms); }
   .house { fill: var(--text-3); }
   .add { cursor: pointer; }
   .add rect { fill: var(--surface); stroke: var(--accent); stroke-dasharray: 3 2; }

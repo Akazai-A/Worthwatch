@@ -113,10 +113,11 @@
   .head .bn { overflow: hidden; text-overflow: ellipsis; }
   .cell { position: absolute; overflow: hidden; border: 0; border-radius: 3px; padding: 5px 6px; font: inherit; font-size: 11px; line-height: 1.25; text-align: left; cursor: pointer; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; color: var(--text); background: color-mix(in oklab, var(--hue) var(--tone), var(--surface-2)); }
   .cell b { display: block; max-width: 100%; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .cell span { color: var(--text-2); }
+  /* Labels sit on tinted cells, so they mix from the text colour (AA on every tone), not the muted grey. */
+  .cell span { color: color-mix(in oklab, var(--text) 84%, transparent); }
   .cell:hover { background: color-mix(in oklab, var(--hue) calc(var(--tone) + 10%), var(--surface-2)); z-index: 1; }
   .cell.sel { outline: 2px solid var(--accent); outline-offset: -2px; z-index: 2; }
-  .cell.sel b { color: var(--accent); }
+  .cell.sel b { text-decoration: underline 2px var(--accent); text-underline-offset: 3px; }
   .cell:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; z-index: 2; }
   .cell.undisclosed, .cell.aggregate { background-image: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in oklab, var(--text) 10%, transparent) 6px 8px); }
   .tip { position: absolute; z-index: 5; pointer-events: none; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 6px 9px; font-size: 12px; color: var(--text-2); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25); max-width: 260px; white-space: nowrap; }

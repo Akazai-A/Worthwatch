@@ -118,6 +118,17 @@ export function balanceDelta(raw: string, current: string): number | null | "inv
   return Number(v) - Number(current);
 }
 
+/** Typed balances that moved more than `limit` (0.2 = 20%) from the current value: likely typos. */
+export function bigSwings(accounts: AccountView[], entries: Record<string, Entry>, limit = 0.2): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const a of accounts) {
+    const d = balanceDelta(entries[a.id]?.balance ?? "", a.native_value);
+    const base = Math.abs(Number(a.native_value));
+    if (typeof d === "number" && base >= 1 && Math.abs(d) / base > limit) out.set(a.id, d / base);
+  }
+  return out;
+}
+
 /** kebab-case id from a display name, unique against existing ids. */
 export function slugify(name: string, existing: string[]): string {
   let base = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
