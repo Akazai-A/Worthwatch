@@ -48,7 +48,7 @@
     </div>
 
     <section class="card">
-      <NetWorthChart series={series} currency={cur} blur={prefs.blur} groups={false} />
+      <NetWorthChart series={series} currency={cur} blur={prefs.blur} />
     </section>
 
     {#if a.holdings.length}

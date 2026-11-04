@@ -1,30 +1,28 @@
 <script lang="ts">
-  // Net worth over time (uPlot). Plain arrays in, one line or stacked groups out.
+  // Net worth over time (uPlot). With the growth series it is net worth against what you
+  // put in, the gap shaded as the market; without it (an account), one line.
   import uPlot from "uplot";
   import { onMount } from "svelte";
-  import { GROUPS, GROUP_LABEL, type Group, type GrowthPoint, type Point } from "../api";
+  import type { GrowthPoint, Point } from "../api";
   import { addedLine as addedLineOf, windowTotals } from "../networth/growth";
   import { formatCompact, formatDate, formatMoney, formatSigned } from "../format/money";
 
   type Range = "3m" | "1y" | "all";
-  type Mode = "line" | "groups" | "added";
+  type Mode = "line" | "added";
 
   let {
     series,
     events = [],
     currency = "CAD",
     blur = false,
-    groups = true,
     growth = null,
     range = $bindable("1y"),
   }: {
-    series: Point[]; events?: { date: string; note: string }[]; currency?: string; blur?: boolean; groups?: boolean; growth?: GrowthPoint[] | null; range?: Range;
+    series: Point[]; events?: { date: string; note: string }[]; currency?: string; blur?: boolean; growth?: GrowthPoint[] | null; range?: Range;
   } = $props();
 
-  // Added vs grown is the default view once the growth series has loaded: it is the
-  // net worth line plus where the change came from. Line and By group are one click away.
-  let chosen = $state<Mode | null>(null);
-  const mode = $derived<Mode>(chosen ?? (growth?.length ? "added" : "line"));
+  // Added vs grown whenever the growth series is there: net worth plus where the change came from.
+  const mode = $derived<Mode>(growth?.length ? "added" : "line");
   let host: HTMLDivElement;
   let plot: uPlot | null = null;
   // Where the hovered day sits, in px inside .plot: x, the net worth y, the added-line y (or the window's
@@ -50,20 +48,13 @@
     return { "3m": span > 92 * 86400, "1y": span > 366 * 86400 };
   });
 
-  const g = (p: Point, k: Group) => Number(p.by_group[k] ?? 0);
-
   // Added vs grown: a dashed line of where you would be on what you put in alone.
   const addedLine = $derived(addedLineOf(visible, growth ?? []));
 
   function data(): uPlot.AlignedData {
     const xs = visible.map((p) => toSec(p.date));
-    if (mode === "line") return [xs, visible.map((p) => Number(p.net_worth))];
     if (mode === "added") return [xs, visible.map((p) => Number(p.net_worth)), addedLine];
-    const cash = visible.map((p) => g(p, "cash"));
-    const inv = visible.map((p, i) => cash[i] + g(p, "investments"));
-    const prop = visible.map((p, i) => inv[i] + g(p, "property"));
-    const debt = visible.map((p) => -g(p, "debt"));
-    return [xs, prop, inv, cash, debt, visible.map((p) => Number(p.net_worth))];
+    return [xs, visible.map((p) => Number(p.net_worth))];
   }
 
   function css(name: string): string {
@@ -95,7 +86,7 @@
           const i = u.cursor.idx;
           if (i == null) { hover = null; return; }
           const o = u.over, l = o.offsetLeft, t = o.offsetTop;
-          const nwIdx = mode === "groups" ? 5 : 1;
+          const nwIdx = 1;
           const ref = mode === "added" ? (u.data[2][i] as number) : (u.data[nwIdx][0] as number);
           hover = {
             i,
@@ -110,30 +101,19 @@
     };
     if (mode === "line") {
       base.series.push({ stroke: accent, width: 2, fill: withAlpha(accent, 0.1), points: { show: false } });
-    } else if (mode === "added") {
+    } else {
       base.series.push(
         { stroke: accent, width: 2, points: { show: false } },
         // What you added: a bone dashed line (cash blue means cash; brass is net worth).
         { stroke: css("--text-2"), width: 1.5, dash: [5, 4], points: { show: false } },
       );
-    } else {
-      const c = (k: Group) => css(`--g-${k}`);
-      base.series.push(
-        { stroke: "transparent", fill: withAlpha(c("property"), 0.55), points: { show: false } },
-        { stroke: "transparent", fill: withAlpha(c("investments"), 0.55), points: { show: false } },
-        { stroke: "transparent", fill: withAlpha(c("cash"), 0.55), points: { show: false } },
-        { stroke: "transparent", fill: withAlpha(c("debt"), 0.55), points: { show: false } },
-        { stroke: css("--text"), width: 2, points: { show: false } },
-      );
-      base.bands = [{ series: [1, 2] }, { series: [2, 3] }];
     }
     return base;
   }
 
   function pad(min: number, max: number): [number, number] {
     const span = max - min || Math.abs(max) || 1000;
-    const lo = mode === "groups" ? Math.min(min, 0) : min;
-    return [lo - span * 0.1, max + span * 0.1];
+    return [min - span * 0.1, max + span * 0.1];
   }
 
   function fmtTick(sec: number): string {
@@ -224,12 +204,16 @@
 
   const hovered = $derived(hover ? visible[hover.i] : null);
   const hoverEvents = $derived(hovered ? events.filter((e) => e.date === hovered.date) : []);
-  // The gain the caliper measures: since the window opened (line, groups) or over what you added.
+  // The gain the caliper measures: since the window opened (line) or over what you added.
   const measured = $derived.by(() => {
     if (!hover || !hovered) return null;
     if (mode === "added") return Number(hovered.net_worth) - addedLine[hover.i];
     return Number(hovered.net_worth) - Number(visible[0].net_worth);
   });
+  // The two line labels sit left of the hairline unless that would run off the plot; the caliper's
+  // tag takes the other side, or the left too near the right edge.
+  const ptRight = (h: Hover) => mode === "added" && h.left - h.box.l < 190;
+  const calLeft = (h: Hover) => ptRight(h) || h.left > h.box.l + h.box.w * 0.75;
   const clampX = (x: number, w: number) => (hover ? Math.max(hover.box.l, Math.min(hover.box.l + hover.box.w - w, x - w / 2)) : 0);
 </script>
 
@@ -240,11 +224,6 @@
       <button type="button" class:on={range === "1y"} disabled={!hasRange["1y"]} onclick={() => (range = "1y")}>1Y</button>
       <button type="button" class:on={range === "all"} onclick={() => (range = "all")}>All</button>
     </div>
-    {#if groups}<div class="seg" role="group" aria-label="View">
-      <button type="button" class:on={mode === "line"} onclick={() => (chosen = "line")}>Line</button>
-      <button type="button" class:on={mode === "groups"} onclick={() => (chosen = "groups")}>By group</button>
-      {#if growth?.length}<button type="button" class:on={mode === "added"} onclick={() => (chosen = "added")} title="Net worth against what you put in; the gap is the market">Added vs grown</button>{/if}
-    </div>{/if}
   </div>
 
   <div class="plot" bind:this={host} class:blur>
@@ -255,11 +234,21 @@
       {@const h = Math.max(1, Math.abs(hover.y0 - hover.y))}
       <div class="hair" style="left:{hover.left}px;top:{b.t}px;height:{b.h}px"></div>
       <div class="cal" class:neg={(measured ?? 0) < 0} style="left:{hover.left}px;top:{top}px;height:{h}px"></div>
-      <div class="cal-tag money num" class:neg={(measured ?? 0) < 0} class:flip={hover.left > b.l + b.w * 0.75} style="left:{hover.left}px;top:{top + h / 2}px">
+      <div class="cal-tag money num" class:neg={(measured ?? 0) < 0} class:flip={calLeft(hover)} style="left:{hover.left}px;top:{top + h / 2}px">
         {formatSigned(measured ?? 0, currency)}<span>{mode === "added" ? "market" : `since ${formatDate(visible[0].date)}`}</span>
       </div>
       <div class="tag x" style="left:{clampX(hover.left, 92)}px;top:{b.t + b.h + 4}px">{formatDate(hovered.date, "long")}</div>
       <div class="tag y money num" style="left:{b.l + b.w + 4}px;top:{hover.y}px">{formatCompact(Number(hovered.net_worth))}</div>
+      {#if mode === "added"}
+        <!-- Both lines read on hover: a dot and a label on net worth and on what you put in. -->
+        {@const flip = ptRight(hover)}
+        {@const apart = Math.abs(hover.y0 - hover.y) < 30}
+        <div class="dot nw" style="left:{hover.left}px;top:{hover.y}px"></div>
+        <div class="dot in" style="left:{hover.left}px;top:{hover.y0}px"></div>
+        <div class="pt nw money num" class:right={flip} style="left:{hover.left}px;top:{hover.y - (apart && hover.y <= hover.y0 ? 10 : 0)}px"><span>net worth</span>{formatMoney(hovered.net_worth, currency)}</div>
+        <div class="pt in money num" class:right={flip} style="left:{hover.left}px;top:{hover.y0 + (apart && hover.y <= hover.y0 ? 10 : 0)}px"><span>you put in</span>{formatMoney(addedLine[hover.i], currency)}</div>
+        <div class="tag y in money num" style="left:{b.l + b.w + 4}px;top:{hover.y0}px">{formatCompact(addedLine[hover.i])}</div>
+      {/if}
     {/if}
     {#if visible.length === 0}
       <p class="empty">No history yet. Your first check-in adds the first point.</p>
@@ -273,8 +262,6 @@
         {@const added = addedLine[hover.i] - Number(visible[0].net_worth)}
         {@const grown = Number(hovered.net_worth) - addedLine[hover.i]}
         <span class="sep">·</span> you added <b class="money num">{formatSigned(added, currency)}</b>, the market <b class="money num" class:neg={grown < 0}>{formatSigned(grown, currency)}</b> <span class="faint">since {formatDate(visible[0].date)}</span>
-      {:else if groups}
-        {#each GROUPS as k}<span class="sep">·</span><span class="gk"><i style="background:var(--g-{k})"></i>{GROUP_LABEL[k]} <b class="money num">{formatCompact(k === "debt" ? -Number(hovered.by_group[k] ?? 0) : Number(hovered.by_group[k] ?? 0))}</b></span>{/each}
       {/if}
       {#each hoverEvents as e}<span class="sep">·</span><span class="faint">{e.note}</span>{/each}
     </p>
@@ -292,11 +279,6 @@
       <span><i class="line dash"></i>What you added (saving, contributions, debt paid down)</span>
       <span><i style="background:var(--accent);opacity:.45"></i>Market helped</span>
       <span><i style="background:var(--negative);opacity:.5"></i>Market hurt</span>
-    </div>
-  {:else if mode === "groups"}
-    <div class="legend">
-      {#each GROUPS as k}<span><i style="background:var(--g-{k})"></i>{GROUP_LABEL[k]}</span>{/each}
-      <span><i class="line"></i>Net worth</span>
     </div>
   {/if}
 </div>
@@ -323,7 +305,15 @@
   .cal-tag.flip { transform: translate(calc(-100% - 10px), -50%); text-align: right; }
   .cal-tag.neg { color: var(--negative); }
   .readout .sep { margin: 0 6px; color: var(--text-3); }
-  .readout .gk i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; }
+  .dot { position: absolute; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; pointer-events: none; z-index: 3; box-shadow: 0 0 0 2px var(--bg); }
+  .dot.nw { background: var(--accent); }
+  .dot.in { background: var(--text-2); }
+  .pt { position: absolute; transform: translate(calc(-100% - 10px), -50%); pointer-events: none; z-index: 2; font-size: 12px; background: var(--bg); padding: 1px 5px; border-radius: 3px; white-space: nowrap; display: flex; gap: 6px; align-items: baseline; }
+  .pt.right { transform: translate(10px, -50%); }
+  .pt span { font-family: var(--font); font-size: 11px; color: var(--text-3); }
+  .pt.nw { color: var(--accent); }
+  .pt.in { color: var(--text-2); }
+  .tag.y.in { background: var(--text-2); }
   .plot :global(.uplot) { font-family: var(--font); }
   /* A new range or view draws in from the left, so the eye follows time forward. */
   @media (prefers-reduced-motion: no-preference) {
