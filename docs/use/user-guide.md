@@ -78,10 +78,9 @@ Select any fund or company name on Portfolio, Changes or <kbd>⌘</kbd> <kbd>K</
 Changes shows what moved in your investments between two dates, told through your funds. Net worth by account stays on Home; Changes links to it.
 
 1. Pick a period: **Since last check-in**, **1M**, **3M**, **YTD**, **1Y**, or enter custom dates.
-2. Read the headline. It splits the change into market moves, what you bought or sold, and FX.
-3. Read the waterfall: one step per fund. Hover a step for its price, units bought and FX.
-4. Look underneath: your dollars in each company and sector, through every fund.
-5. Look at **Inside your funds** for what each fund bought and sold itself.
+2. Read the tiles: one per fund, with its price line over the period, the % move, your dollars gained or lost, and units you bought or sold. Select a tile to open the fund's page.
+3. Look underneath: your dollars in each company and sector, through every fund.
+4. Look at **Inside your funds** for what each fund bought and sold itself.
 
 Moves smaller than the threshold are counted but not listed. Change the threshold at the top of **Inside your funds**.
 

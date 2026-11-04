@@ -1,6 +1,6 @@
 // Browser-side wording and layout for the Changes screen. Period arithmetic on
 // dates only; every dollar figure comes from the server.
-import type { ConstituentChange, FundFeed, HoldingDiff } from "../api";
+import type { ConstituentChange, FundFeed } from "../api";
 import { formatDate, formatPct } from "../format/money";
 
 export type Preset = "checkin" | "1m" | "3m" | "ytd" | "1y" | "custom";
@@ -67,21 +67,6 @@ export function parts(c: { market: string; trades: string; fx: string; balances:
     { label: "unpriced", value: Number(c.residual), hint: "Holdings without a price at one end, or no FX rate" },
   ];
   return all.filter((p) => Math.abs(p.value) >= 0.005);
-}
-
-/** What mostly moved a waterfall step: prices and FX, money you moved in or out, or a debt. */
-export type Cause = "market" | "money" | "debt";
-export interface BridgeStep { label: string; delta: number; folded?: number; cause?: Cause }
-
-/** One waterfall step per fund that moved, biggest first; coloured by what moved it most. */
-export function fundSteps(holdings: HoldingDiff[]): BridgeStep[] {
-  return holdings
-    .filter((h) => Math.abs(Number(h.change ?? 0)) >= 0.005)
-    .map((h) => {
-      const m = Math.abs(Number(h.market ?? 0)) + Math.abs(Number(h.fx ?? 0));
-      return { label: h.symbol, delta: Number(h.change), cause: (m >= Math.abs(Number(h.trades ?? 0)) ? "market" : "money") as Cause };
-    })
-    .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
 }
 
 /** "XEC 7.37% → 7.92% (+0.55 pt)" / "Celestica added at 0.84%" / "Algonquin Power removed (was 0.11%)". */

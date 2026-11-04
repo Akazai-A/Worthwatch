@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { changeLine, fundSteps, minorLine, parts, presetFrom, rangeLabel } from "./changes";
-import type { FundFeed, HoldingDiff } from "../api";
+import { changeLine, minorLine, parts, presetFrom, rangeLabel } from "./changes";
+import type { FundFeed } from "../api";
 
 describe("presets", () => {
   it("count back whole months and clamp to the first known date", () => {
@@ -34,14 +34,4 @@ describe("wording", () => {
   });
 });
 
-describe("fund waterfall", () => {
-  const h = (symbol: string, market: string, trades: string, fx: string): HoldingDiff => ({
-    symbol, currency: "CAD", accounts: [], from_units: "1", to_units: "1", from_price: "1", to_price: "1", from_price_date: null, to_price_date: null,
-    from_value: "1", to_value: "1", trade_count: 0, market, trades, fx, change: String(Number(market) + Number(trades) + Number(fx)),
-  });
-  it("makes one step per fund that moved, biggest first, coloured by what moved it", () => {
-    const steps = fundSteps([h("VFV", "500", "0", "0"), h("XEQT", "10", "14000", "0"), h("ZAG", "0", "0", "0")]);
-    expect(steps.map((s) => [s.label, s.delta, s.cause])).toEqual([["XEQT", 14010, "money"], ["VFV", 500, "market"]]);
-  });
 
-});

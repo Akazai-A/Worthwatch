@@ -1,24 +1,20 @@
 <script lang="ts">
   import PrivacyToggle from "../../lib/components/shell/PrivacyToggle.svelte";
   // Changes: what moved in your investments between two dates, told through your funds.
-  // A waterfall of funds, then what moved underneath (companies and sectors, in dollars),
+  // A tile per fund, then what moved underneath (companies and sectors, in dollars),
   // then what each fund bought and sold itself. Accounts and net worth live on Home.
   // All figures come from GET /api/changes; this file lays them out.
   import type { BucketDelta, CompanyDelta, HoldingDiff, LedgerView } from "../../lib/api";
   import { formatDate, formatPlain, formatSigned, formatUnits, formatPct } from "../../lib/format/money";
-  import { PRESETS, changeLine, fundSteps, minorLine, presetFrom, presetTo, rangeLabel, type BridgeStep, type Preset } from "../../lib/portfolio/changes";
+  import { PRESETS, changeLine, minorLine, presetFrom, presetTo, rangeLabel, type Preset } from "../../lib/portfolio/changes";
   import { familyHue, familyOf } from "../../lib/portfolio/lookthrough";
   import { changes as store } from "../../lib/stores/portfolio/changes.svelte";
   import { lookthrough } from "../../lib/stores/portfolio/lookthrough.svelte";
-  import { prefs } from "../../lib/stores/prefs.svelte";
   import { hashFor } from "../../lib/stores/route.svelte";
   import Money from "../../lib/components/amounts/Money.svelte";
   import MarketLine from "../../lib/components/portfolio/MarketLine.svelte";
-  import Bridge from "../../lib/charts/Bridge.svelte";
   import LineChart from "../../lib/charts/LineChart.svelte";
-  import MultiLine from "../../lib/charts/MultiLine.svelte";
   import SplitStrip from "../../lib/components/amounts/SplitStrip.svelte";
-  import DeltaBar from "../../lib/components/amounts/DeltaBar.svelte";
   import WeightMove from "../../lib/components/amounts/WeightMove.svelte";
 
   let { view }: { view: LedgerView } = $props();
@@ -47,28 +43,14 @@
   function applyCustom() {
     if (customFrom && customTo && customFrom <= customTo) store.setCustom(customFrom, customTo);
   }
-  // Draft-only switch for the sign-off board: localStorage ww.variant = "tb" or "tc".
-  const variant = (() => { try { return (localStorage.getItem("ww.variant") ?? "").split(","); } catch { return []; } })();
 
-  // Column and bridge labels carry the year only when the two ends differ in it.
-  const endLabel = (d: string) => formatDate(d, c && c.from.slice(0, 4) !== c.to.slice(0, 4) ? "long" : "short");
   const hs = $derived(c?.holdings ?? []);
-  const inv = $derived({
-    from: hs.reduce((s, h) => s + Number(h.from_value ?? 0), 0),
-    to: hs.reduce((s, h) => s + Number(h.to_value ?? 0), 0),
-    change: hs.reduce((s, h) => s + Number(h.change ?? 0), 0),
-  });
-  const steps = $derived(fundSteps(hs));
-  // One tile (and one line) per fund, biggest dollar move first; the line is its price over the period.
-  const LINE_HUES = ["--f-tech", "--f-fin", "--f-cons", "--f-ind", "--text-2"];
-  const tiles = $derived([...hs].sort((a, b) => Math.abs(Number(b.change ?? 0)) - Math.abs(Number(a.change ?? 0))).map((h, i) => ({
+  // One tile per fund, biggest dollar move first; the line is its price over the period.
+  const tiles = $derived([...hs].sort((a, b) => Math.abs(Number(b.change ?? 0)) - Math.abs(Number(a.change ?? 0))).map((h) => ({
     h,
     pm: priceMove(h),
     pts: (v?.paths[h.symbol] ?? []).map((p) => ({ date: p.date, v: Number(p.close) })),
-    color: `var(${LINE_HUES[i % LINE_HUES.length]})`,
   })));
-  const lines = $derived(tiles.filter((t) => t.pts.length > 1).map((t) => ({ label: t.h.symbol, color: t.color, pts: t.pts.map((p) => ({ date: p.date, v: (p.v / t.pts[0].v - 1) * 100 })) })));
-  const bySym = $derived(new Map(hs.map((h) => [h.symbol, h])));
   const fundName = (sym: string) => lookthrough.current?.lookthrough.funds.find((f) => f.symbol === sym)?.name ?? null;
   const holdParts = (h: HoldingDiff) => [
     { label: "market", value: Number(h.market ?? 0) },
@@ -77,7 +59,6 @@
   ];
   const priceMove = (h: HoldingDiff) => (h.from_price != null && h.to_price != null && Number(h.from_price) > 0 ? (Number(h.to_price) / Number(h.from_price) - 1) * 100 : null);
   const unitMove = (h: HoldingDiff) => Number(h.to_units) - Number(h.from_units);
-  const maxHolding = $derived(Math.max(0, ...hs.map((h) => Math.abs(Number(h.change ?? 0)))));
 
   // Underneath: look-through needs a file at both ends.
   const anyFiles = $derived((v?.funds_resolved_to ?? 0) > 0 && (v?.funds_resolved_from ?? 0) > 0);
@@ -137,27 +118,6 @@
         <p class="muted">Changes follows your funds and what is inside them. Add holdings to an investment account on <a href="#/check-in">Check-in</a>. Net worth over the same days is on <a href="#/">Home</a>.</p>
       </section>
     {:else}
-      {#if variant.includes("tc")}
-        <section class="card panel">
-          <div class="head"><h2 class="label">Your funds: what moved them</h2><span class="faint small">one step per fund · <span class="on-hover">hover</span><span class="on-touch">tap</span> a step for price, units and FX</span></div>
-          <div class="causes faint small"><span><i class="k-market"></i>price and FX</span><span><i class="k-money"></i>money you put in or took out</span></div>
-          <Bridge title="Investments" start={inv.from} end={inv.to} {steps} startLabel={endLabel(c.from)} endLabel={endLabel(c.to)} currency={cur} blur={prefs.blur} tip={stepTip} />
-        </section>
-      {:else if variant.includes("tb")}
-        <section class="card panel">
-          <div class="head"><h2 class="label">Your funds, side by side</h2><span class="faint small">price move since {endLabel(c.from)}, in each fund's own currency</span></div>
-          <MultiLine series={lines} label="Price move by fund" format={(v) => `${v > 0 ? "+" : ""}${v.toFixed(1)}%`} />
-          <div class="mini">
-            {#each tiles as t (t.h.symbol)}
-              <a class="mrow" href={hashFor({ name: "security", symbol: t.h.symbol })}>
-                <span class="name"><i class="dot" style="background:{t.color}"></i><b>{t.h.symbol}</b> <span class="faint">{fundName(t.h.symbol) ?? ""}</span></span>
-                <span class="div"><i class:pos={Number(t.h.change ?? 0) > 0} class:neg={Number(t.h.change ?? 0) < 0} style="width:{(Math.abs(Number(t.h.change ?? 0)) / Math.max(0.01, maxHolding)) * 50}%"></i></span>
-                <span class="num amt"><Money value={t.h.change ?? 0} currency={cur} signed tone="delta" /></span>
-              </a>
-            {/each}
-          </div>
-        </section>
-      {:else}
         <section class="card panel">
           <div class="head"><h2 class="label">Your funds</h2><span class="faint small">price over the period, in each fund's own currency · your dollars gained or lost</span></div>
           <div class="tiles">
@@ -173,7 +133,6 @@
             {/each}
           </div>
         </section>
-      {/if}
 
         <div class="pair">
           <section class="card panel">
@@ -261,19 +220,6 @@
   {/if}
 </div>
 
-{#snippet stepTip(step: BridgeStep)}
-  {@const h = bySym.get(step.label)}
-  {#if h}
-    {@const pm = priceMove(h)}
-    <div class="st">
-      <div class="t"><a class="sym" href={hashFor({ name: "security", symbol: h.symbol })}>{h.symbol} ›</a><Money value={h.change ?? 0} currency={cur} signed tone="delta" /></div>
-      {#if fundName(h.symbol)}<div class="ft">{fundName(h.symbol)}</div>{/if}
-      <div class="ft num">{#if h.from_value != null}<Money value={h.from_value} currency={cur} size="s" />{:else}new{/if} → {#if h.to_value != null}<Money value={h.to_value} currency={cur} size="s" />{:else}—{/if}</div>
-      <div class="ft num">price {#if h.from_price != null}{formatPlain(h.from_price)} → {/if}{h.to_price != null ? formatPlain(h.to_price) : "none"} {h.currency}{#if pm != null}&nbsp;({pm > 0 ? "+" : ""}{pm.toFixed(1)}%){/if}{#if unitMove(h) !== 0}&nbsp;· {unitMove(h) > 0 ? "bought" : "sold"} {formatUnits(String(Math.abs(unitMove(h))))} units{/if}</div>
-      {#if holdParts(h).filter((p) => Math.abs(p.value) >= 0.005).length > 1}<SplitStrip parts={holdParts(h)} currency={cur} height={6} legend blur={prefs.blur} />{/if}
-    </div>
-  {/if}
-{/snippet}
 
 <style>
   .changes { display: flex; flex-direction: column; gap: 20px; }
@@ -293,7 +239,6 @@
   .tb { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 6px; font-size: 14px; }
   .tu { font-size: 11px; }
   .nospark { font-size: 11px; height: 48px; display: flex; align-items: center; }
-  .mini { margin-top: 10px; }
   .range { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 12px; }
   .seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
   .seg button { padding: 5px 11px; font: inherit; font-size: 12px; color: var(--text-2); background: none; border: 0; cursor: pointer; }
@@ -308,13 +253,6 @@
   h2 { margin: 0; font-weight: 500; }
   .small { font-size: 12px; }
   .sub-h { text-transform: none; letter-spacing: 0; }
-  .causes { display: flex; gap: 14px; flex-wrap: wrap; margin: -2px 0 8px; }
-  .causes i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
-  .k-market { background: var(--positive); }
-  .k-money { background: var(--fill); }
-  .st { display: flex; flex-direction: column; gap: 6px; }
-  .st .t { display: flex; justify-content: space-between; gap: 10px; font-weight: 600; }
-  .st .ft { color: var(--text-2); }
   /* Companies beside sectors when both get room for their bars. */
   .pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 20px; align-items: start; }
   .list.scroll { max-height: 300px; overflow-y: auto; overscroll-behavior: contain; padding-right: 4px; }
