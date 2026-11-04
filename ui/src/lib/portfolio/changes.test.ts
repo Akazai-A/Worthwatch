@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { changeLine, fundSteps, investParts, minorLine, parts, presetFrom, rangeLabel, verdict } from "./changes";
+import { changeLine, fundSteps, minorLine, parts, presetFrom, rangeLabel } from "./changes";
 import type { FundFeed, HoldingDiff } from "../api";
 
 describe("presets", () => {
@@ -34,14 +34,6 @@ describe("wording", () => {
   });
 });
 
-describe("the verdict", () => {
-  it("names the fund that did a quarter or more of the change, else nothing", () => {
-    expect(verdict([{ label: "RRSP", delta: 1011 }, { label: "FHSA", delta: 1000 }], 3939)).toEqual({ who: "RRSP", delta: 1011 });
-    expect(verdict([{ label: "A", delta: 100 }, { label: "B", delta: 90 }], 1000)).toBeNull();
-    expect(verdict([], 0)).toBeNull();
-  });
-});
-
 describe("fund waterfall", () => {
   const h = (symbol: string, market: string, trades: string, fx: string): HoldingDiff => ({
     symbol, currency: "CAD", accounts: [], from_units: "1", to_units: "1", from_price: "1", to_price: "1", from_price_date: null, to_price_date: null,
@@ -51,7 +43,5 @@ describe("fund waterfall", () => {
     const steps = fundSteps([h("VFV", "500", "0", "0"), h("XEQT", "10", "14000", "0"), h("ZAG", "0", "0", "0")]);
     expect(steps.map((s) => [s.label, s.delta, s.cause])).toEqual([["XEQT", 14010, "money"], ["VFV", 500, "market"]]);
   });
-  it("splits the investment change into price, money in or out, and FX", () => {
-    expect(investParts([h("VTI", "700", "0", "300"), h("VFV", "500", "0", "0")]).map((p) => [p.label, p.value])).toEqual([["market", 1200], ["FX", 300]]);
-  });
+
 });

@@ -73,13 +73,6 @@ export function parts(c: { market: string; trades: string; fx: string; balances:
 export type Cause = "market" | "money" | "debt";
 export interface BridgeStep { label: string; delta: number; folded?: number; cause?: Cause }
 
-/** One sentence for the top of Changes: the fund that did most of it, or nothing when it was spread out. */
-export function verdict(steps: BridgeStep[], change: number): { who: string; delta: number } | null {
-  const top = steps.filter((s) => !s.folded).sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))[0];
-  if (!top || Math.abs(change) < 0.5) return null;
-  return Math.abs(top.delta) >= Math.abs(change) * 0.25 ? { who: top.label, delta: top.delta } : null;
-}
-
 /** One waterfall step per fund that moved, biggest first; coloured by what moved it most. */
 export function fundSteps(holdings: HoldingDiff[]): BridgeStep[] {
   return holdings
@@ -89,16 +82,6 @@ export function fundSteps(holdings: HoldingDiff[]): BridgeStep[] {
       return { label: h.symbol, delta: Number(h.change), cause: (m >= Math.abs(Number(h.trades ?? 0)) ? "market" : "money") as Cause };
     })
     .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
-}
-
-/** The split of the investment change: price, money you put in or took out, FX. */
-export function investParts(holdings: HoldingDiff[]): Part[] {
-  const sum = (k: "market" | "trades" | "fx") => holdings.reduce((s, h) => s + Number(h[k] ?? 0), 0);
-  return [
-    { label: "market", value: sum("market"), hint: "the price move on units you already held" },
-    { label: "you bought or sold", value: sum("trades"), hint: "units bought or sold, at the end price" },
-    { label: "FX", value: sum("fx"), hint: "the exchange-rate move on what you held in other currencies" },
-  ].filter((p) => Math.abs(p.value) >= 0.005);
 }
 
 /** "XEC 7.37% → 7.92% (+0.55 pt)" / "Celestica added at 0.84%" / "Algonquin Power removed (was 0.11%)". */

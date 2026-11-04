@@ -160,23 +160,19 @@ test("a holdings file dropped into data/holdings shows up on the look-through pa
   await page.goto("/#/portfolio");
 });
 
-test("Changes follows your funds between the last check-in and today: waterfall, underneath, and the fund feed", async ({ page }) => {
+test("Changes follows your funds between the last check-in and today: fund tiles, underneath, and the fund feed", async ({ page }) => {
   await page.goto("/#/changes");
-  // Check-ins so far: Jan 31 and today, plus the pasted TFSA. The headline is investments, not net worth.
-  await expect(page.locator(".changes .hero .label")).toHaveText("Your investments");
-  await expect(page.locator(".changes .hero .money.xl")).toContainText("+$");
+  // Check-ins so far: Jan 31 and today, plus the pasted TFSA. The page opens on your funds: no accounts, no net worth.
   await expect(page.locator(".range .dates")).toContainText("Jan 31 →");
-  await expect(page.locator(".hero .nw")).toContainText("net worth");
-  // One waterfall step per fund, no accounts: tab to a step for from → to.
-  await expect(page.locator("svg.bridge")).toBeVisible();
-  await expect(page.getByRole("listitem", { name: /^TD Chequing/ })).toHaveCount(0);
-  const step = page.getByRole("listitem", { name: /^XEQT\.TO/ });
-  await step.focus();
-  const tip = page.locator(".fit .tip");
-  await expect(tip).toContainText("+$14,552");
-  await expect(tip).toContainText("bought 426.5 units");
-  // The pasted positions count as money put in (the account did not exist on Jan 31).
-  await expect(page.locator(".hero .split")).toContainText("you bought or sold");
+  await expect(page.locator(".changes")).not.toContainText("TD Chequing");
+  await expect(page.locator(".changes")).not.toContainText("net worth");
+  // One tile per fund; the pasted positions count as units bought (the account did not exist on Jan 31).
+  const tile = page.locator(".tile", { hasText: "XEQT.TO" });
+  await expect(tile).toContainText("+$14,552");
+  await expect(tile).toContainText("bought 426.5 units");
+  await tile.click();
+  await expect(page).toHaveURL(/#\/security\/XEQT\.TO$/);
+  await page.goBack();
   // One holdings file per fund so far: nothing to compare underneath or in the feed.
   await expect(page.locator(".changes .empty-line").last()).toContainText("Only one holdings file per fund");
 
@@ -189,7 +185,7 @@ test("Changes follows your funds between the last check-in and today: waterfall,
   await page.getByRole("textbox", { name: "To" }).dispatchEvent("change");
   await expect(page.getByRole("heading", { name: "One check-in so far" })).toBeHidden();
   await expect(page.locator(".range .dates")).toContainText("Feb 15, 2026 · 15 days");
-  // No funds held yet in that window: the page says so and points to Home for net worth.
+  // No funds held yet in that window: the page says so.
   await expect(page.getByRole("heading", { name: "No funds to follow" })).toBeVisible();
 });
 

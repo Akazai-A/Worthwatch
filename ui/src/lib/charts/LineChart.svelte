@@ -11,10 +11,13 @@
     tone = "neutral",
     step = false,
     zero = false,
-  }: { points: { date: string; v: number }[]; label: string; format: (v: number) => string; height?: number; tone?: "up" | "down" | "neutral"; step?: boolean; zero?: boolean } = $props();
+    bare = false,
+  }: { points: { date: string; v: number }[]; label: string; format: (v: number) => string; height?: number; tone?: "up" | "down" | "neutral"; step?: boolean; zero?: boolean;
+    /** A sparkline: no date labels and no readout. */
+    bare?: boolean } = $props();
   let w = $state(600);
   let at = $state<number | null>(null);
-  const PAD = { l: 4, r: 4, t: 16, b: 22 };
+  const PAD = $derived(bare ? { l: 1, r: 1, t: 3, b: 3 } : { l: 4, r: 4, t: 16, b: 22 });
   const lo = $derived(Math.min(zero ? 0 : Infinity, ...points.map((p) => p.v)));
   const hi = $derived(Math.max(...points.map((p) => p.v)));
   const span = $derived(hi - lo || Math.abs(hi) || 1);
@@ -54,14 +57,16 @@
     <svg width={w} {height} role="img" aria-label="{label}: {format(points[0].v)} on {fmtDate(points[0].date)} to {format(points[points.length - 1].v)} on {fmtDate(points[points.length - 1].date)}" tabindex="0" onpointermove={move} onpointerleave={() => (at = null)} onkeydown={key} onblur={() => (at = null)}>
       <path class="area {tone}" d={area} />
       <path class="line {tone}" d={line} />
-      <text class="end" x={PAD.l} y={height - 6}>{fmtDate(points[0].date)}</text>
-      <text class="end" x={w - PAD.r} y={height - 6} text-anchor="end">{fmtDate(points[points.length - 1].date)}</text>
+      {#if !bare}
+        <text class="end" x={PAD.l} y={height - 6}>{fmtDate(points[0].date)}</text>
+        <text class="end" x={w - PAD.r} y={height - 6} text-anchor="end">{fmtDate(points[points.length - 1].date)}</text>
+      {/if}
       {#if cur}
         <line class="cross" x1={x(cur.date)} x2={x(cur.date)} y1={PAD.t - 6} y2={height - PAD.b} />
         <circle class="dot {tone}" cx={x(cur.date)} cy={y(cur.v)} r="3.5" />
       {/if}
     </svg>
-    <div class="read num" aria-live="polite">{#if cur}<b>{format(cur.v)}</b> <span class="faint">{fmtDate(cur.date)}</span>{/if}</div>
+    <div class="read num" class:bare aria-live="polite">{#if cur}<b>{format(cur.v)}</b> <span class="faint">{fmtDate(cur.date)}</span>{/if}</div>
   {:else if points.length === 1}
     <p class="faint one">One point so far: <span>{format(points[0].v)}</span> on {fmtDate(points[0].date)}.</p>
   {/if}
@@ -85,5 +90,6 @@
   .dot.down { fill: var(--negative); }
   .read { position: absolute; top: 0; right: 4px; font-size: 12px; pointer-events: none; }
   .read b { font-weight: 500; }
+  .read.bare { top: auto; bottom: 100%; right: 0; font-size: 11px; }
   .one { margin: 8px 0; font-size: 13px; }
 </style>

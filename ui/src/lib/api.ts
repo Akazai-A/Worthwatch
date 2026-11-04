@@ -388,6 +388,8 @@ export interface ChangesView {
   first_date: string | null;
   threshold: string;
   changes: Changes;
+  /** Daily closes inside the period per holding, in the currency it trades in; starts at the close on or before `from`. */
+  paths: Record<string, { date: string; close: string }[]>;
   drift: Drift;
   as_held_drift: Drift;
   funds_resolved_from: number;
