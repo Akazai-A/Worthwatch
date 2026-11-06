@@ -39,6 +39,8 @@ pub enum LedgerError {
     NotRegistered(String),
     #[error("contribution room for {0} cannot be negative")]
     NegativeRoom(String),
+    #[error("{0} room: {1}")]
+    BadSetup(String, String),
     #[error("projection rate {0} is outside -50..100 percent")]
     BadRate(String),
     #[error("Wallet card `{0}` must link to a credit card account, and `{1}` is not one")]
@@ -171,6 +173,17 @@ pub fn validate(l: &Ledger) -> Result<(), LedgerError> {
     for (kind, r) in &l.room {
         if r.amount.is_sign_negative() {
             return Err(LedgerError::NegativeRoom(kind.label().into()));
+        }
+    }
+    for (kind, r) in &l.registered {
+        if *kind == RoomKind::Rrsp {
+            return Err(LedgerError::BadSetup(
+                "RRSP".into(),
+                "room depends on income, not a start year".into(),
+            ));
+        }
+        if r.put_in.is_sign_negative() {
+            return Err(LedgerError::BadSetup(kind.label().into(), "put in cannot be negative".into()));
         }
     }
     let p = &l.settings.projection;

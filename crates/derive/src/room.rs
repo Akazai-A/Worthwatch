@@ -5,52 +5,21 @@
 //! - TFSA: each Jan 1 after `as_of` adds that year's limit, and adds back what you
 //!   withdrew in earlier years. Limits after the last known year are assumed equal to
 //!   it and flagged as estimated.
-//! - FHSA: each Jan 1 after `as_of` adds $8,000. Carry-forward caps and the $40,000
-//!   lifetime limit are not modelled; the note says so.
+//! - FHSA: each Jan 1 after `as_of` gives $8,000 plus last year's unused room (at most
+//!   $8,000), capped by the $40,000 lifetime limit once you have said what you put in
+//!   (`registered`); without that the note says the lifetime limit is not checked.
 //! - RRSP: new room depends on your income, so nothing is added; once `as_of` is in an
 //!   earlier year the view asks for the figure from your notice of assessment.
 //! - Planned: the monthly equivalent of recurring rules into those accounts, for the
 //!   whole months left this year. Never counted as used.
 
 use chrono::{Datelike, Months, NaiveDate};
+use ledger::cra::{fhsa_year_room, tfsa_limit, FHSA_YEARS};
 use ledger::{Ledger, RoomKind};
 use rust_decimal::Decimal;
 use serde::Serialize;
 
 use crate::{to_base, Market};
-
-/// TFSA annual dollar limit by year (CRA). The last entry is used for later years.
-pub const TFSA_LIMITS: &[(i32, i64)] = &[
-    (2009, 5000),
-    (2010, 5000),
-    (2011, 5000),
-    (2012, 5000),
-    (2013, 5500),
-    (2014, 5500),
-    (2015, 10000),
-    (2016, 5500),
-    (2017, 5500),
-    (2018, 5500),
-    (2019, 6000),
-    (2020, 6000),
-    (2021, 6000),
-    (2022, 6000),
-    (2023, 6500),
-    (2024, 7000),
-    (2025, 7000),
-    (2026, 7000),
-];
-pub const FHSA_ANNUAL: i64 = 8000;
-
-fn tfsa_limit(year: i32) -> (Decimal, bool) {
-    match TFSA_LIMITS.iter().find(|(y, _)| *y == year) {
-        Some((_, v)) => (Decimal::from(*v), false),
-        None => (
-            Decimal::from(TFSA_LIMITS.last().map_or(7000, |x| x.1)),
-            year > TFSA_LIMITS.last().map_or(0, |x| x.0),
-        ),
-    }
-}
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct RoomAccount {
@@ -105,6 +74,7 @@ fn one(l: &Ledger, m: &Market, today: NaiveDate, kind: RoomKind, r: &ledger::Roo
 
     let mut used = Decimal::ZERO;
     let mut withdrawn_by_year: std::collections::BTreeMap<i32, Decimal> = Default::default();
+    let mut deposits_by_year: std::collections::BTreeMap<i32, Decimal> = Default::default();
     let mut rows = Vec::new();
     for a in &accounts {
         let mut a_used = Decimal::ZERO;
@@ -113,6 +83,7 @@ fn one(l: &Ledger, m: &Market, today: NaiveDate, kind: RoomKind, r: &ledger::Roo
             let v = base(c.amount, &a.currency, c.date);
             if v > Decimal::ZERO {
                 a_used += v;
+                *deposits_by_year.entry(c.date.year()).or_default() += v;
             } else {
                 *withdrawn_by_year.entry(c.date.year()).or_default() -= v;
             }
@@ -156,15 +127,38 @@ fn one(l: &Ledger, m: &Market, today: NaiveDate, kind: RoomKind, r: &ledger::Roo
             }
         }
         RoomKind::Fhsa => {
-            let years = (today.year() - r.as_of.year()).max(0);
-            added = Decimal::from(FHSA_ANNUAL * years as i64);
-            if years > 0 {
-                estimated = true;
-                note = Some(
-                    "Adds $8,000 a year; carry-forward caps and the $40,000 lifetime limit are not checked."
-                        .into(),
-                );
+            let reg = l.registered.get(&kind);
+            // Deposits before Jan 1 of `year`, all FHSAs, ever: what the lifetime limit counts.
+            let put_before = |year: i32| {
+                reg.map_or(Decimal::ZERO, |g| {
+                    g.put_in
+                        + l.contributions
+                            .iter()
+                            .filter(|c| c.date >= g.as_of && c.date.year() < year && c.amount > Decimal::ZERO)
+                            .filter(|c| accounts.iter().any(|a| a.id == c.account))
+                            .map(|c| c.amount)
+                            .sum::<Decimal>()
+                })
+            };
+            let dep = |y: i32| deposits_by_year.get(&y).copied().unwrap_or_default();
+            let mut unused = r.amount - dep(r.as_of.year());
+            for year in first_new_year..=today.year() {
+                unused = fhsa_year_room(unused, put_before(year)) - dep(year);
             }
+            let left_now = if first_new_year > today.year() { r.amount - used } else { unused };
+            added = left_now - r.amount + used;
+            note = match reg {
+                None if first_new_year <= today.year() => {
+                    estimated = true;
+                    Some("The $40,000 lifetime limit is not checked until you say when you opened it.".into())
+                }
+                Some(g) if today.year() > g.since + FHSA_YEARS => Some(format!(
+                    "An FHSA opened in {} had to close by December 31, {}.",
+                    g.since,
+                    g.since + FHSA_YEARS
+                )),
+                _ => None,
+            };
         }
         RoomKind::Rrsp => {
             if r.as_of.year() < today.year() {
@@ -305,6 +299,18 @@ mod tests {
         put(&mut l, ymd(2025, 4, 1), dec!(8000));
         let v = &room(&l, &Market::from_ledger(&l), ymd(2026, 1, 10))[0];
         assert_eq!(v.left, dec!(8000));
+    }
+
+    #[test]
+    fn fhsa_carries_at_most_eight_thousand() {
+        let mut l = ledger_with(AccountKind::Fhsa);
+        l.room.insert(RoomKind::Fhsa, Room { as_of: ymd(2024, 1, 1), amount: dec!(8000) });
+        let m = Market::from_ledger(&l);
+        assert_eq!(room(&l, &m, ymd(2025, 3, 1))[0].left, dec!(16000));
+        let v = &room(&l, &m, ymd(2026, 3, 1))[0];
+        assert_eq!(v.left, dec!(16000));
+        // Without the setup answers the lifetime limit is unknown, and the note says so.
+        assert!(v.note.as_deref().unwrap().contains("lifetime"));
     }
 
     #[test]

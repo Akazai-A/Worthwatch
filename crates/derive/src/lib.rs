@@ -6,6 +6,7 @@ pub mod growth;
 pub mod market;
 pub mod portfolio;
 pub mod projection;
+pub mod registered;
 pub mod room;
 
 use std::collections::BTreeMap;
@@ -20,6 +21,7 @@ pub use growth::{account_months, growth, GrowthPoint, MonthSplit};
 pub use market::{Market, Price, Rate, Source};
 pub use portfolio::{portfolio, AccountSlice, Portfolio, SecurityRow, Slice};
 pub use projection::{project, Assumptions};
+pub use registered::{registered, HeldAccount, RegisteredView, YearCell};
 pub use room::{room, RoomView};
 
 #[derive(Debug, Clone, Serialize, PartialEq)]

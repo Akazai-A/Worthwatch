@@ -36,6 +36,10 @@ pub struct Ledger {
     /// Contribution room per registered-account kind, as CRA reported it on a date.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub room: BTreeMap<RoomKind, Room>,
+    /// When TFSA and FHSA room started, and the total put in when you said so. Lets
+    /// Worthwatch work out room from the CRA limit table instead of asking for it.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub registered: BTreeMap<RoomKind, Registered>,
     /// Money you put into (positive) or took out of (negative) a registered account.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub contributions: Vec<Contribution>,
@@ -289,6 +293,17 @@ impl RoomKind {
 pub struct Room {
     pub as_of: NaiveDate,
     pub amount: Decimal,
+}
+
+/// TFSA: the year room started (turned 18, or became resident; 2009 at the earliest).
+/// FHSA: the year you opened your first FHSA. `put_in` is deposits minus withdrawals
+/// across every account of the kind, ever, as of `as_of`; logged contributions after
+/// that add to it.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Registered {
+    pub since: i32,
+    pub as_of: NaiveDate,
+    pub put_in: Decimal,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -580,6 +595,7 @@ impl Ledger {
             securities: BTreeMap::new(),
             recurring: Vec::new(),
             room: BTreeMap::new(),
+            registered: BTreeMap::new(),
             contributions: Vec::new(),
             budget: Budget::default(),
         }
