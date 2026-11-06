@@ -71,6 +71,7 @@ pub struct Summary {
     /// "Cash", "Investments", "Property", "Debt" -> total.
     pub by_group: BTreeMap<String, Decimal>,
     pub ytd_change: Option<Decimal>,
+    /// Simple return since Jan 1, percent: money you added is not a gain.
     pub ytd_pct: Option<Decimal>,
     pub previous_change: Option<Decimal>,
     pub previous_from: Option<NaiveDate>,
@@ -730,7 +731,11 @@ pub fn answer_query(ctx: &Context, q: &str) -> String {
     let ql = q.to_ascii_lowercase();
     let ytd = match (s.ytd_change, s.ytd_pct) {
         (Some(c), Some(p)) => {
-            format!(" · {} ({}{p:.1}%) since Jan 1", signed(c), if p >= Decimal::ZERO { "+" } else { "" })
+            format!(
+                " · {} since Jan 1 ({}{p:.1}% return)",
+                signed(c),
+                if p >= Decimal::ZERO { "+" } else { "" }
+            )
         }
         (Some(c), None) => format!(" · {} since Jan 1", signed(c)),
         _ => String::new(),
@@ -1153,7 +1158,7 @@ mod tests {
         let c = ctx();
         assert_eq!(
             answer_query(&c, "net worth"),
-            "Net worth $412,950 · +$18,920 (+4.8%) since Jan 1 · assets $826,190 · debt $413,240"
+            "Net worth $412,950 · +$18,920 since Jan 1 (+4.8% return) · assets $826,190 · debt $413,240"
         );
         assert!(answer_query(&c, "how much cash").starts_with("Cash $47,156"));
         assert!(answer_query(&c, "what do I owe").starts_with("Debt $413,240"));

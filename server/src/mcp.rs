@@ -131,7 +131,7 @@ fn call_tool(b: &dyn Backend, name: &str, args: &Value) -> Result<Value, String>
                 "debt": c["summary"]["liabilities"],
                 "by_group": c["summary"]["by_group"],
                 "change_since_jan_1": c["summary"]["ytd_change"],
-                "change_since_jan_1_pct": c["summary"]["ytd_pct"],
+                "return_since_jan_1_pct": c["summary"]["ytd_pct"],
                 "change_since_previous_check_in": c["summary"]["previous_change"],
                 "previous_check_in": c["summary"]["previous_from"],
             }))

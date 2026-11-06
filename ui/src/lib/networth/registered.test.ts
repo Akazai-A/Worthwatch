@@ -12,7 +12,7 @@ const room = (over: Partial<RoomView> = {}): RoomView => ({
   planned: "0", monthly_plan: "0", runs_out: null, over: false, estimated: false, note: null, accounts: [], ...over,
 });
 const reg = (over: Partial<RegisteredView> = {}): RegisteredView => ({
-  kind: "tfsa", label: "TFSA", value: "142300", accounts: [], since: 2009, put_in: "109000", growth: "33300",
+  kind: "tfsa", label: "TFSA", value: "142300", accounts: [], since: 2009, put_in: "109000", growth: "33300", return_pct: "30.6",
   lifetime: "109000", lifetime_left: null, closes: null, years: [], room: room(), ...over,
 });
 

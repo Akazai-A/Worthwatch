@@ -21,6 +21,7 @@ export const KIND_LABEL: Record<AccountKind, string> = {
 };
 
 export interface Diagnostic { line: number | null; message: string }
+/** `amount` is the change in net worth; `pct` is the simple return (money you added is not a gain). */
 export interface Delta { from: string; amount: string; pct: string | null }
 export interface HistoryPoint { date: string; value: string }
 export type Source = "manual" | "fetched";
@@ -588,7 +589,7 @@ export interface YearCell { year: number; limit: string; used: string; estimated
 /** All TFSAs (or FHSAs, or RRSPs) added up, with room. `put_in` is null until set up. */
 export interface RegisteredView {
   kind: RoomKind; label: string; value: string; accounts: HeldAccount[]; since: number | null;
-  put_in: string | null; growth: string | null; lifetime: string | null; lifetime_left: string | null;
+  put_in: string | null; growth: string | null; return_pct: string | null; lifetime: string | null; lifetime_left: string | null;
   closes: number | null; years: YearCell[]; room: RoomView | null;
 }
 /** CRA's limits, so the setup form can preview its answer before you save. */

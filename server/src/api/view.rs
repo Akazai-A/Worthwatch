@@ -166,7 +166,7 @@ pub fn build_view(snap: &Snapshot, path: &str, today: NaiveDate, offline: bool) 
         .len()
         .checked_sub(2)
         .and_then(|i| series.get(i))
-        .and_then(|p| derive::delta_since(&series, p.date));
+        .and_then(|p| derive::delta_since(l, &m, &series, p.date));
     let jan1 = NaiveDate::from_ymd_opt(today.year(), 1, 1).unwrap_or(today);
     let year_ago = today.with_year(today.year() - 1).unwrap_or_else(|| today - chrono::Days::new(365));
     let prices_as_of = snap.quotes.latest_price_date();
@@ -203,8 +203,8 @@ pub fn build_view(snap: &Snapshot, path: &str, today: NaiveDate, offline: bool) 
         totals: derive::totals(l, &m, today),
         deltas: Deltas {
             previous,
-            ytd: derive::delta_since(&series, jan1),
-            one_year: derive::delta_since(&series, year_ago),
+            ytd: derive::delta_since(l, &m, &series, jan1),
+            one_year: derive::delta_since(l, &m, &series, year_ago),
         },
         series,
         accounts,

@@ -111,7 +111,7 @@
           {#each stats as st (st.k)}
             <div class="stat">
               <div class="k">{st.k}</div>
-              <div class="v">{#if st.d.amount != null}<Money value={st.d.amount} currency={cur} signed tone="delta" />{/if}{#if st.d.pct != null}<span class="pct num">{Number(st.d.pct) > 0 ? "+" : ""}{st.d.pct}%</span>{/if}</div>
+              <div class="v">{#if st.d.amount != null}<Money value={st.d.amount} currency={cur} signed tone="delta" />{/if}{#if st.d.pct != null}<span class="pct num" title="Return: what grew, as a share of what you had plus what you added. Money you put in is not a gain.">{Number(st.d.pct) > 0 ? "+" : ""}{st.d.pct}%</span>{/if}</div>
             </div>
           {/each}
         </div>
