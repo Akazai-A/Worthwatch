@@ -8,7 +8,9 @@ This page explains what each screen shows and how to use it. Every screen reads 
 
 Home answers "what am I worth, and is it going up?"
 
-- The large figure is your net worth in your base currency. Below it are three changes: since your last check-in, this year, and the last 12 months, each in dollars and percent.
+- The large figure is your net worth in your base currency. Below it are three changes: since your last check-in, this year, and the last 12 months.
+  - The dollar figure is how much your net worth changed, money you added included.
+  - The percent is your return, worked out the way Wealthsimple's simple return is: what grew ÷ (what you had + what you added). Saving, deposits and debt you paid down are not counted as gains.
 - The strip under the changes splits the change since your last check-in into market moves, cash and property, debt paid down, and FX. Hover a part to light the accounts it came from.
 - The chart draws your net worth against what you put in yourself (saving, contributions and debt paid down), so the gap between the lines is what the market added. Hover any day to read both lines and the gap.
 - The group totals show investments, cash, debt and liquid net worth, each with its share of your assets. Each colour means the same group on every screen.
@@ -121,7 +123,7 @@ Plan projects your net worth forward.
 - The fan chart shows the projection at your assumed return, with a band 2 points above and below.
 - The sliders try a different return, extra monthly saving, or a target. They don't change your ledger. Select **Save as my defaults** to keep them.
 - Debt curves show when each debt is paid off.
-- Registered accounts adds up every TFSA, FHSA and RRSP you hold. Each type shows its total value, what you put in and what grew, the room you have left, and a bar per account.
+- Registered accounts adds up every TFSA, FHSA and RRSP you hold. Each type shows its total value, what you put in and what grew (with the return in percent), the room you have left, and a bar per account.
 
 ### Set up TFSA and FHSA room
 

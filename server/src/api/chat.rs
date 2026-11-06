@@ -83,12 +83,12 @@ pub fn context(snap: &Snapshot, today: NaiveDate) -> Context {
     let totals = derive::totals(l, &m, today);
     let series = derive::net_worth_series(l, &m);
     let jan1 = NaiveDate::from_ymd_opt(today.year(), 1, 1).unwrap_or(today);
-    let ytd = derive::delta_since(&series, jan1);
+    let ytd = derive::delta_since(l, &m, &series, jan1);
     let previous = series
         .len()
         .checked_sub(2)
         .and_then(|i| series.get(i))
-        .and_then(|p| derive::delta_since(&series, p.date));
+        .and_then(|p| derive::delta_since(l, &m, &series, p.date));
     Context {
         today,
         base_currency: base,

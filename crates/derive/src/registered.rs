@@ -56,6 +56,8 @@ pub struct RegisteredView {
     /// Deposits minus withdrawals, all accounts of the kind, ever. `None` until set up.
     pub put_in: Option<Decimal>,
     pub growth: Option<Decimal>,
+    /// Simple return since you started: growth ÷ put in, percent (Wealthsimple's "simple return").
+    pub return_pct: Option<Decimal>,
     /// All room there has been since `since` (TFSA), or $40,000 (FHSA).
     pub lifetime: Option<Decimal>,
     /// FHSA: what the lifetime limit still allows.
@@ -148,6 +150,7 @@ fn one(l: &Ledger, m: &Market, today: NaiveDate, kind: RoomKind, room: Option<Ro
         since,
         put_in,
         growth: put_in.map(|p| value - p),
+        return_pct: put_in.and_then(|p| crate::simple_return(Decimal::ZERO, value, p)),
         lifetime,
         lifetime_left,
         closes,
@@ -213,6 +216,7 @@ mod tests {
         assert_eq!(t.value, dec!(142300));
         assert_eq!(t.put_in, Some(dec!(109000)));
         assert_eq!(t.growth, Some(dec!(33300)));
+        assert_eq!(t.return_pct, Some(dec!(30.6)));
         assert_eq!(t.lifetime, Some(dec!(109000)));
         assert_eq!(t.room.as_ref().unwrap().left, dec!(0));
         // 2009..=2026 used in full, then 2027 to come.

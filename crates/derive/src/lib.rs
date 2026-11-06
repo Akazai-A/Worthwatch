@@ -209,26 +209,31 @@ pub fn account_history(l: &Ledger, m: &Market, a: &Account) -> Vec<HistoryPoint>
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct Delta {
     pub from: NaiveDate,
+    /// Change in net worth, money you added included.
     pub amount: Decimal,
-    /// Percent of the starting value; `None` when the start was zero.
+    /// Simple return, percent: what grew ÷ (starting net worth + what you added). Money you
+    /// put in is not a gain. `None` when that base is zero or less.
     pub pct: Option<Decimal>,
 }
 
-/// Change in net worth between the series value at or before `from` and the latest point.
-/// `None` when nothing was recorded at or before `from`.
-pub fn delta_since(series: &[Point], from: NaiveDate) -> Option<Delta> {
+/// Simple return, the way Wealthsimple shows it: (change − added) ÷ (start + added), percent,
+/// one decimal. Deposits, saving and debt paid down are not gains.
+pub fn simple_return(start: Decimal, end: Decimal, added: Decimal) -> Option<Decimal> {
+    let base = start + added;
+    (base > Decimal::ZERO).then(|| ((end - start - added) / base * Decimal::ONE_HUNDRED).round_dp(1))
+}
+
+/// Change in net worth between the series value at or before `from` and the latest point,
+/// with its simple return. `None` when nothing was recorded at or before `from`.
+pub fn delta_since(l: &Ledger, m: &Market, series: &[Point], from: NaiveDate) -> Option<Delta> {
     let last = series.last()?;
     let start = series.iter().rev().find(|p| p.date <= from)?;
     if start.date == last.date {
         return None;
     }
     let amount = last.net_worth - start.net_worth;
-    let pct = if start.net_worth.is_zero() {
-        None
-    } else {
-        Some((amount / start.net_worth.abs() * Decimal::ONE_HUNDRED).round_dp(1))
-    };
-    Some(Delta { from: start.date, amount, pct })
+    let added = growth::added(&changes(l, m, start.date, last.date));
+    Some(Delta { from: start.date, amount, pct: simple_return(start.net_worth, last.net_worth, added) })
 }
 
 pub fn days_stale(l: &Ledger, m: &Market, a: &Account, today: NaiveDate) -> Option<i64> {
@@ -387,12 +392,24 @@ mod tests {
         assert_eq!(s.len(), 2);
         assert_eq!(s[0].net_worth, dec!(700));
         assert_eq!(s[1].net_worth, dec!(1200)); // visa carried forward
-        let d = delta_since(&s, ymd(2026, 10, 1)).unwrap();
+        let d = delta_since(&l, &m, &s, ymd(2026, 10, 1)).unwrap();
         assert_eq!(d.from, ymd(2026, 9, 30));
         assert_eq!(d.amount, dec!(500));
-        assert_eq!(d.pct, Some(dec!(71.4)));
-        assert_eq!(delta_since(&s, ymd(2026, 1, 1)), None);
-        assert_eq!(delta_since(&s, ymd(2026, 10, 31)), None);
+        // The $500 is cash you typed in: added, not a gain.
+        assert_eq!(d.pct, Some(dec!(0)));
+        assert_eq!(delta_since(&l, &m, &s, ymd(2026, 1, 1)), None);
+        assert_eq!(delta_since(&l, &m, &s, ymd(2026, 10, 31)), None);
+    }
+
+    #[test]
+    fn simple_return_leaves_out_what_you_added() {
+        // $10,000 grows to $12,000 after you add $1,000: $1,000 grew on $11,000.
+        assert_eq!(simple_return(dec!(10000), dec!(12000), dec!(1000)), Some(dec!(9.1)));
+        // A deposit alone is no return.
+        assert_eq!(simple_return(dec!(10000), dec!(17000), dec!(7000)), Some(dec!(0)));
+        // A loss.
+        assert_eq!(simple_return(dec!(10000), dec!(9000), dec!(0)), Some(dec!(-10)));
+        assert_eq!(simple_return(dec!(0), dec!(0), dec!(0)), None);
     }
 
     #[test]

@@ -74,7 +74,7 @@
   <div class="kh"><span>{r.label}</span><span class="c">{r.accounts.length} account{r.accounts.length === 1 ? "" : "s"}{#if r.kind === "fhsa" && r.since}{" · "}opened {r.since}{/if}</span></div>
   <div class="big"><Money value={r.value} {currency} size="l" /></div>
   {#if bar && r.growth != null}
-    <div class="sub"><b class:loss={Number(r.growth) < 0}>{Number(r.growth) >= 0 ? "+" : "−"}{money(Math.abs(Number(r.growth)))}</b> {Number(r.growth) >= 0 ? "growth" : "below what you"} {Number(r.growth) >= 0 ? `on ${money(r.put_in!)} put in` : `put in (${money(r.put_in!)})`}</div>
+    <div class="sub"><b class:loss={Number(r.growth) < 0}>{Number(r.growth) >= 0 ? "+" : "−"}{money(Math.abs(Number(r.growth)))}{#if r.return_pct != null}{" ("}{Number(r.return_pct) > 0 ? "+" : ""}{r.return_pct}%){/if}</b> {Number(r.growth) >= 0 ? "growth" : "below what you"} {Number(r.growth) >= 0 ? `on ${money(r.put_in!)} put in` : `put in (${money(r.put_in!)})`}</div>
     <div class="vbar" title="put in {money(r.put_in!)} · {Number(r.growth) >= 0 ? 'growth' : 'loss'} {money(Math.abs(Number(r.growth)))}">
       <i style="width:{bar.putIn}%;background:var(--fill)"></i>{#if bar.growth > 0}<i style="width:{bar.growth}%;background:var(--positive)"></i>{/if}{#if bar.loss > 0}<i class="lossbar" style="width:{bar.loss}%"></i>{/if}
     </div>
