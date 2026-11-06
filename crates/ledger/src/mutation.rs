@@ -2,6 +2,7 @@ use chrono::NaiveDate;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
+use crate::cra::{self, SetupError, Standing};
 use crate::schema::*;
 use crate::validate::{self, LedgerError};
 
@@ -60,6 +61,14 @@ pub enum Mutation {
     RecordContribution {
         contribution: Contribution,
     },
+    /// TFSA or FHSA from two answers: the year room started and where you stand on
+    /// `as_of`. Sets the room (as if CRA said it on `as_of`) and the total put in.
+    SetupRegistered {
+        kind: RoomKind,
+        since: i32,
+        standing: Standing,
+        as_of: NaiveDate,
+    },
     SetProjection {
         projection: Projection,
     },
@@ -101,6 +110,17 @@ pub enum Mutation {
     PassCard {
         id: String,
     },
+}
+
+fn setup_reason(e: SetupError) -> String {
+    match e {
+        SetupError::NotYearBased => {
+            "room depends on income; enter the figure from your notice of assessment".into()
+        }
+        SetupError::BadYear { first, this } => format!("the start year must be between {first} and {this}"),
+        SetupError::TooMuch { most } => format!("that is more than the {most} of room since the start year"),
+        SetupError::Negative => "amounts cannot be negative".into(),
+    }
 }
 
 impl Ledger {
@@ -190,6 +210,14 @@ impl Ledger {
                     next.room.remove(&kind);
                 }
             },
+            Mutation::SetupRegistered { kind, since, standing, as_of } => {
+                use chrono::Datelike;
+                let (left, put_in) = cra::resolve(kind, since, &standing, as_of.year())
+                    .map_err(|e| LedgerError::BadSetup(kind.label().into(), setup_reason(e)))?;
+                let since = if kind == RoomKind::Tfsa { since.max(cra::TFSA_FIRST_YEAR) } else { since };
+                next.room.insert(kind, Room { as_of, amount: left });
+                next.registered.insert(kind, Registered { since, as_of, put_in });
+            }
             Mutation::RecordContribution { contribution } => {
                 next.contributions.push(contribution);
                 next.contributions.sort_by_key(|c| c.date);
@@ -381,6 +409,42 @@ mod tests {
             })
             .unwrap();
         assert_eq!(l.contributions.len(), 1);
+    }
+
+    #[test]
+    fn setup_from_two_answers_sets_room_and_put_in() {
+        let as_of = NaiveDate::from_ymd_opt(2026, 11, 6).unwrap();
+        let l = Ledger::starter("CAD")
+            .apply(Mutation::SetupRegistered {
+                kind: RoomKind::Tfsa,
+                since: 2001,
+                standing: Standing::Maxed,
+                as_of,
+            })
+            .unwrap();
+        assert_eq!(l.room[&RoomKind::Tfsa], Room { as_of, amount: dec!(0) });
+        assert_eq!(l.registered[&RoomKind::Tfsa], Registered { since: 2009, as_of, put_in: dec!(109000) });
+        // The ledger round-trips through YAML with the new section.
+        let back = crate::io::parse(&crate::io::to_yaml(&l).unwrap()).unwrap();
+        assert_eq!(back.registered, l.registered);
+        let err = l
+            .apply(Mutation::SetupRegistered {
+                kind: RoomKind::Fhsa,
+                since: 2024,
+                standing: Standing::PutIn { amount: dec!(50000) },
+                as_of,
+            })
+            .unwrap_err();
+        assert_eq!(err.to_string(), "FHSA room: that is more than the 24000 of room since the start year");
+        let err = l
+            .apply(Mutation::SetupRegistered {
+                kind: RoomKind::Rrsp,
+                since: 2020,
+                standing: Standing::Maxed,
+                as_of,
+            })
+            .unwrap_err();
+        assert!(matches!(err, LedgerError::BadSetup(..)));
     }
 
     #[test]

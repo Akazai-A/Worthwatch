@@ -261,6 +261,33 @@ test("Plan: a recurring rule moves the projection; ⌘K reaches the wall view; a
   await expect(page.getByRole("link", { name: "Download" }).first()).toBeVisible();
 });
 
+test("Plan: two answers set up TFSA room across every TFSA, added up", async ({ page, request }) => {
+  const tfsa = (id: string, name: string) => ({ op: "upsert_account", account: { id, name, kind: "tfsa", currency: "CAD", tags: [] } });
+  const day = new Date().toISOString().slice(0, 10);
+  const setup = await request.post("/api/apply", {
+    data: [tfsa("ws-tfsa", "WS TFSA"), tfsa("qt-tfsa", "QT TFSA"), { op: "set_balance", date: day, account: "ws-tfsa", value: "90000" }, { op: "set_balance", date: day, account: "qt-tfsa", value: "40000" }],
+  });
+  expect(setup.ok()).toBeTruthy();
+
+  await page.goto("/#/plan");
+  const card = page.locator("[data-kind=tfsa]");
+  // Earlier tests may have added TFSAs too; every one of them is in the total.
+  await expect(card.locator(".accts")).toContainText("WS TFSA");
+  await expect(card.locator(".accts")).toContainText("QT TFSA");
+  await expect(card.getByText(/Where do you stand today, across all \d+ TFSAs\?/)).toBeVisible();
+  // An impossible answer explains itself before anything is saved.
+  await card.getByRole("button", { name: "Put in $…" }).click();
+  await card.getByLabel("Total put in").fill("500000");
+  await expect(card.locator(".preview")).toContainText("more than");
+  await card.getByRole("button", { name: "Maxed out" }).click();
+  await expect(card.locator(".preview")).toContainText("That leaves $0 now");
+  await card.getByRole("button", { name: "Save" }).click();
+
+  await expect(card.locator(".pill")).toHaveText("Maxed out");
+  await expect(card.locator(".sub")).toContainText("growth on");
+  expect(ledgerText()).toMatch(/registered:\n {2}tfsa:\n {4}since: 2009/);
+});
+
 test("Budget: a tap needs the token, shows at once as provisional, and the statement confirms it once", async ({ page, request }) => {
   const now = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");

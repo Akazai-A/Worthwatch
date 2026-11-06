@@ -12,7 +12,7 @@ use std::path::Path;
 use chrono::{Datelike, Months, NaiveDate, Weekday};
 use ledger::{
     Account, AccountKind, Contribution, Event, Every, Ledger, LedgerError, Position, PositionChange,
-    Projection, Recurring, Room, RoomKind,
+    Projection, Recurring, Registered, Room, RoomKind,
 };
 use providers::QuoteCache;
 use rust_decimal::Decimal;
@@ -140,6 +140,26 @@ pub fn seed_ledger(today: NaiveDate) -> Ledger {
             Room { as_of: NaiveDate::from_ymd_opt(today.year(), 5, 1).unwrap(), amount: d(1840000) },
         ),
         (RoomKind::Fhsa, Room { as_of: jan1, amount: d(1600000) }),
+    ]);
+    // When room started, so the Plan screen can add up what went in and what grew.
+    let year = today.year();
+    l.registered = BTreeMap::from([
+        (
+            RoomKind::Tfsa,
+            Registered {
+                since: 2014,
+                as_of: jan1,
+                put_in: ledger::cra::tfsa_lifetime(2014, year) - d(1350000),
+            },
+        ),
+        (
+            RoomKind::Fhsa,
+            Registered {
+                since: year - 2,
+                as_of: jan1,
+                put_in: (ledger::cra::fhsa_lifetime(year - 2, year) - d(1600000)).max(Decimal::ZERO),
+            },
+        ),
     ]);
     for month in 1..today.month() {
         let date = NaiveDate::from_ymd_opt(today.year(), month, 15).unwrap();

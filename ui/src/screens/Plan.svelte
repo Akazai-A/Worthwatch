@@ -1,14 +1,15 @@
 <script lang="ts">
   import PrivacyToggle from "../lib/components/shell/PrivacyToggle.svelte";
-  import { apply, ApiError, EVERY_LABEL, type Every, type LedgerView, type Mutation, type Recurring, type RoomKind } from "../lib/api";
-  import { formatCompact, formatDate, formatMoney, parseAmount, todayIso } from "../lib/format/money";
-  import { milestoneSplit, monthYear, payoffLine, roomBar, roomLine, yearsBetween } from "../lib/networth/plan";
+  import { apply, ApiError, EVERY_LABEL, type Every, type LedgerView, type Mutation, type Recurring } from "../lib/api";
+  import { formatCompact, formatDate, formatMoney, parseAmount } from "../lib/format/money";
+  import { milestoneSplit, monthYear, payoffLine, yearsBetween } from "../lib/networth/plan";
   import { undo } from "../lib/stores/undo.svelte";
   import { plan } from "../lib/stores/plan.svelte";
   import { prefs } from "../lib/stores/prefs.svelte";
   import { view as viewStore } from "../lib/stores/view.svelte";
   import FanChart from "../lib/charts/FanChart.svelte";
   import Money from "../lib/components/amounts/Money.svelte";
+  import RegisteredCard from "../lib/components/plan/RegisteredCard.svelte";
 
   let { view }: { view: LedgerView } = $props();
   const cur = $derived(view.base_currency);
@@ -86,39 +87,6 @@
     if (await save([{ op: "set_recurring", account: r.account, rules: keep }]) !== false) undo.offer(`Removed the ${r.name} rule`, [{ op: "set_recurring", account: r.account, rules: plain(same) }]);
   }
 
-  // ---- Room ----
-  const ROOM_KINDS: RoomKind[] = ["tfsa", "rrsp", "fhsa"];
-  const ROOM_LABEL: Record<RoomKind, string> = { tfsa: "TFSA", rrsp: "RRSP", fhsa: "FHSA" };
-  const missingRoom = $derived(ROOM_KINDS.filter((k) => view.accounts.some((a) => a.kind === k) && !p?.room.some((r) => r.kind === k)));
-  let editing = $state<RoomKind | null>(null);
-  let eAmount = $state("");
-  let eDate = $state(todayIso());
-  function startEdit(k: RoomKind) {
-    editing = k;
-    const r = p?.room.find((x) => x.kind === k);
-    eAmount = r ? r.left : "";
-    eDate = todayIso();
-  }
-  async function saveRoom() {
-    const amount = parseAmount(eAmount);
-    if (!editing || amount == null || Number(amount) < 0) { err = "Room is a number of dollars, 0 or more."; return; }
-    if (await save([{ op: "set_room", kind: editing, room: { as_of: eDate, amount } }])) editing = null;
-  }
-  let logging = $state<RoomKind | null>(null);
-  let cAccount = $state("");
-  let cAmount = $state("");
-  let cDate = $state(todayIso());
-  function startLog(k: RoomKind) {
-    logging = k;
-    cAccount = view.accounts.find((a) => a.kind === k)?.id ?? "";
-    cAmount = "";
-    cDate = todayIso();
-  }
-  async function logContribution() {
-    const amount = parseAmount(cAmount);
-    if (!cAccount || !amount || Number(amount) === 0) { err = "Enter an amount (negative for a withdrawal)."; return; }
-    if (await save([{ op: "record_contribution", contribution: { date: cDate, account: cAccount, amount } }])) logging = null;
-  }
 </script>
 
 <div class="plan">
@@ -201,73 +169,35 @@
     </section>
     <div class="legend under"><span><i style="background:var(--fill)"></i>Today's net worth</span><span><i style="background:var(--fill-soft)"></i>Money put in</span><span><i class="grow"></i>Growth and debt paydown</span></div>
 
-    <div class="two">
-      <section class="card">
-        <h2 class="label">Debt payoff</h2>
-        {#if P.debts.length === 0}<p class="faint small">No debt. Nothing to pay off.</p>{/if}
-        {#each P.debts as d}
-          {@const ys = [Number(d.balance), ...d.yearly.map(Number)]}
-          {@const pts = ys.map((v, i) => `${(i / Math.max(1, ys.length - 1)) * 240},${34 - (v / maxDebt) * 34}`).join("L")}
-          <div class="debt">
-            <div class="n">{d.name}<span class="money">{compact(d.balance)} @ {d.rate_pct}%</span></div>
-            <div>
-              <svg width="100%" height="38" viewBox="0 0 240 38" preserveAspectRatio="none" aria-hidden="true">
-                <path d="M0,34L{pts}L240,34Z" class="debt-a" /><path d="M{pts}" class="debt-l" />
-              </svg>
-              <div class="f"><span>{payoffLine(d, plan.years)}</span><span class="money">{Number(d.interest) > 0 ? `${money(d.interest)} interest` : ""}</span></div>
-            </div>
-          </div>
-        {/each}
-        <p class="faint small">Payments come from rules below; set a debt's rate under <code>settings.projection.rates</code>.</p>
+    {#if p!.registered.length}
+      <section class="card reg">
+        <div class="hrow"><h2 class="label">Registered accounts</h2><span class="faint small">all accounts of each type, added up</span></div>
+        <div class="grid" style="--n:{p!.registered.length}">
+          {#each p!.registered as r (r.kind)}
+            <RegisteredCard {r} limits={p!.limits} accounts={view.accounts.filter((a) => a.kind === r.kind)} currency={cur} year={Number(view.as_of.slice(0, 4))} {saving} onsave={save} />
+          {/each}
+        </div>
       </section>
+    {/if}
 
-      <section class="card">
-        <h2 class="label">Contribution room {view.as_of.slice(0, 4)}</h2>
-        {#each p!.room as r}
-          {@const b = roomBar(r)}
-          <div class="room">
-            <div class="h"><span>{r.label}</span><span><b class="money" class:neg={r.over}>{money(r.left)}</b> <span class="faint">left of {compact(b.room)}</span></span></div>
-            <div class="bar" title="used {money(r.used)} · planned to Dec 31 {money(r.planned)} · left {money(r.left)}">
-              <i style="width:{b.used}%;background:var(--fill)"></i><i style="width:{b.planned}%;background:var(--fill-soft)"></i>{#if b.over}<i style="width:{b.over}%;background:var(--negative)"></i>{/if}
-            </div>
-            <div class="f"><span class:neg={r.over}>{roomLine(r)}</span><span>CRA {formatDate(r.as_of)}{r.estimated ? " · est." : ""}</span></div>
-            {#if r.note}<div class="f note">{r.note}</div>{/if}
-            <div class="acts">
-              <button type="button" class="link" onclick={() => startLog(r.kind)}>+ Log contribution</button>
-              <button type="button" class="link" onclick={() => startEdit(r.kind)}>Update from CRA</button>
-            </div>
-            {#if logging === r.kind}
-              <form class="inline" onsubmit={(e) => { e.preventDefault(); void logContribution(); }}>
-                <select bind:value={cAccount} aria-label="Account">{#each view.accounts.filter((a) => a.kind === r.kind) as a}<option value={a.id}>{a.name}</option>{/each}</select>
-                <input bind:value={cAmount} placeholder="500 or -2000" aria-label="Amount" />
-                <input type="date" bind:value={cDate} aria-label="Date" />
-                <button class="btn" disabled={saving}>Log</button><button type="button" class="link" onclick={() => (logging = null)}>Cancel</button>
-              </form>
-            {/if}
-            {#if editing === r.kind}
-              <form class="inline" onsubmit={(e) => { e.preventDefault(); void saveRoom(); }}>
-                <input bind:value={eAmount} placeholder="room CRA shows" aria-label="Room" />
-                <input type="date" bind:value={eDate} aria-label="As of" />
-                <button class="btn" disabled={saving}>Save</button><button type="button" class="link" onclick={() => (editing = null)}>Cancel</button>
-              </form>
-            {/if}
+    <section class="card">
+      <h2 class="label">Debt payoff</h2>
+      {#if P.debts.length === 0}<p class="faint small">No debt. Nothing to pay off.</p>{/if}
+      {#each P.debts as d}
+        {@const ys = [Number(d.balance), ...d.yearly.map(Number)]}
+        {@const pts = ys.map((v, i) => `${(i / Math.max(1, ys.length - 1)) * 240},${34 - (v / maxDebt) * 34}`).join("L")}
+        <div class="debt">
+          <div class="n">{d.name}<span class="money">{compact(d.balance)} @ {d.rate_pct}%</span></div>
+          <div>
+            <svg width="100%" height="38" viewBox="0 0 240 38" preserveAspectRatio="none" aria-hidden="true">
+              <path d="M0,34L{pts}L240,34Z" class="debt-a" /><path d="M{pts}" class="debt-l" />
+            </svg>
+            <div class="f"><span>{payoffLine(d, plan.years)}</span><span class="money">{Number(d.interest) > 0 ? `${money(d.interest)} interest` : ""}</span></div>
           </div>
-        {/each}
-        {#each missingRoom as k}
-          <div class="room">
-            <div class="h"><span>{ROOM_LABEL[k]}</span><button type="button" class="link" onclick={() => startEdit(k)}>Add room from CRA My Account</button></div>
-            {#if editing === k}
-              <form class="inline" onsubmit={(e) => { e.preventDefault(); void saveRoom(); }}>
-                <input bind:value={eAmount} placeholder="room CRA shows" aria-label="Room" />
-                <input type="date" bind:value={eDate} aria-label="As of" />
-                <button class="btn" disabled={saving}>Save</button><button type="button" class="link" onclick={() => (editing = null)}>Cancel</button>
-              </form>
-            {/if}
-          </div>
-        {/each}
-        {#if p!.room.length}<div class="legend"><span><i style="background:var(--fill)"></i>Used</span><span><i style="background:var(--fill-soft)"></i>Planned to Dec 31</span><span><i style="background:var(--surface-2);outline:1px solid var(--border)"></i>Left</span></div>{/if}
-      </section>
-    </div>
+        </div>
+      {/each}
+      <p class="faint small">Payments come from rules below; set a debt's rate under <code>settings.projection.rates</code>.</p>
+    </section>
 
     <section class="card rules">
       <div class="hrow"><h2 class="label">On autopilot</h2><button type="button" class="link" onclick={() => { adding = !adding; rAccount ||= view.accounts[0]?.id ?? ""; }}>{adding ? "Cancel" : "+ Add rule"}</button></div>
@@ -336,8 +266,8 @@
   .stack i { display: block; min-height: 0; }
   .cl { font-size: 12px; color: var(--text-2); text-align: center; }
   .cr { font-size: 12px; }
-  .bar i { display: block; height: 100%; }
-  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+  .reg .hrow { margin-bottom: 14px; }
+  .reg .grid { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 28px; align-items: start; }
   h2.label { margin: 0 0 12px; font-weight: 500; }
   .debt { display: grid; grid-template-columns: 110px 1fr; gap: 10px; align-items: center; padding: 6px 0; }
   .debt .n { font-size: 13px; }
@@ -345,14 +275,6 @@
   .debt-a { fill: var(--g-debt); opacity: 0.35; }
   .debt-l { fill: none; stroke: var(--g-debt); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
   .f { font-size: 11px; color: var(--text-3); display: flex; justify-content: space-between; gap: 8px; }
-  .f.note { margin-top: 2px; }
-  .room { padding: 8px 0 10px; border-top: 1px solid var(--border); }
-  .room:first-of-type { border-top: 0; padding-top: 0; }
-  .room .h { display: flex; justify-content: space-between; font-size: 13px; }
-  .room .h b { font-family: var(--figures); font-weight: 400; }
-  .bar { display: flex; height: 10px; border-radius: 3px; overflow: hidden; background: var(--surface-2); margin: 6px 0 4px; }
-  .acts { display: flex; gap: 14px; margin-top: 6px; }
-  .neg { color: var(--negative) !important; }
   .inline { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; align-items: center; }
   .inline input, .inline select { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; font: inherit; font-size: 12px; min-width: 0; width: 120px; }
   .inline select { width: auto; }
@@ -372,7 +294,7 @@
     .knobs { grid-template-columns: 1fr; }
     .col { padding: 0 4px; }
     .cv .money { font-size: 1.1rem; }
-    .two { grid-template-columns: 1fr; }
+    .reg .grid { grid-template-columns: 1fr; gap: 24px; }
     .rules .r { grid-template-columns: 10px 1fr auto 18px; }
     .rules .m { display: none; }
   }

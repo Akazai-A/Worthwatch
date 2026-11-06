@@ -121,7 +121,23 @@ Plan projects your net worth forward.
 - The fan chart shows the projection at your assumed return, with a band 2 points above and below.
 - The sliders try a different return, extra monthly saving, or a target. They don't change your ledger. Select **Save as my defaults** to keep them.
 - Debt curves show when each debt is paid off.
-- Room bars show TFSA, RRSP and FHSA contribution room: used, planned to December 31, and left.
+- Registered accounts adds up every TFSA, FHSA and RRSP you hold. Each type shows its total value, what you put in and what grew, the room you have left, and a bar per account.
+
+### Set up TFSA and FHSA room
+
+![Registered accounts setup](../screenshots/plan/registered-setup-dark.png)
+
+You answer two questions per account type. Worthwatch does the rest with CRA's limits.
+
+1. Pick the year your room started. For a TFSA, that's the year you turned 18, or moved to Canada if later. Pick **2009 or earlier** if both came before 2009. For an FHSA, pick the year you opened your first one.
+2. Pick where you stand today across all accounts of that type: **Maxed out**, **Put in $…** (deposits minus withdrawals), or **CRA room $…** (the room CRA My Account shows).
+3. Check the preview line, then select **Save**.
+
+![Registered accounts after setup](../screenshots/plan/registered-filled-dark.png)
+
+- The TFSA strip has one column per year, as tall as that year's limit and filled as far as you used it. The dashed column is next January's room.
+- The FHSA cells are the five $8,000 years toward the $40,000 lifetime limit.
+- Select **+ Log contribution** as you put more in. Select **Change answers** to start again from a new figure.
 
 Recurring deposits and payments drive the projection. Add them on the Plan screen or in the ledger. See [Configure Worthwatch](configuration.md#set-up-plan-inputs).
 
