@@ -434,6 +434,7 @@ export type Mutation =
   | { op: "set_recurring"; account: string; rules: Recurring[] }
   | { op: "set_room"; kind: RoomKind; room: { as_of: string; amount: string } | null }
   | { op: "record_contribution"; contribution: { date: string; account: string; amount: string; note?: string | null } }
+  | { op: "setup_registered"; kind: RoomKind; since: number; standing: Standing; as_of: string }
   | { op: "set_projection"; projection: ProjectionSettings }
   | { op: "set_budget_limit"; category: string; amount: string | null }
   | { op: "link_card"; card: string; account: string | null }
@@ -580,7 +581,19 @@ export interface RoomView {
   planned: string; monthly_plan: string; runs_out: string | null; over: boolean; estimated: boolean;
   note: string | null; accounts: RoomAccount[];
 }
-export interface PlanView { projection: Projection; room: RoomView[]; recurring: RecurringView[]; settings: ProjectionSettings }
+/** Where you stand today across every account of one kind (the second setup question). */
+export type Standing = { kind: "maxed" } | { kind: "put_in"; amount: string } | { kind: "left"; amount: string };
+export interface HeldAccount { account: string; name: string; value: string }
+export interface YearCell { year: number; limit: string; used: string; estimated: boolean; future: boolean }
+/** All TFSAs (or FHSAs, or RRSPs) added up, with room. `put_in` is null until set up. */
+export interface RegisteredView {
+  kind: RoomKind; label: string; value: string; accounts: HeldAccount[]; since: number | null;
+  put_in: string | null; growth: string | null; lifetime: string | null; lifetime_left: string | null;
+  closes: number | null; years: YearCell[]; room: RoomView | null;
+}
+/** CRA's limits, so the setup form can preview its answer before you save. */
+export interface CraLimits { tfsa: [number, string][]; tfsa_first_year: number; fhsa_first_year: number; fhsa_annual: string; fhsa_carry: string; fhsa_lifetime: string }
+export interface PlanView { projection: Projection; room: RoomView[]; registered: RegisteredView[]; limits: CraLimits; recurring: RecurringView[]; settings: ProjectionSettings }
 export interface PlanParams { years?: number; return_pct?: string; extra?: string; target?: string }
 
 export async function getPlan(p: PlanParams = {}): Promise<PlanView> {

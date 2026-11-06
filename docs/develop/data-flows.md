@@ -191,7 +191,7 @@ flowchart LR
 | `GET /api/security?symbol&key` | `SecurityView` for one fund or company: about a year of daily closes (cached for what you hold, looked up on request otherwise, never offline), and your dollars in it at each check-in and today, through every fund; 400 on a symbol a provider URL can't carry |
 | `POST /api/refresh-holdings` | fetch holdings files for every held fund and the funds inside them now (offline: re-read `data/holdings/`); answers with the `LookThroughView` |
 | `GET /api/events` | SSE, one `change` event per ledger version |
-| `GET /api/plan?years&return_pct&extra&target` | `PlanView`: the projection (monthly points with a ±2 pt band, milestones, debt payoffs, target date), contribution room per TFSA/RRSP/FHSA, the recurring rules with monthly equivalents, and the ledger's own assumptions; query values override them for this answer only |
+| `GET /api/plan?years&return_pct&extra&target` | `PlanView`: the projection (monthly points with a ±2 pt band, milestones, debt payoffs, target date), contribution room per TFSA/RRSP/FHSA, `registered` (every account of each kind added up: value, put in, growth, years of room), CRA `limits`, the recurring rules with monthly equivalents, and the ledger's own assumptions; query values override them for this answer only |
 | `GET /api/backups` · `POST /api/backups` · `GET /api/backups/{name}` | list (newest first), make one now, download one |
 | `POST /api/ingest/transaction` | Apple Pay taps (object, array or JSON lines) with `Authorization: Bearer <ingest-token>`; answers `{worthwatch_saved, added, duplicates, errors}`; 401 without the token, 409 when the feed is off |
 | `GET /api/budget?month` | `BudgetView`: the month's spending, pace by day, categories with six-month history, bills, transactions with status, review list, unlinked cards, account sources and feed status |
@@ -263,7 +263,7 @@ Rules on top of the earlier ones:
 ```mermaid
 flowchart LR
   subgraph disk [WORTHWATCH_DATA]
-    L[ledger.yaml<br/>recurring · room · contributions<br/>settings.projection]
+    L[ledger.yaml<br/>recurring · room · registered ·<br/>contributions · settings.projection]
     Q[quotes.json]
     H[holdings/]
     B[(backups/<br/>worthwatch-&lt;stamp&gt;.tar.gz<br/>newest 30)]
@@ -275,16 +275,19 @@ flowchart LR
   Q2[/query: years, return_pct,<br/>extra, target/] --> PR
   L --> RM[derive::room<br/>CRA figure + new-year limits<br/>− logged contributions<br/>+ plan to Dec 31]
   R --> RM
-  PR & RM --> PV[/GET /api/plan/]
-  PV --> UI1[Plan: fan chart, milestones,<br/>payoff curves, room bars, rules]
+  CRA[ledger::cra<br/>TFSA limits 2009–, FHSA $8k/yr,<br/>$8k carry, $40k lifetime] --> RM
+  RM & V0 --> RG[derive::registered<br/>per kind: value of every account,<br/>put in, growth, years of room]
+  PR & RG --> PV[/GET /api/plan/]
+  PV --> UI1[Plan: fan chart, milestones,<br/>registered accounts, payoff curves, rules]
   PV --> UI2[Wall view: next 12 months]
-  UI1 -- set_recurring · set_room ·<br/>record_contribution · set_projection --> A[/POST /api/apply/] --> L
+  UI1 -- set_recurring · set_room · setup_registered ·<br/>record_contribution · set_projection --> A[/POST /api/apply/] --> L
   L & Q & H -- daily, on demand, before restore --> B
   B -- worthwatch restore --> disk
 ```
 
 - **Projections never touch the ledger.** `derive::project` is pure and reads today's values; slider values travel as query parameters and are only written when "Save as my defaults" sends a `set_projection` mutation. The model is deliberately plain (nominal monthly compounding, rules as monthly equivalents, money freed by a paid-off debt is not redirected) so the tests can check it against the annuity and amortization formulas.
-- **Rules are plans, contributions are facts.** Recurring rules drive the projection and the "planned to Dec 31" part of a room bar; only logged `contributions` count as used room. CRA's own figure (`room.<kind>.amount` on `as_of`) is the anchor: TFSA adds each later January's limit plus last year's withdrawals, FHSA adds $8,000 a year, RRSP adds nothing and asks for the notice-of-assessment figure.
+- **Rules are plans, contributions are facts.** Recurring rules drive the projection and the "planned to Dec 31" part of a room bar; only logged `contributions` count as used room. CRA's own figure (`room.<kind>.amount` on `as_of`) is the anchor: TFSA adds each later January's limit plus last year's withdrawals, FHSA adds $8,000 plus last year's unused room (at most $8,000) and stops at $40,000 put in, RRSP adds nothing and asks for the notice-of-assessment figure.
+- **Two answers replace the CRA lookup.** `setup_registered { kind, since, standing, as_of }` runs `ledger::cra::resolve`: the start year and "maxed out", "put in $X" or "CRA room $X" become a `room` anchor on `as_of` and a `registered` entry (`since`, `put_in`). `derive::registered` adds every account of the kind for value, adds logged contributions after `as_of` to `put_in`, and lays out the years of room for the strip. The Plan screen gets CRA's limits in `PlanView.limits` only to preview an answer before it is saved.
 - **A backup is the whole folder that matters.** `ledger.yaml`, `quotes.json`, `holdings/` and (from Stage 7) `transactions/` in one `.tar.gz`; `backups/` itself is never included. Restore unpacks into a staging folder, checks every entry is a plain relative path under those names and that the ledger loads, and only then swaps the files in. The round-trip test restores a seeded backup onto a clean folder and compares the full `LedgerView` and `LookThroughView` JSON.
 
 ## Stage 7 data flow: budget, statements, Apple Pay feed

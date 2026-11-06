@@ -68,7 +68,7 @@ These rules hold everywhere in the code. When you change something, keep them tr
 | Crate | What it owns | Depends on |
 |---|---|---|
 | `crates/ledger` | Schema, YAML IO, validation, `Mutation` and `apply`. | nothing in the workspace |
-| `crates/derive` | Valuation, net worth series, portfolio, changes, projections, contribution room. | `ledger` |
+| `crates/derive` | Valuation, net worth series, portfolio, changes, projections, contribution room, registered accounts by type. | `ledger` |
 | `crates/holdings` | Holdings file parsing, sector and region names, look-through, overlap, drift. | nothing in the workspace |
 | `crates/providers` | Yahoo, Stooq, Bank of Canada and issuer fetchers behind traits; `quotes.json`; the holdings store. | `holdings` |
 | `crates/importers` | Pasted broker holdings into mutations. | `ledger` |

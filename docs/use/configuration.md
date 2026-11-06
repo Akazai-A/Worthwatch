@@ -99,8 +99,12 @@ settings:
     target: 1500000
     rates: { td-mortgage: 4.9 }   # interest rate per debt account
 
+registered:                # when TFSA and FHSA room started, and what you had put in on as_of
+  tfsa: { since: 2009, as_of: 2026-11-06, put_in: 109000 }   # the year you turned 18; 2009 at the earliest
+  fhsa: { since: 2024, as_of: 2026-11-06, put_in: 24000 }    # the year you opened your first FHSA
+
 room:                      # the figure CRA My Account or your notice of assessment shows
-  tfsa: { as_of: 2026-01-01, amount: 13500 }
+  tfsa: { as_of: 2026-11-06, amount: 0 }
   rrsp: { as_of: 2026-05-01, amount: 18400 }
 
 contributions:             # money you put in; negative is a withdrawal
@@ -109,7 +113,9 @@ contributions:             # money you put in; negative is a withdrawal
 
 - **Recurring rules are plans.** They drive the projection and the "planned" part of a room bar.
 - **Contributions are facts.** Only logged contributions count as used room.
-- **Room starts from CRA's figure.** TFSA adds each new January's limit plus last year's withdrawals. FHSA adds $8,000 a year. RRSP adds nothing, so update it from each notice of assessment.
+- **Room starts from CRA's figure, or from two answers.** On the Plan screen, **Registered accounts** asks when your TFSA or FHSA room started and where you stand today: maxed out, how much you put in, or the room CRA shows. Worthwatch works out the rest from CRA's limit table and writes both `registered` and `room` for you.
+- **Room grows each January.** TFSA adds the new year's limit plus last year's withdrawals. FHSA adds $8,000 plus last year's unused room (at most $8,000), and stops at $40,000 put in. RRSP adds nothing, so update it from each notice of assessment.
+- **Every account of a kind shares one room.** Eight TFSAs count against one TFSA limit, and the Plan screen adds up their value.
 
 ## Account kinds
 
