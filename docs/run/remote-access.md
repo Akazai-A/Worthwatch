@@ -31,11 +31,19 @@ Worthwatch also refuses requests addressed to any name it doesn't know, and requ
 
 2. Tell Worthwatch your Tailscale login, so it shows you the dashboard. Without it, Worthwatch answers only the Apple Pay feed over Tailscale.
 
-   ```sh
-   WORTHWATCH_TAILSCALE_OWNER=you@example.com ./deploy/container/run.sh
-   ```
+   - **Native on a Mac:**
 
-   Find your login with `tailscale status --json` (look for `LoginName`). For the native binary, add the variable to the LaunchAgent; see [Run Worthwatch on a Mac](macos.md).
+     ```sh
+     WORTHWATCH_TAILSCALE_OWNER=you@example.com ./deploy/macos/install.sh --no-build
+     ```
+
+   - **Container:**
+
+     ```sh
+     WORTHWATCH_TAILSCALE_OWNER=you@example.com ./deploy/container/run.sh
+     ```
+
+   Find your login with `tailscale status --json` (look for `LoginName`).
 
 3. On the computer, share Worthwatch with your tailnet:
 

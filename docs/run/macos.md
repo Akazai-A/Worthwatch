@@ -17,7 +17,7 @@ This page shows you how to run Worthwatch natively on a Mac, so it starts at log
 
 - macOS 14 Sonoma or later.
 - Rust, installed with [rustup](https://rustup.rs).
-- Node.js 22 or later. The install script turns on pnpm for you.
+- Node.js 22 or later. The install script turns on pnpm for you. If you install as a standard (not administrator) user, run `sudo corepack enable pnpm` from an administrator account first.
 - A copy of the repository:
 
   ```sh
@@ -40,7 +40,7 @@ The script does the following:
 3. Adds a LaunchAgent at `~/Library/LaunchAgents/com.worthwatch.server.plist`.
 4. Starts Worthwatch and opens <http://127.0.0.1:7777> once it answers.
 
-Worthwatch runs as you, not as root. Files it writes are readable by you only. It starts each time you log in. To have it running after a power cut, turn on automatic login in **System Settings › Users & Groups**, and **Start up automatically after a power failure** in **System Settings › Energy**.
+Worthwatch runs as you, not as root. Files it writes are readable by you only. It starts each time you log in.
 
 To listen on another address, set `WORTHWATCH_BIND` when you install:
 
@@ -48,7 +48,40 @@ To listen on another address, set `WORTHWATCH_BIND` when you install:
 WORTHWATCH_BIND=127.0.0.1:7780 ./deploy/macos/install.sh
 ```
 
-To reach Worthwatch from your phone, use Tailscale. See [Access Worthwatch remotely](remote-access.md).
+The script keeps `WORTHWATCH_BIND` and `WORTHWATCH_TAILSCALE_OWNER` from the last install when you don't set them, so an upgrade keeps your settings. To clear one, set it to empty.
+
+## Open the dashboard over Tailscale
+
+Over Tailscale, Worthwatch answers only the Apple Pay feed until you name your Tailscale login.
+
+1. [Install Tailscale](https://tailscale.com/download/mac) and sign in. Find your login with `tailscale status --json` (look for `LoginName`).
+2. Install again with your login:
+
+   ```sh
+   WORTHWATCH_TAILSCALE_OWNER=you@example.com ./deploy/macos/install.sh --no-build
+   ```
+
+3. Share Worthwatch with your tailnet:
+
+   ```sh
+   tailscale serve --bg 7777
+   ```
+
+4. On your phone, open the `https://….ts.net` address the command prints.
+
+With the standalone Tailscale app, the command line is `/Applications/Tailscale.app/Contents/MacOS/Tailscale`. Add `alias tailscale=/Applications/Tailscale.app/Contents/MacOS/Tailscale` to `~/.zshrc`. For more, see [Access Worthwatch remotely](remote-access.md).
+
+## Keep it running on a Mac mini
+
+For a Mac that stays on as a server:
+
+1. In **System Settings › Energy**, turn on **Prevent automatic sleeping when the display is off** and **Start up automatically after a power failure**.
+2. Lock the screen with <kbd>Control</kbd> <kbd>Command</kbd> <kbd>Q</kbd> instead of logging out. The LaunchAgent runs only while you're logged in.
+3. Decide how the Mac comes back after a power cut:
+   - **FileVault on (recommended):** macOS turns off automatic login, so the Mac waits at its unlock screen. Unlock it with a keyboard, and Worthwatch starts. For a planned restart, run `sudo fdesetup authrestart` from an administrator account; the Mac unlocks once without asking.
+   - **FileVault off:** turn on automatic login in **System Settings › Users & Groups**. The Mac comes back by itself, but anyone who takes it can read your data.
+
+For a mini used only as a server, with no Apple ID and Worthwatch under a standard user, see [Keep Worthwatch secure](security.md#set-up-a-mac-mini-as-a-worthwatch-server).
 
 ## Use the Tailscale feed, not Full Disk Access
 
@@ -110,5 +143,6 @@ This stops Worthwatch and removes the binary and the LaunchAgent. Your data in `
 |---|---|
 | The script says Rust or Node.js is missing. | Install it from the link in the message, open a new Terminal window, and run the script again. |
 | The script says the server didn't answer. | Read `~/Library/Logs/Worthwatch/worthwatch.log`. *Address already in use* means something else is on port 7777: stop it, or install with another `WORTHWATCH_BIND`. |
-| Worthwatch stops after you log out. | A LaunchAgent runs only while you're logged in. Turn on automatic login, and lock the screen instead of logging out. |
+| Worthwatch stops after you log out. | A LaunchAgent runs only while you're logged in. Lock the screen instead of logging out. See [Keep it running on a Mac mini](#keep-it-running-on-a-mac-mini). |
+| Your phone gets only the Apple Pay feed over Tailscale. | Install with `WORTHWATCH_TAILSCALE_OWNER` set to your login. See [Open the dashboard over Tailscale](#open-the-dashboard-over-tailscale). |
 | **Make Shortcut** fails. | Open the Shortcuts app on the Mac once and sign in to iCloud in it, then try again. |

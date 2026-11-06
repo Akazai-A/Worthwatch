@@ -4,6 +4,12 @@
 #   ./deploy/macos/install.sh            # build, install, start
 #   ./deploy/macos/install.sh --no-build # reinstall the binary already in target/release
 #
+#   WORTHWATCH_TAILSCALE_OWNER=you@example.com ./deploy/macos/install.sh --no-build
+#                                        # let your Tailscale login open the dashboard
+#
+# WORTHWATCH_BIND and WORTHWATCH_TAILSCALE_OWNER are kept from the installed LaunchAgent
+# when you don't set them, so an upgrade keeps your settings. Set one to empty to clear it.
+#
 # Your data lives in ~/Library/Application Support/Worthwatch, logs in
 # ~/Library/Logs/Worthwatch. Re-run this script after `git pull` to upgrade.
 set -euo pipefail
@@ -14,7 +20,12 @@ BIN="$HOME/.local/bin/worthwatch"
 DATA="$HOME/Library/Application Support/Worthwatch"
 LOGS="$HOME/Library/Logs/Worthwatch"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
-BIND="${WORTHWATCH_BIND:-127.0.0.1:7777}"
+
+# The value installed last time, so a plain upgrade keeps it.
+installed() { [[ -f "$PLIST" ]] && /usr/libexec/PlistBuddy -c "Print :EnvironmentVariables:$1" "$PLIST" 2>/dev/null || true; }
+BIND="${WORTHWATCH_BIND-$(installed WORTHWATCH_BIND)}"
+BIND="${BIND:-127.0.0.1:7777}"
+OWNER="${WORTHWATCH_TAILSCALE_OWNER-$(installed WORTHWATCH_TAILSCALE_OWNER)}"
 BUILD=1
 [[ "${1:-}" == "--no-build" ]] && BUILD=0
 
@@ -46,6 +57,10 @@ launchctl bootout "gui/$UID/$LABEL" 2>/dev/null || true
 install -m 0755 "$REPO/target/release/worthwatch" "$BIN"
 
 sed -e "s|__HOME__|$HOME|g" -e "s|__BIND__|$BIND|g" "$REPO/deploy/macos/$LABEL.plist" > "$PLIST"
+if [[ -n "$OWNER" ]]; then
+  plutil -insert EnvironmentVariables.WORTHWATCH_TAILSCALE_OWNER -string "$OWNER" "$PLIST"
+  say "Your Tailscale login ($OWNER) can open the dashboard through tailscale serve"
+fi
 plutil -lint "$PLIST" >/dev/null
 
 say "Starting $LABEL"

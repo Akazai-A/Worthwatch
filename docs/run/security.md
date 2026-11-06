@@ -67,6 +67,8 @@ Get the code, then start it. Both scripts publish the port on `127.0.0.1` only a
 
   Turn on **Start Docker Desktop when you sign in**. The container restarts by itself.
 
+- Without a container, log in as the standard user and run `./deploy/macos/install.sh`. Worthwatch then runs as that user under launchd. A bug in it reaches that user's files, but not the administrator's or the system. See [Run Worthwatch on a Mac](macos.md).
+
 Open `http://127.0.0.1:7777` on the mini to check that it runs. After a `git pull`, run `./deploy/container/run.sh --rebuild`.
 
 ### Send Apple Pay taps over Tailscale
@@ -90,7 +92,7 @@ Over Tailscale, Worthwatch answers only the tap endpoint until you tell it who y
    WORTHWATCH_TAILSCALE_OWNER=you@example.com ./deploy/macos/install-container.sh
    ```
 
-   With Docker, use `./deploy/container/run.sh` the same way.
+   With Docker, use `./deploy/container/run.sh` the same way. Without a container, use `./deploy/macos/install.sh --no-build`.
 3. Share the whole app with your tailnet:
 
    ```sh
@@ -170,7 +172,7 @@ No setup makes risk zero. Here is what remains, so you can decide.
 - **The container tool is part of the wall.** Apple's container tool is new, and Docker Desktop shares one VM between containers. Both depend on Apple's virtualization being sound.
 - **Some features send data out, when you ask.** Cloud chat sends your figures to Anthropic after you approve the preview. An AI assistant connected through [MCP](mcp.md) sends what it reads to that assistant's provider.
 - **Backups aren't encrypted.** A backup file holds your whole ledger. Keep copies in an encrypted place, such as an encrypted disk image.
-- **The native install runs as you.** `deploy/macos/install.sh` runs Worthwatch as your user, without a container. Use it only on a Mac that holds nothing else you care about, and never give it Full Disk Access.
+- **The native install runs as you.** `deploy/macos/install.sh` runs Worthwatch as the user who installs it, without a container. Install it as a standard user on a Mac that holds nothing else you care about, and never give it Full Disk Access.
 
 ## Settings that change what's allowed
 
