@@ -309,8 +309,9 @@ mod tests {
         let apple = lt.companies.iter().find(|c| c.key == "AAPL").unwrap();
         assert!(apple.via.len() >= 3, "Apple reached via VFV, VTI and XEQT→XUS/ITOT: {:?}", apple.via);
         let o = holdings::overlap(&hs, &snaps, 3, 5);
-        for i in 0..o.symbols.len() {
-            assert_eq!(o.cells[i][i].as_ref().unwrap().pct, Decimal::new(1000, 1));
+        assert_eq!(o.cells.len(), o.symbols.len());
+        for (i, row) in o.cells.iter().enumerate() {
+            assert_eq!(row[i].as_ref().unwrap().pct, Decimal::new(1000, 1));
         }
     }
 }
